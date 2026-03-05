@@ -1,0 +1,81 @@
+/* Global Styles */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* Container Fluid */
+.container-fluid {
+    padding: 0;
+}
+
+
+/* Left Half Styles */
+.left-half {
+    background-image: url('/assets/images/Lamp_img.jpg'); /* Direct path without PHP */
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    background-repeat: no-repeat;
+}
+
+
+
+/* Login Card */
+.card {
+    border: none;
+    border-radius: 8px;
+    background-color: #ffffff;
+}
+
+.card .fw-bold {
+    color: #28a745;
+    font-size: 1.5rem;
+    text-transform: uppercase;
+}
+
+/* Input Fields */
+.form-control {
+    border-radius: 6px;
+    font-size: 1rem;
+    padding: 10px 15px;
+}
+
+.form-control:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 6px rgba(40, 167, 69, 0.4);
+}
+
+/* Submit Button */
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+    font-size: 1.1rem;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    box-shadow: 0 0 10px rgba(33, 136, 56, 0.6);
+}
+
+/* Forgot Password Link */
+.text-muted {
+    font-size: 0.9rem;
+}
+
+.text-muted:hover {
+    text-decoration: underline;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .left-half {
+        display: none;
+    }
+
+    .card {
+        margin: 20px;
+    }
+}

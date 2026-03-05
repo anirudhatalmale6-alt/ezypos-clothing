@@ -1,0 +1,32 @@
+{
+  "name": "my-tooltip",
+  "version": "1.3.1",
+  "description": "jquery tooltip in browser",
+  "main": "./src/myTooltip.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/M-Ulyanov/myTooltip.git"
+  },
+  "keywords": [
+    "tooltip",
+    "jquery-plugin",
+    "powertip",
+    "jquery tooltip",
+    "tooltips",
+    "browser",
+    "jquery ui",
+    "ui tooltip"
+  ],
+  "author": "M.Ulyanov",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/M-Ulyanov/myTooltip/issues"
+  },
+  "homepage": "https://github.com/M-Ulyanov/myTooltip#readme",
+  "dependencies": {
+    "jquery": ">=1.11.3"
+  }
+}
