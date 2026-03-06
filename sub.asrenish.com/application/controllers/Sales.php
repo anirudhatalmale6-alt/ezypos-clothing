@@ -160,13 +160,12 @@ class Sales extends CI_Controller {
         ));
     }
 
-    public function saveSalePaymentMethod() {
+    public function saveSalePayments() {
         $sale_id = $this->input->post('sale_id');
-        $pm_id = $this->input->post('pm_id');
-        $amount = $this->input->post('amount');
-        $commission = $this->Sales_model->calculateCommission($pm_id, $amount);
-        $result = $this->Sales_model->updateSalePaymentMethod($sale_id, $pm_id, $commission);
-        echo json_encode(array('result' => $result, 'commission' => $commission));
+        $payments = $this->input->post('payments'); // array of {pm_id, amount}
+        if (!$payments) $payments = array();
+        $total_commission = $this->Sales_model->saveSalePayments($sale_id, $payments);
+        echo json_encode(array('result' => true, 'total_commission' => $total_commission));
     }
 
     // Payment Methods Master Page

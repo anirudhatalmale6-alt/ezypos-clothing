@@ -221,19 +221,46 @@ class Sales_model extends CI_Model {
         return $this->db->delete('ezy_pos_payment_methods');
     }
 
-    public function updateSalePaymentMethod($sale_id, $pm_id, $commission) {
-        $this->db->where('sale_id', $sale_id);
-        return $this->db->update('ezy_pos_sale', array(
-            'sale_payment_method' => $pm_id,
-            'sale_commission' => $commission
-        ));
-    }
-
     public function calculateCommission($pm_id, $amount) {
         $method = $this->getPaymentMethodById($pm_id);
         if (!$method) return 0;
         $commission = ($amount * $method->pm_commission_pct / 100) + $method->pm_commission_fixed;
         return round($commission, 2);
+    }
+
+    // Save individual payment method amounts for a sale
+    public function saveSalePayments($sale_id, $payments) {
+        // payments is array of {pm_id, amount}
+        $total_commission = 0;
+        foreach ($payments as $p) {
+            $pm_id = $p['pm_id'];
+            $amount = floatval($p['amount']);
+            if ($amount <= 0) continue;
+            $commission = $this->calculateCommission($pm_id, $amount);
+            $total_commission += $commission;
+            $this->db->insert('ezy_pos_sale_payments', array(
+                'sp_sale_id' => $sale_id,
+                'sp_pm_id' => $pm_id,
+                'sp_amount' => $amount,
+                'sp_commission' => $commission
+            ));
+        }
+        // Update total commission on sale
+        if ($total_commission > 0) {
+            $this->db->where('sale_id', $sale_id);
+            $this->db->update('ezy_pos_sale', array('sale_commission' => $total_commission));
+        }
+        return $total_commission;
+    }
+
+    // Get payment breakdown for a sale
+    public function getSalePayments($sale_id) {
+        $str = "SELECT sp.*, pm.pm_name, pm.pm_commission_pct, pm.pm_commission_fixed
+                FROM ezy_pos_sale_payments sp
+                LEFT JOIN ezy_pos_payment_methods pm ON sp.sp_pm_id = pm.pm_id
+                WHERE sp.sp_sale_id = ?
+                ORDER BY sp.sp_id";
+        return $this->db->query($str, array($sale_id))->result();
     }
 }
 

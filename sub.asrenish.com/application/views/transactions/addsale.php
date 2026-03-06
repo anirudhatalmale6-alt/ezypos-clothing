@@ -63,42 +63,23 @@
                                     <label class="col-form-label">LKR</label>              
                                     <label class="col-form-label" style="margin-left: 5px;" id="grandtotalLbl">0.00</label>                                     
                                 </div>
-                                <div class="form-group row">
-                                    <label class="col-4 col-form-label">Payment:</label>
-                                    <div class="col-8">
-                                        <select class="form-control" name="payment_method" id="payment_method">
-                                            <option value="">-- Select --</option>
-                                            <?php if(isset($paymentMethods)){ foreach($paymentMethods as $pm){ ?>
-                                            <option value="<?php echo $pm->pm_id; ?>"
-                                                data-pct="<?php echo $pm->pm_commission_pct; ?>"
-                                                data-fixed="<?php echo $pm->pm_commission_fixed; ?>">
-                                                <?php echo $pm->pm_name;
-                                                if($pm->pm_commission_pct > 0 || $pm->pm_commission_fixed > 0){
-                                                    echo ' (';
-                                                    if($pm->pm_commission_pct > 0) echo $pm->pm_commission_pct.'%';
-                                                    if($pm->pm_commission_pct > 0 && $pm->pm_commission_fixed > 0) echo ' + ';
-                                                    if($pm->pm_commission_fixed > 0) echo 'LKR '.$pm->pm_commission_fixed;
-                                                    echo ')';
-                                                }
-                                                ?>
-                                            </option>
-                                            <?php }} ?>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-group row" id="commissionRow" style="display:none;">
-                                    <label class="col-7 col-form-label text-warning"><i class="fa fa-exclamation-triangle"></i> Commission:</label>
-                                    <label class="col-form-label">LKR</label>
-                                    <label class="col-form-label text-warning" style="margin-left: 5px;" id="commissionValue">0.00</label>
-                                </div>
                                 <hr>
                                 <div class="form-group row">
                                     <label for="cashvalue" class="col-4 col-form-label">Cash:</label>
                                     <div class="">
-                                        <input class="form-control DecimalFix staticValication" type="text" placeholder="Enter Cash Value 0.00" 
+                                        <input class="form-control DecimalFix staticValication" type="text" placeholder="Enter Cash Value 0.00"
                                         name="cashvalue" id="cashvalue" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$">
                                     </div>
                                 </div>
+                                <?php if(isset($paymentMethods) && count($paymentMethods) > 0){ foreach($paymentMethods as $pm){ ?>
+                                <div class="form-group row">
+                                    <label class="col-4 col-form-label"><?php echo $pm->pm_name; ?>:</label>
+                                    <div class="">
+                                        <input class="form-control DecimalFix pm-amount-input" type="text" placeholder="0.00"
+                                        data-pmid="<?php echo $pm->pm_id; ?>" data-parsley-pattern="^[0-9]*\.?[0-9]*$">
+                                    </div>
+                                </div>
+                                <?php }} ?>
                                 <div class="form-group row">
                                     <label for="creditvalue" class="col-7 col-form-label">Credit Limit:</label>
                                     <label class="col-form-label">LKR</label    > 
@@ -652,13 +633,19 @@ var chequeHTML ='<div id="chequeDIV">'+
                         success: function (saleID) {
                             sale_ID=saleID ;
                         console.log(" saleid:"+saleID+" cusid:"+cusID);
-                        // Save payment method if selected
-                        var pmId = $('#payment_method').val();
-                        if(pmId && pmId != '' && saleID > 0){
+                        // Save third-party payment method amounts
+                        var pmPayments = [];
+                        $('.pm-amount-input').each(function(){
+                            var amt = parseFloat($(this).val());
+                            if(!isNaN(amt) && amt > 0){
+                                pmPayments.push({pm_id: $(this).data('pmid'), amount: amt});
+                            }
+                        });
+                        if(pmPayments.length > 0 && saleID > 0){
                             $.ajax({
                                 type: "Post",
-                                url:"<?php echo base_url('Sales/saveSalePaymentMethod'); ?>",
-                                data: {sale_id: saleID, pm_id: pmId, amount: grandtotal},
+                                url:"<?php echo base_url('Sales/saveSalePayments'); ?>",
+                                data: {sale_id: saleID, payments: pmPayments},
                                 async: false,
                                 dataType: "json"
                             });
@@ -1093,17 +1080,22 @@ var chequeHTML ='<div id="chequeDIV">'+
       
     });
     
-    //Payment calculate credit & display according to only cash
+    //Payment calculate credit & display according to only cash + third-party methods
     function calCreditWithOutChq(){
         var cashvalue=parseFloat($("#cashvalue").val());
         if(isNaN(cashvalue)||cashvalue=='') {
         cashvalue = 0;
         }
-        var creditvalue=(grandtotal-cashvalue).toFixed(2);
+        var totalPmPayments = 0;
+        $('.pm-amount-input').each(function(){
+            var v = parseFloat($(this).val());
+            if(!isNaN(v) && v > 0) totalPmPayments += v;
+        });
+        var creditvalue=(grandtotal-cashvalue-totalPmPayments).toFixed(2);
         $("#creditvalue").html(creditvalue);
     }
 
-    //Payment calculate credit & display according to cheq & cash
+    //Payment calculate credit & display according to cheq, cash & third-party methods
     function calculateCredit(){
         var cashvalue=parseFloat($("#cashvalue").val());
         if(isNaN(cashvalue)||cashvalue=='') {
@@ -1118,8 +1110,14 @@ var chequeHTML ='<div id="chequeDIV">'+
                     totalcheq+=v;
                     totalcheq.toFixed(2);
                 }).get();
-        var creditvalue=(grandtotal-cashvalue-totalcheq).toFixed(2);
-      
+        // Sum third-party payment method amounts
+        var totalPmPayments = 0;
+        $('.pm-amount-input').each(function(){
+            var v = parseFloat($(this).val());
+            if(!isNaN(v) && v > 0) totalPmPayments += v;
+        });
+        var creditvalue=(grandtotal-cashvalue-totalcheq-totalPmPayments).toFixed(2);
+
         $("#creditvalue").html(creditvalue);
         validate_user_credits();
     }
@@ -1131,7 +1129,7 @@ var chequeHTML ='<div id="chequeDIV">'+
 
     //Payments : ajust the credit accourding to cheque,Static
     $(".staticChqAmount").keyup(function(){
-        calculateCredit();   
+        calculateCredit();
     });
 
      //Payments : ajust the credit accourding to cheque,dynamic
@@ -1139,22 +1137,10 @@ var chequeHTML ='<div id="chequeDIV">'+
         calculateCredit();
     });
 
-  // Payment method commission calculation
-  $('#payment_method').change(function(){
-      var selected = $(this).find(':selected');
-      var pct = parseFloat(selected.data('pct')) || 0;
-      var fixed = parseFloat(selected.data('fixed')) || 0;
-      var grandtotal = parseFloat($('#grandtotalLbl').text()) || 0;
-
-      if(pct > 0 || fixed > 0){
-          var commission = (grandtotal * pct / 100) + fixed;
-          $('#commissionValue').text(commission.toFixed(2));
-          $('#commissionRow').show();
-      } else {
-          $('#commissionRow').hide();
-          $('#commissionValue').text('0.00');
-      }
-  });
+    // Adjust credit when third-party payment method amounts change
+    $(".pm-amount-input").keyup(function(){
+        calculateCredit();
+    });
 
   });
   </script>
