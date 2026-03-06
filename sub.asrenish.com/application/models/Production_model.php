@@ -9,7 +9,7 @@ class Production_model extends CI_Model {
     public function getNextProductionCode() {
         $this->db->select_max('prod_id');
         $result = $this->db->get('ezy_pos_production')->row();
-        $next = ($result->prod_id ?? 0) + 1;
+        $next = (isset($result->prod_id) ? $result->prod_id : 0) + 1;
         return 'PROD-' . str_pad($next, 5, '0', STR_PAD_LEFT);
     }
 
@@ -68,21 +68,21 @@ class Production_model extends CI_Model {
         $this->db->select_sum('prodmat_total');
         $this->db->where('prodmat_prod_id', $prod_id);
         $mat = $this->db->get('ezy_pos_production_materials')->row();
-        $material_cost = $mat->prodmat_total ?? 0;
+        $material_cost = isset($mat->prodmat_total) ? $mat->prodmat_total : 0;
 
         // Sum tailoring costs
         $this->db->select_sum('prodcost_amount');
         $this->db->where('prodcost_prod_id', $prod_id);
         $this->db->where('prodcost_type', 'tailoring');
         $tail = $this->db->get('ezy_pos_production_costs')->row();
-        $tailoring_cost = $tail->prodcost_amount ?? 0;
+        $tailoring_cost = isset($tail->prodcost_amount) ? $tail->prodcost_amount : 0;
 
         // Sum other costs
         $this->db->select_sum('prodcost_amount');
         $this->db->where('prodcost_prod_id', $prod_id);
         $this->db->where('prodcost_type', 'other');
         $other = $this->db->get('ezy_pos_production_costs')->row();
-        $other_cost = $other->prodcost_amount ?? 0;
+        $other_cost = isset($other->prodcost_amount) ? $other->prodcost_amount : 0;
 
         $total_cost = $material_cost + $tailoring_cost + $other_cost;
 
