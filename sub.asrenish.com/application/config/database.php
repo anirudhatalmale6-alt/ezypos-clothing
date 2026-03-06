@@ -75,10 +75,10 @@ $query_builder = TRUE;
 
 $db['default'] = array(
 	'dsn'	=> '',
-	'hostname' => '/tmp/mysql-ebankstatement/run/mysqld.sock',
-    'username' => 'root',
-	'password' => '',
-	'database' => 'ezypos',
+	'hostname' => 'localhost',
+	'username' => 'your_db_username',
+	'password' => 'your_db_password',
+	'database' => 'your_db_name',
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',
 	'pconnect' => FALSE,
