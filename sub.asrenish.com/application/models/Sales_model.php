@@ -175,7 +175,65 @@ class Sales_model extends CI_Model {
         $query = $this->db->get();
         return $query->row()->sale_grandtotal ;  // Return the total sales, or 0 if none
     }
-    
 
+    // ===================== PAYMENT METHODS =====================
+
+    public function getAllPaymentMethods() {
+        $this->db->order_by('pm_id');
+        return $this->db->get('ezy_pos_payment_methods')->result();
+    }
+
+    public function getActivePaymentMethods() {
+        $this->db->where('pm_status', 1);
+        $this->db->order_by('pm_name');
+        return $this->db->get('ezy_pos_payment_methods')->result();
+    }
+
+    public function getPaymentMethodById($id) {
+        $this->db->where('pm_id', $id);
+        return $this->db->get('ezy_pos_payment_methods')->row();
+    }
+
+    public function addPaymentMethod() {
+        $data = array(
+            'pm_name' => $this->input->post('name'),
+            'pm_commission_pct' => $this->input->post('commission_pct'),
+            'pm_commission_fixed' => $this->input->post('commission_fixed')
+        );
+        $this->db->insert('ezy_pos_payment_methods', $data);
+        return $this->db->insert_id();
+    }
+
+    public function updatePaymentMethod() {
+        $id = $this->input->post('id');
+        $data = array(
+            'pm_name' => $this->input->post('name'),
+            'pm_commission_pct' => $this->input->post('commission_pct'),
+            'pm_commission_fixed' => $this->input->post('commission_fixed'),
+            'pm_status' => $this->input->post('status')
+        );
+        $this->db->where('pm_id', $id);
+        return $this->db->update('ezy_pos_payment_methods', $data);
+    }
+
+    public function deletePaymentMethod($id) {
+        $this->db->where('pm_id', $id);
+        return $this->db->delete('ezy_pos_payment_methods');
+    }
+
+    public function updateSalePaymentMethod($sale_id, $pm_id, $commission) {
+        $this->db->where('sale_id', $sale_id);
+        return $this->db->update('ezy_pos_sale', array(
+            'sale_payment_method' => $pm_id,
+            'sale_commission' => $commission
+        ));
+    }
+
+    public function calculateCommission($pm_id, $amount) {
+        $method = $this->getPaymentMethodById($pm_id);
+        if (!$method) return 0;
+        $commission = ($amount * $method->pm_commission_pct / 100) + $method->pm_commission_fixed;
+        return round($commission, 2);
+    }
 }
 

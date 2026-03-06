@@ -692,6 +692,34 @@ INSERT INTO `ezy_pos_items` VALUES (1,'FAB-COT-001','White Cotton Fabric',1,1,'T
 UNLOCK TABLES;
 
 --
+-- Table structure for table `ezy_pos_payment_methods`
+--
+
+DROP TABLE IF EXISTS `ezy_pos_payment_methods`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ezy_pos_payment_methods` (
+  `pm_id` int NOT NULL AUTO_INCREMENT,
+  `pm_name` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
+  `pm_commission_pct` double(5,2) NOT NULL DEFAULT '0.00',
+  `pm_commission_fixed` double(10,2) NOT NULL DEFAULT '0.00',
+  `pm_status` tinyint NOT NULL DEFAULT '1',
+  `pm_createdat` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`pm_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `ezy_pos_payment_methods`
+--
+
+LOCK TABLES `ezy_pos_payment_methods` WRITE;
+/*!40000 ALTER TABLE `ezy_pos_payment_methods` DISABLE KEYS */;
+INSERT INTO `ezy_pos_payment_methods` VALUES (1,'Cash',0.00,0.00,1,'2026-03-06 13:17:45'),(2,'Credit',0.00,0.00,1,'2026-03-06 13:17:45'),(3,'Cheque',0.00,0.00,1,'2026-03-06 13:17:45');
+/*!40000 ALTER TABLE `ezy_pos_payment_methods` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `ezy_pos_privileges`
 --
 
@@ -859,6 +887,8 @@ CREATE TABLE `ezy_pos_sale` (
   `sale_location` int NOT NULL,
   `sale_status` tinyint NOT NULL DEFAULT '1',
   `sale_createdat` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `sale_payment_method` int DEFAULT NULL,
+  `sale_commission` double(10,2) DEFAULT '0.00',
   PRIMARY KEY (`sale_id`),
   KEY `idx_sale_cus_id` (`sale_cus_id`),
   KEY `idx_sale_date` (`sale_date`),
@@ -1398,7 +1428,7 @@ CREATE TABLE `ezy_pos_users` (
 
 LOCK TABLES `ezy_pos_users` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_users` DISABLE KEYS */;
-INSERT INTO `ezy_pos_users` VALUES (138,'admin','System Admin','26a91342190d515231d7238b0c5438e1',1,1);
+INSERT INTO `ezy_pos_users` VALUES (138,'admin','System Admin','0192023a7bbd73250516f069df18b500',1,1);
 /*!40000 ALTER TABLE `ezy_pos_users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1444,4 +1474,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-06 13:07:02
+-- Dump completed on 2026-03-06 13:22:50

@@ -235,7 +235,8 @@
                                     <li><a href="<?php echo base_url('add-staff')?>">Staff</a></li>
                                     <?php }} if(isset($_SESSION['priv_bank'])){if($_SESSION['priv_bank'] == 1){  ?>
                                     <li><a href="<?php echo base_url('add-bankacc')?>">Bank Account</a></li>
-                                    <?php  }}?>                                                              
+                                    <?php  }}?>
+                                    <li><a href="<?php echo base_url('payment-methods')?>"><i class="fa fa-credit-card"></i> Payment Methods</a></li>
                                 </ul>
                             </li>
                             <?php }} ?>

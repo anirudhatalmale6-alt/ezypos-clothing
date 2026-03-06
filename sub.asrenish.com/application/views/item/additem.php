@@ -140,6 +140,7 @@
                                     <th>Reorder level</th>
                                     <th>UOM</th>
                                     <th>Warehouse</th>
+                                    <th>Barcode</th>
                                     <th>Actions</th>
                                 </tr>
                                 </thead>
@@ -311,6 +312,49 @@
                     </div>
                 </div>
                 <!--end of moreinfoModel-->
+                <!-- Barcode Modal -->
+                <div class="modal" id="barcodeModal" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-lg" role="document">
+                        <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="fa fa-barcode"></i> Barcode Generator</h5>
+                            <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label>Barcode Type</label>
+                                    <select id="barcodeFormat" class="form-control">
+                                        <option value="CODE128" selected>CODE 128</option>
+                                        <option value="CODE39">CODE 39</option>
+                                        <option value="EAN13">EAN-13</option>
+                                        <option value="UPC">UPC</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label>Number of Labels</label>
+                                    <input type="number" id="barcodeCopies" class="form-control" value="1" min="1" max="100">
+                                </div>
+                                <div class="col-md-4">
+                                    <label>Show Price</label>
+                                    <select id="barcodeShowPrice" class="form-control">
+                                        <option value="1" selected>Yes</option>
+                                        <option value="0">No</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="barcodePreview" class="text-center p-3 border rounded" style="background:#fff;">
+                                <!-- Barcode preview renders here -->
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <button type="button" id="printBarcodeBtn" class="btn btn-primary"><i class="fa fa-print"></i> Print Barcodes</button>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+                <!--end of barcodeModal-->
                 <!-- Modal for Bulk Assign -->
                 <div class="modal" id="bulkAssignModal" tabindex="-1" role="dialog" aria-labelledby="bulkAssignModalLabel" aria-hidden="true">
                     <div class="modal-dialog" role="document" style="max-width: 1200px; width: 100%;"> <!-- Ensure the width stays fixed -->
@@ -537,7 +581,8 @@
                             '<td>' + data[i].itm_sellingprice + '</td>' +
                             '<td>' + data[i].itm_reorderlevel + '</td>' +
                             '<td style="width:30px";>' + data[i].itm_uom + '</td>' +
-                            '<td>' + warehouse + '</td>' + // Add warehouse name to the table
+                            '<td>' + warehouse + '</td>' +
+                            '<td><a href="javascript:;" class="btn btn-sm btn-warning cls-barcode" data-code="' + data[i].itm_code + '" data-name="' + data[i].itm_name + '" data-price="' + data[i].itm_sellingprice + '"><i class="fa fa-barcode"></i></a></td>' +
                             '<td style="width:115px";>' +
                             '<a href="javascript:;" style="margin-right:10px;" class="btn btn-sm btn-success cls-info" data="' + data[i].itm_id + '"><i class="fa fa-info-circle"></i></a>' +
                             '<a href="javascript:;" style="margin-right:10px;" class="btn btn-sm btn-info cls-edit" data="' + data[i].itm_id + '"><i class="fa fa-edit"></i></a>' +
@@ -1074,5 +1119,95 @@ function loadItems() {
 // Initial loading of items
 loadItems();
 
+</script>
+<script src="<?php echo base_url().'assets/js/JsBarcode.all.min.js'?>"></script>
+<script>
+// Barcode generation
+var currentBarcodeData = {};
+
+$('#tbodyID').on('click', '.cls-barcode', function(){
+    currentBarcodeData = {
+        code: $(this).data('code'),
+        name: $(this).data('name'),
+        price: $(this).data('price')
+    };
+    $('#barcodeModal').modal('show');
+    generateBarcodePreview();
+});
+
+$('#barcodeFormat, #barcodeCopies, #barcodeShowPrice').on('change', function(){
+    generateBarcodePreview();
+});
+
+function generateBarcodePreview(){
+    var format = $('#barcodeFormat').val();
+    var copies = parseInt($('#barcodeCopies').val()) || 1;
+    var showPrice = $('#barcodeShowPrice').val() == '1';
+    var code = currentBarcodeData.code;
+    var name = currentBarcodeData.name;
+    var price = currentBarcodeData.price;
+
+    var html = '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;">';
+    for(var i = 0; i < Math.min(copies, 20); i++){
+        html += '<div class="barcode-label" style="border:1px dashed #ccc;padding:8px;text-align:center;width:220px;">';
+        html += '<div style="font-size:11px;font-weight:bold;margin-bottom:2px;">' + name + '</div>';
+        html += '<svg class="barcode-svg"></svg>';
+        if(showPrice){
+            html += '<div style="font-size:12px;font-weight:bold;margin-top:2px;">LKR ' + parseFloat(price).toFixed(2) + '</div>';
+        }
+        html += '</div>';
+    }
+    if(copies > 20){
+        html += '<div class="text-muted mt-2">Showing 20 of ' + copies + ' labels (all will print)</div>';
+    }
+    html += '</div>';
+    $('#barcodePreview').html(html);
+
+    // Generate barcodes
+    try {
+        JsBarcode('.barcode-svg', code, {
+            format: format,
+            width: 1.5,
+            height: 40,
+            fontSize: 12,
+            margin: 2,
+            displayValue: true
+        });
+    } catch(e) {
+        $('#barcodePreview').html('<div class="alert alert-danger">Invalid barcode format for this item code. Try CODE 128 or CODE 39.</div>');
+    }
+}
+
+$('#printBarcodeBtn').on('click', function(){
+    var format = $('#barcodeFormat').val();
+    var copies = parseInt($('#barcodeCopies').val()) || 1;
+    var showPrice = $('#barcodeShowPrice').val() == '1';
+    var code = currentBarcodeData.code;
+    var name = currentBarcodeData.name;
+    var price = currentBarcodeData.price;
+
+    var printWin = window.open('', '_blank', 'width=800,height=600');
+    var html = '<!DOCTYPE html><html><head><title>Print Barcodes - ' + code + '</title>';
+    html += '<script src="<?php echo base_url()?>assets/js/JsBarcode.all.min.js"><\/script>';
+    html += '<style>body{margin:0;padding:10px;font-family:Arial,sans-serif;}';
+    html += '.labels{display:flex;flex-wrap:wrap;gap:5px;}';
+    html += '.label{border:1px dashed #ccc;padding:5px;text-align:center;width:200px;page-break-inside:avoid;}';
+    html += '.label .name{font-size:10px;font-weight:bold;margin-bottom:1px;}';
+    html += '.label .price{font-size:11px;font-weight:bold;margin-top:1px;}';
+    html += '@media print{.labels{gap:2px;}.label{border:none;padding:3px;}}</style></head><body>';
+    html += '<div class="labels">';
+    for(var i = 0; i < copies; i++){
+        html += '<div class="label">';
+        html += '<div class="name">' + name + '</div>';
+        html += '<svg class="bc"></svg>';
+        if(showPrice) html += '<div class="price">LKR ' + parseFloat(price).toFixed(2) + '</div>';
+        html += '</div>';
+    }
+    html += '</div>';
+    html += '<script>JsBarcode(".bc","' + code + '",{format:"' + format + '",width:1.5,height:35,fontSize:11,margin:1,displayValue:true});window.onload=function(){window.print();}<\/script>';
+    html += '</body></html>';
+    printWin.document.write(html);
+    printWin.document.close();
+});
 </script> 
 

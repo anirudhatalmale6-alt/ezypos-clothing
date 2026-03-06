@@ -35,10 +35,11 @@ class Sales extends CI_Controller {
                 }
                 $data1['title'] = ucfirst($page);
                 $data1['config'] = $this->Configs_model->getConfigName();
-                $data = array(                                  
+                $data = array(
                         'customers'=>$this->Customers_model->getCustomers(),
                         'items'=>$this->Items_model->getItems(),
-                        'storeLoc'=> $storeLoc
+                        'storeLoc'=> $storeLoc,
+                        'paymentMethods'=>$this->Sales_model->getActivePaymentMethods()
                 );
         
                 $this->load->view('templates/header', $data1);
@@ -121,8 +122,66 @@ class Sales extends CI_Controller {
         echo json_encode(['total_sales' => $total_sales, 'title' => $title]);
     }
 
+    // ===================== PAYMENT METHODS =====================
 
+    public function getPaymentMethods() {
+        echo json_encode($this->Sales_model->getAllPaymentMethods());
+    }
 
+    public function getActivePaymentMethods() {
+        echo json_encode($this->Sales_model->getActivePaymentMethods());
+    }
+
+    public function addPaymentMethod() {
+        $id = $this->Sales_model->addPaymentMethod();
+        echo json_encode($id);
+    }
+
+    public function updatePaymentMethod() {
+        $result = $this->Sales_model->updatePaymentMethod();
+        echo json_encode($result);
+    }
+
+    public function deletePaymentMethod() {
+        $id = $this->input->post('id');
+        $result = $this->Sales_model->deletePaymentMethod($id);
+        echo json_encode($result);
+    }
+
+    public function getPaymentMethodCommission() {
+        $pm_id = $this->input->post('pm_id');
+        $amount = $this->input->post('amount');
+        $commission = $this->Sales_model->calculateCommission($pm_id, $amount);
+        $method = $this->Sales_model->getPaymentMethodById($pm_id);
+        echo json_encode(array(
+            'commission' => $commission,
+            'pct' => $method ? $method->pm_commission_pct : 0,
+            'fixed' => $method ? $method->pm_commission_fixed : 0
+        ));
+    }
+
+    public function saveSalePaymentMethod() {
+        $sale_id = $this->input->post('sale_id');
+        $pm_id = $this->input->post('pm_id');
+        $amount = $this->input->post('amount');
+        $commission = $this->Sales_model->calculateCommission($pm_id, $amount);
+        $result = $this->Sales_model->updateSalePaymentMethod($sale_id, $pm_id, $commission);
+        echo json_encode(array('result' => $result, 'commission' => $commission));
+    }
+
+    // Payment Methods Master Page
+    public function paymentMethods() {
+        $data1['title'] = 'Payment Methods';
+        $data1['config'] = $this->Configs_model->getConfigName();
+        $data = array(
+            'methods' => $this->Sales_model->getAllPaymentMethods()
+        );
+        $this->load->view('templates/header', $data1);
+        $this->load->view('payment/payment_methods', $data);
+        $this->load->view('templates/footer');
+        $this->load->view('templates/rightslidebar');
+        $this->load->view('templates/footerscripts');
+    }
 
 
 
