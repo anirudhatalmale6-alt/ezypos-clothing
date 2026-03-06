@@ -1398,7 +1398,7 @@ CREATE TABLE `ezy_pos_users` (
 
 LOCK TABLES `ezy_pos_users` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_users` DISABLE KEYS */;
-INSERT INTO `ezy_pos_users` VALUES (138,'admin','System Admin','0192023a7bbd73250516f069df18b500',1,1);
+INSERT INTO `ezy_pos_users` VALUES (138,'admin','System Admin','26a91342190d515231d7238b0c5438e1',1,1);
 /*!40000 ALTER TABLE `ezy_pos_users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1444,4 +1444,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-06 12:58:22
+-- Dump completed on 2026-03-06 13:07:02
