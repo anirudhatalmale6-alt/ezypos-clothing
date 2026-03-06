@@ -336,6 +336,7 @@
                                     <?php }} if(isset($_SESSION['privRe_profitLossReport'])){if($_SESSION['privRe_profitLossReport'] == 1){  ?>
                                     <li><a  href="<?php echo base_url('profit-loss-report')?>">Profit/Loss Report</a></li>
                                     <?php }}?>
+                                    <li><a href="<?php echo base_url('payment-methods-report')?>">Commission Report</a></li>
                                     <!--<li><a  href="<?php //echo base_url('backup')?>">Back Up </a></li>-->
                                     <?php  ?>                                
                                 </ul>

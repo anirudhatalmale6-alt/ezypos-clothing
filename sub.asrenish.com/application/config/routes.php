@@ -61,6 +61,7 @@ $route['store_items'] = 'StoreItems/storeItem/store_items';
 $route['warehouse'] = 'StoreItems/warehouse/warehouse';
 
 $route['payment-methods'] = 'sales/paymentMethods';
+$route['payment-methods-report'] = 'reports/payment_methods_report/payment-methods-report';
 
 
 

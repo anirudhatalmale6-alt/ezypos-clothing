@@ -734,6 +734,61 @@ class Report_model extends CI_Model {
     }
     
     
+    public function getPaymentMethodsReport($from, $to, $pm_id){
+        $str = "SELECT s.sale_id, s.sale_date, s.sale_grandtotal, s.sale_commission,
+                c.cus_name,
+                sp.sp_pm_id, sp.sp_amount, sp.sp_commission,
+                pm.pm_name
+                FROM ezy_pos_sale s
+                INNER JOIN ezy_pos_customers c ON s.sale_cus_id = c.cus_id
+                INNER JOIN ezy_pos_sale_payments sp ON s.sale_id = sp.sp_sale_id
+                INNER JOIN ezy_pos_payment_methods pm ON sp.sp_pm_id = pm.pm_id
+                WHERE s.sale_status = '1'";
+
+        if($from != '' && $to != ''){
+            $str .= " AND s.sale_date BETWEEN '".$this->db->escape_str($from)."' AND '".$this->db->escape_str($to)."'";
+        }
+        if($pm_id != '' && $pm_id != 'all'){
+            $str .= " AND sp.sp_pm_id = '".$this->db->escape_str($pm_id)."'";
+        }
+        $str .= " ORDER BY s.sale_date DESC, s.sale_id DESC";
+
+        $query = $this->db->query($str);
+        if($query->num_rows() > 0){
+            return $query->result();
+        } else {
+            return array();
+        }
+    }
+
+    public function getPaymentMethodsSummary($from, $to){
+        $str = "SELECT pm.pm_id, pm.pm_name,
+                COUNT(DISTINCT sp.sp_sale_id) AS sale_count,
+                SUM(sp.sp_amount) AS total_amount,
+                SUM(sp.sp_commission) AS total_commission
+                FROM ezy_pos_sale_payments sp
+                INNER JOIN ezy_pos_payment_methods pm ON sp.sp_pm_id = pm.pm_id
+                INNER JOIN ezy_pos_sale s ON sp.sp_sale_id = s.sale_id
+                WHERE s.sale_status = '1'";
+
+        if($from != '' && $to != ''){
+            $str .= " AND s.sale_date BETWEEN '".$this->db->escape_str($from)."' AND '".$this->db->escape_str($to)."'";
+        }
+        $str .= " GROUP BY pm.pm_id ORDER BY total_amount DESC";
+
+        $query = $this->db->query($str);
+        if($query->num_rows() > 0){
+            return $query->result();
+        } else {
+            return array();
+        }
+    }
+
+    public function getAllPaymentMethodsList(){
+        $query = $this->db->get_where('ezy_pos_payment_methods', array('pm_status' => 1));
+        return $query->result();
+    }
+
     public function get_all_suppliers(){ //2018-08-04 10:08:36
          $this->db->select('*');
          $this->db->from('ezy_pos_suppliers');

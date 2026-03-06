@@ -114,6 +114,44 @@ class Reports extends CI_Controller {
         
         
         
+       public function payment_methods_report($page = 'index')
+        {
+                if ( ! file_exists(APPPATH.'views/report/'.$page.'.php'))
+                {
+                        show_404();
+                }
+
+                $data['title'] = ucfirst($page);
+                $data['config'] = $this->Configs_model->getConfigName();
+                $data['payment_methods'] = $this->Report_model->getAllPaymentMethodsList();
+
+                $this->load->view('templates/header', $data);
+                $this->load->view('report/'.$page);
+                $this->load->view('templates/footer');
+                $this->load->view('templates/rightslidebar');
+                $this->load->view('templates/footerscripts');
+        }
+
+        public function getPaymentMethodsReportData(){
+                $from = $this->input->post('from');
+                $to = $this->input->post('to');
+                $pm_id = $this->input->post('pm_id');
+                if(!$from) $from = '';
+                if(!$to) $to = '';
+                if(!$pm_id) $pm_id = 'all';
+                $result = $this->Report_model->getPaymentMethodsReport($from, $to, $pm_id);
+                echo json_encode($result);
+        }
+
+        public function getPaymentMethodsSummaryData(){
+                $from = $this->input->post('from');
+                $to = $this->input->post('to');
+                if(!$from) $from = '';
+                if(!$to) $to = '';
+                $result = $this->Report_model->getPaymentMethodsSummary($from, $to);
+                echo json_encode($result);
+        }
+
        public function today_summary($page = 'index')
         {
            
