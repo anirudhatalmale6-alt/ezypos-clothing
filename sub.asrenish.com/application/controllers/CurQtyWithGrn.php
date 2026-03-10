@@ -24,24 +24,26 @@ class CurQtyWithGrn extends CI_Controller {
         public function ChangeQtyToSale(){
             $saleID = $this->input->post('saleID');
             $itmID = $this->input->post('itmid');
-            $saleQty = $this->input->post('qty'); 
+            $saleQty = $this->input->post('qty');
+            $storeid = $this->input->post('storeid');
+            if($storeid == '' || $storeid == null){ $storeid = 0; }
             $stockQty = $this->Stocks_model->getStockItmQty();
-            
+
             if ($stockQty >= $saleQty) {
-                $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID);
-        
+                $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID, $storeid);
+
                 if ($cQty > 0) {
                     $dif = $cQty - $saleQty;
                     while ($cQty < $saleQty) {
-                        $cur_id_of_updated_row = $this->CurQtyWithGrn_model->updateOldestQtyToZero($itmID);
+                        $cur_id_of_updated_row = $this->CurQtyWithGrn_model->updateOldestQtyToZero($itmID, $storeid);
                         $saleQty -= $cQty;
-                        $res = $this->CurQtyWithGrn_model->addToGrnSale($cur_id_of_updated_row, $cQty);  // Updated to pass $cQty
-                        $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID);
+                        $res = $this->CurQtyWithGrn_model->addToGrnSale($cur_id_of_updated_row, $cQty);
+                        $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID, $storeid);
                         $dif = $cQty - $saleQty;
                     }
                     if ($cQty >= $saleQty) {
-                        $cur_id_of_updated_row = $this->CurQtyWithGrn_model->updateOldestQtyToValue($dif, $itmID);
-                        $res = $this->CurQtyWithGrn_model->addToGrnSale($cur_id_of_updated_row, $saleQty);  // Updated to pass $saleQty
+                        $cur_id_of_updated_row = $this->CurQtyWithGrn_model->updateOldestQtyToValue($dif, $itmID, $storeid);
+                        $res = $this->CurQtyWithGrn_model->addToGrnSale($cur_id_of_updated_row, $saleQty);
                         echo json_encode($res);
                     }
                 } else {
@@ -49,12 +51,12 @@ class CurQtyWithGrn extends CI_Controller {
                 }
             } else if ($stockQty < $saleQty) {
                 if ($stockQty > 0) {
-                    $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID);
-        
+                    $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID, $storeid);
+
                     while ($cQty > 0) {
-                        $cur_id_of_updated_row = $this->CurQtyWithGrn_model->updateOldestQtyToZero($itmID);
-                        $res1 = $this->CurQtyWithGrn_model->addToGrnSale($cur_id_of_updated_row, $cQty);  // Updated to pass $cQty
-                        $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID);
+                        $cur_id_of_updated_row = $this->CurQtyWithGrn_model->updateOldestQtyToZero($itmID, $storeid);
+                        $res1 = $this->CurQtyWithGrn_model->addToGrnSale($cur_id_of_updated_row, $cQty);
+                        $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID, $storeid);
                     }
                     $QtyDif = $saleQty - $stockQty;
                     $res = $this->InsufficentStockSale_model->insertInsuffiSaleItem($itmID, $QtyDif, $saleID);

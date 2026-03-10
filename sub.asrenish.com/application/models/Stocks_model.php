@@ -4,9 +4,12 @@ class Stocks_model extends CI_Model {
     {
             $this->load->database();
     }
-    public function addItemtoStock(){ //from item add , 
+    public function addItemtoStock(){ //from item add ,
+        $storeid = $this->input->post('storeid');
+        if($storeid == '' || $storeid == null){ $storeid = 0; }
         $data = array(
-            'stock_itm_id' => $this->input->post('itmid'),            
+            'stock_itm_id' => $this->input->post('itmid'),
+            'stock_store_id' => $storeid,
             'stock_qty' => 0
         );
         return $this->db->insert('ezy_pos_stock', $data);
@@ -14,7 +17,9 @@ class Stocks_model extends CI_Model {
     public function increaseStock(){    //  grn stock +
         $itmid = $this->input->post('itmid');
         $qty = $this->input->post('qty');
-        $sql = "UPDATE ezy_pos_stock SET stock_qty=stock_qty +'".$qty."' WHERE stock_itm_id='".$itmid."'";
+        $storeid = $this->input->post('storeid');
+        if($storeid == '' || $storeid == null){ $storeid = 0; }
+        $sql = "UPDATE ezy_pos_stock SET stock_qty=stock_qty +'".$qty."' WHERE stock_itm_id='".$itmid."' AND stock_store_id='".$storeid."'";
         $query = $this->db->query($sql);
         $num= $this->db->affected_rows();
         if($num>0){
@@ -23,25 +28,29 @@ class Stocks_model extends CI_Model {
         else{
             $data = array(
                 'stock_itm_id'=>$itmid,
+                'stock_store_id'=>$storeid,
                 'stock_qty'=>$qty,
                 'stock_status'=>1
             );
             return $this->db->insert('ezy_pos_stock', $data);
-        }       
+        }
     }
     public function decreaseStock(){  // sales stock -
         $itmid = $this->input->post('itmid');
         $qty = $this->input->post('qty');
-        $sql1 = "SELECT * FROM  ezy_pos_stock WHERE stock_itm_id='".$itmid."'";
+        $storeid = $this->input->post('storeid');
+        if($storeid == '' || $storeid == null){ $storeid = 0; }
+        $sql1 = "SELECT * FROM ezy_pos_stock WHERE stock_itm_id='".$itmid."' AND stock_store_id='".$storeid."'";
         $query1 = $this->db->query($sql1);
         if($query1->num_rows()==0){
          $data = array(
-            'stock_itm_id' =>$itmid ,            
+            'stock_itm_id' =>$itmid,
+            'stock_store_id'=>$storeid,
             'stock_qty' => 0
             );
           $this->db->insert('ezy_pos_stock', $data);
             }
-        $sql = "UPDATE ezy_pos_stock SET stock_qty=stock_qty -'".$qty."' WHERE stock_itm_id='".$itmid."'";
+        $sql = "UPDATE ezy_pos_stock SET stock_qty=stock_qty -'".$qty."' WHERE stock_itm_id='".$itmid."' AND stock_store_id='".$storeid."'";
         $query = $this->db->query($sql);
         $num= $this->db->affected_rows();
         if($num>0){
@@ -51,21 +60,24 @@ class Stocks_model extends CI_Model {
             return false;
         }
     }
-    public function stocklog(){ // grn,sales,retrn stocklog 
+    public function stocklog(){ // grn,sales,retrn stocklog
         $saleID=$this->input->post('saleID');//         sale
         $grnID=$this->input->post('grnID');//           grn
-        $supReturnID=$this->input->post('supRID'); //   supRetrn 
+        $supReturnID=$this->input->post('supRID'); //   supRetrn
         $retrnSupID=$this->input->post('supID');//   supRetrn
         $cusReturnID=$this->input->post('cusRID'); //   cusRetrn
         $retrnCusID=$this->input->post('cusID');//   cusRetrn
+        $storeid=$this->input->post('storeid');
         if($saleID==''){$saleID=0;}
         if($grnID==''){$grnID=0;}
         if($supReturnID==''){$supReturnID=0;}
         if($retrnSupID==''){$retrnSupID=0;}
         if($cusReturnID==''){$cusReturnID=0;}
         if($retrnCusID==''){$retrnCusID=0;}
+        if($storeid=='' || $storeid==null){$storeid=0;}
         $data = array(
             'stocklog_itmid'=>$this->input->post('itmid'),
+            'stocklog_store_id'=>$storeid,
             'stocklog_qty'=>$this->input->post('qty'),
             'stocklog_grnID'=>$grnID,
             'stocklog_saleID'=>$saleID,
@@ -79,14 +91,22 @@ class Stocks_model extends CI_Model {
     }
     
     public function getStockItmQty(){
-        $itmID=$this->input->post('itmid');         
-        $this->db->select('stock_qty');
-        $this->db->where('stock_itm_id', $itmID);
-        $query = $this->db->get('ezy_pos_stock');
-        $result= $query->row();
-        return $result->stock_qty;
-//        return -1;
- 
+        $itmID=$this->input->post('itmid');
+        $storeid=$this->input->post('storeid');
+        if($storeid != '' && $storeid != null && $storeid > 0){
+            $this->db->select_sum('stock_qty');
+            $this->db->where('stock_itm_id', $itmID);
+            $this->db->where('stock_store_id', $storeid);
+            $query = $this->db->get('ezy_pos_stock');
+            $result = $query->row();
+            return ($result && $result->stock_qty) ? $result->stock_qty : 0;
+        } else {
+            $this->db->select_sum('stock_qty');
+            $this->db->where('stock_itm_id', $itmID);
+            $query = $this->db->get('ezy_pos_stock');
+            $result = $query->row();
+            return ($result && $result->stock_qty) ? $result->stock_qty : 0;
+        }
     }
     
 //    public function getStockItmQty_W(){
@@ -97,35 +117,74 @@ class Stocks_model extends CI_Model {
 //        return  $row['stock_qty'];
 //
 //    }
-    public function showAllStock(){   
-        $str="SELECT itm_id,itm_code,itm_name,itm_reorderlevel,itm_uom,stock_qty,SUM(`cur_grnPrice`*cur_currentQTY) AS grnValue,
-         SUM(itm_sellingprice*cur_currentQTY) as sellingValue
-        FROM ezy_pos_items
-        INNER JOIN ezy_pos_stock ON ezy_pos_stock.stock_itm_id=ezy_pos_items.itm_id
-        LEFT JOIN ezy_pos_currentqtywithgrn ON ezy_pos_currentqtywithgrn.cur_itmID=ezy_pos_items.itm_id
-        WHERE stock_status=1
-        AND itm_status=1
-        GROUP BY itm_id";
+    public function showAllStock($store_id = 0){
+        if($store_id > 0){
+            $str="SELECT itm_id,itm_code,itm_name,itm_reorderlevel,itm_uom,stock_qty,
+             SUM(c.cur_grnPrice*c.cur_currentQTY) AS grnValue,
+             SUM(itm_sellingprice*c.cur_currentQTY) as sellingValue,
+             st.store_name
+            FROM ezy_pos_items
+            INNER JOIN ezy_pos_stock ON ezy_pos_stock.stock_itm_id=ezy_pos_items.itm_id
+            LEFT JOIN ezy_pos_currentqtywithgrn c ON c.cur_itmID=ezy_pos_items.itm_id AND c.cur_store_id='".$store_id."'
+            LEFT JOIN ezy_pos_stores st ON st.store_id=ezy_pos_stock.stock_store_id
+            WHERE stock_status=1
+            AND itm_status=1
+            AND stock_store_id='".$store_id."'
+            GROUP BY itm_id";
+        } else {
+            $str="SELECT itm_id,itm_code,itm_name,itm_reorderlevel,itm_uom,
+             SUM(stock_qty) as stock_qty,
+             SUM(c.cur_grnPrice*c.cur_currentQTY) AS grnValue,
+             SUM(itm_sellingprice*c.cur_currentQTY) as sellingValue,
+             GROUP_CONCAT(DISTINCT st.store_name SEPARATOR ', ') as store_name
+            FROM ezy_pos_items
+            INNER JOIN ezy_pos_stock ON ezy_pos_stock.stock_itm_id=ezy_pos_items.itm_id
+            LEFT JOIN ezy_pos_currentqtywithgrn c ON c.cur_itmID=ezy_pos_items.itm_id
+            LEFT JOIN ezy_pos_stores st ON st.store_id=ezy_pos_stock.stock_store_id
+            WHERE stock_status=1
+            AND itm_status=1
+            GROUP BY itm_id";
+        }
         $query = $this->db->query($str);
         if($query->num_rows()>0){
             return $query->result();
         }
         else{
             return false;
-        } 
+        }
     }
     
     public function showItemStock(){
         $item_id=$this->input->post('item_id');
-        $str="SELECT itm_id,itm_code,itm_name,itm_reorderlevel,itm_uom,stock_qty,SUM(`cur_grnPrice`*cur_currentQTY) AS grnValue,
-         SUM(itm_sellingprice*cur_currentQTY) as sellingValue
-        FROM ezy_pos_items
-        INNER JOIN ezy_pos_stock ON ezy_pos_stock.stock_itm_id=ezy_pos_items.itm_id
-        LEFT JOIN ezy_pos_currentqtywithgrn ON ezy_pos_currentqtywithgrn.cur_itmID=ezy_pos_items.itm_id
-        WHERE stock_status=1
-        AND itm_status=1
-        AND itm_id =".$item_id."
-        GROUP BY itm_id";
+        $store_id=$this->input->post('storeid');
+        if($store_id == '' || $store_id == null){ $store_id = 0; }
+        if($store_id > 0){
+            $str="SELECT itm_id,itm_code,itm_name,itm_reorderlevel,itm_uom,stock_qty,
+             SUM(c.cur_grnPrice*c.cur_currentQTY) AS grnValue,
+             SUM(itm_sellingprice*c.cur_currentQTY) as sellingValue,
+             st.store_name
+            FROM ezy_pos_items
+            INNER JOIN ezy_pos_stock ON ezy_pos_stock.stock_itm_id=ezy_pos_items.itm_id
+            LEFT JOIN ezy_pos_currentqtywithgrn c ON c.cur_itmID=ezy_pos_items.itm_id AND c.cur_store_id='".$store_id."'
+            LEFT JOIN ezy_pos_stores st ON st.store_id=ezy_pos_stock.stock_store_id
+            WHERE stock_status=1
+            AND itm_status=1
+            AND itm_id =".$item_id."
+            AND stock_store_id='".$store_id."'
+            GROUP BY itm_id";
+        } else {
+            $str="SELECT itm_id,itm_code,itm_name,itm_reorderlevel,itm_uom,
+             SUM(stock_qty) as stock_qty,
+             SUM(c.cur_grnPrice*c.cur_currentQTY) AS grnValue,
+             SUM(itm_sellingprice*c.cur_currentQTY) as sellingValue
+            FROM ezy_pos_items
+            INNER JOIN ezy_pos_stock ON ezy_pos_stock.stock_itm_id=ezy_pos_items.itm_id
+            LEFT JOIN ezy_pos_currentqtywithgrn c ON c.cur_itmID=ezy_pos_items.itm_id
+            WHERE stock_status=1
+            AND itm_status=1
+            AND itm_id =".$item_id."
+            GROUP BY itm_id";
+        }
         $query = $this->db->query($str);
         if($query->num_rows()>0){
             return $query->result();
@@ -133,7 +192,6 @@ class Stocks_model extends CI_Model {
         else{
             return false;
         }
-
     }
     public function getSupplierStock(){
         $str="SELECT itm_code,itm_name,sup_name,SUM(cur_currentQTY) as qty
@@ -302,8 +360,9 @@ class Stocks_model extends CI_Model {
 
 
 
-public function showAllStockWithWarehouses() {
-    $str = "SELECT 
+public function showAllStockWithWarehouses($store_id = 0) {
+    if($store_id > 0){
+        $str = "SELECT
                 i.itm_id,
                 i.itm_code,
                 i.itm_name,
@@ -312,23 +371,34 @@ public function showAllStockWithWarehouses() {
                 s.stock_qty,
                 SUM(c.cur_grnPrice * c.cur_currentQTY) AS grnValue,
                 SUM(i.itm_sellingprice * c.cur_currentQTY) AS sellingValue,
-                GROUP_CONCAT(DISTINCT w.wh_name SEPARATOR ', ') AS warehouse_names
-            FROM 
-                ezy_pos_items i
-            INNER JOIN 
-                ezy_pos_stock s ON s.stock_itm_id = i.itm_id
-            LEFT JOIN 
-                ezy_pos_currentqtywithgrn c ON c.cur_itmID = i.itm_id
-            LEFT JOIN 
-                ezy_pos_item_warehouse iw ON iw.ware_item_id = i.itm_id
-            LEFT JOIN 
-                ezy_pos_warehouse w ON w.wh_id = iw.ware_warehouse_id
-            WHERE 
-                s.stock_status = 1 AND 
-                i.itm_status = 1
-            GROUP BY 
-                i.itm_id";
-
+                st.store_name
+            FROM ezy_pos_items i
+            INNER JOIN ezy_pos_stock s ON s.stock_itm_id = i.itm_id
+            LEFT JOIN ezy_pos_currentqtywithgrn c ON c.cur_itmID = i.itm_id AND c.cur_store_id='".$store_id."'
+            LEFT JOIN ezy_pos_stores st ON st.store_id = s.stock_store_id
+            WHERE s.stock_status = 1
+            AND i.itm_status = 1
+            AND s.stock_store_id = '".$store_id."'
+            GROUP BY i.itm_id";
+    } else {
+        $str = "SELECT
+                i.itm_id,
+                i.itm_code,
+                i.itm_name,
+                i.itm_reorderlevel,
+                i.itm_uom,
+                SUM(s.stock_qty) as stock_qty,
+                SUM(c.cur_grnPrice * c.cur_currentQTY) AS grnValue,
+                SUM(i.itm_sellingprice * c.cur_currentQTY) AS sellingValue,
+                GROUP_CONCAT(DISTINCT st.store_name SEPARATOR ', ') AS store_name
+            FROM ezy_pos_items i
+            INNER JOIN ezy_pos_stock s ON s.stock_itm_id = i.itm_id
+            LEFT JOIN ezy_pos_currentqtywithgrn c ON c.cur_itmID = i.itm_id
+            LEFT JOIN ezy_pos_stores st ON st.store_id = s.stock_store_id
+            WHERE s.stock_status = 1
+            AND i.itm_status = 1
+            GROUP BY i.itm_id";
+    }
     $query = $this->db->query($str);
     if ($query->num_rows() > 0) {
         return $query->result();

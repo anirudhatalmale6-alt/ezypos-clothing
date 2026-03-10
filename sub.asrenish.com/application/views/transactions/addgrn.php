@@ -6,7 +6,23 @@
                     <div class="row">      
                         <div class="col-12"><!-- col-lg-6 col-md-6 col-sm-8 col-xs-12-->
                             <div class="card-box clearfix">
-                                <h4 class="header-title m-t-0 m-b-30">Add New GRN</h4>
+                                <div class="row">
+                                    <div class="col-6"><h4 class="header-title m-t-0 m-b-30">Add New GRN</h4></div>
+                                    <div class="col-6">
+                                        <select class="form-control" name="grnStoreLoctn" id="grnStoreLoctn">
+                                        <?php if($_SESSION['userrole']==1){?>
+                                        <option value="0">Store Location</option>
+                                        <?php }?>
+                                        <?php
+                                            if(isset($storeLoc)){
+                                            foreach ($storeLoc as $store)
+                                            {
+                                            echo '<option value="'.  $store->store_id.'"> '. $store->store_name.'</option>';
+                                            }}
+                                            ?>
+                                        </select>
+                                    </div>
+                                </div>
                                 <fieldset>
                                 <div class="form-group row">
                                     <label for="grnsupplier-auto" class="col-4 col-form-label">Supplier<span class="text-danger">*</span></label>
@@ -165,7 +181,6 @@
                                             <th style="font-size: 12px;">Qty</th>
                                             <th style="font-size: 12px;">Total</th>
                                             <th style="font-size: 12px;">Dscnt%</th>
-                                            <th style="font-size: 12px;">Warehouse</th> <!-- New Column -->
                                             <th style="font-size: 12px;">Act</th>
                                         </tr>
                                     </thead>
@@ -300,8 +315,17 @@
         $('#saveNoItem').click(function(){
             var grncde=$("#grncode").val();
             var supplierid=$('#grnsupplier-id').val();
-            var amount=parseFloat($("#noitemTotalLbl").val());    
-            var grnDec=$("#grndesc").val();        
+            var amount=parseFloat($("#noitemTotalLbl").val());
+            var grnDec=$("#grndesc").val();
+            var grnStore=$("#grnStoreLoctn").val();
+            if(grnStore == '' || grnStore == '0' || grnStore == null){
+                swal({
+                    type: 'error',
+                    title: 'Oops...',
+                    text: 'You must select a store location!'
+                });
+                return false;
+            }
             if(isNaN(amount)){
                     swal({
                         type: 'error',
@@ -330,7 +354,7 @@
                 $.ajax({
                     type: "Post",
                     url:"<?php echo base_url('Grns/addGrnPOST2'); ?>",
-                    data: {grncode:grncde,supplierid:supplierid,grandtotal:amount,subtotal:0,invoiceDis:0,date:date,grnDec:grnDec},
+                    data: {grncode:grncde,supplierid:supplierid,grandtotal:amount,subtotal:0,invoiceDis:0,date:date,grnDec:grnDec,storeid:grnStore},
                     async: false,
                     dataType: "json",
                     success: function (grnid) {
@@ -525,24 +549,18 @@
                     k++;
                     var rowtable= '<tr>'+
                                         '<td class="" id="kval_'+k+'">'+k+'</td>'+
-                                        '<td class="" style="display:none;" id="itemid_'+k+'">'+itemid+'</td>'+ 
+                                        '<td class="" style="display:none;" id="itemid_'+k+'">'+itemid+'</td>'+
                                         '<td class="" id="itemname_'+k+'">'+itemname+'</td>'+
                                         '<td class="editable priceField" id="price_'+k+'" style="Text-align: right;">'+(price).toFixed(2)+'</td>'+
                                         '<td class="editable qtyField" id="quantity_'+k+'"  style="Text-align: right;">'+(quantity).toFixed(2)+'</td>'+
                                         '<td class="totalField" id="priceINTOqty1_'+k+'"  style="Text-align: right;">'+priceINTOqty1+'</td>'+
                                         '<td class="discount"><input type="text" id="discount_'+k+'"  style="Text-align: right;" class="form-control itm_discnt dcmlFixDynmc validationDynmic" size="6"/></td>'+
                                         '<td>'+
-                                            '<select class="form-control storeField" id="storeSelect_'+k+'" required>'+
-                                                '<option value="" disabled selected hidden>---Select Store---</option>'+
-                                            '</select>'+
-                                        '</td>'+
-                                        '<td>'+
                                             '<a href="javascript:;" class="btn btn-sm btn-danger deleteBtn"><i class="fa fa-times-rectangle-o"></i></a>'+
                                         '</td>'+
                                 '</tr>';
                     $("#tbodyID").append(rowtable);
                     calSubtotal();
-                    loadStores("#storeSelect_" + k); // Load store options dynamically
                     $("#grnitem-auto").val("");
                     $("#itemquantity").val("");
                     $("#itemprice").val("");
@@ -697,7 +715,7 @@
             }
         });
 
-        //insert grns to DB by for loop 
+        //insert grns to DB by for loop
         $('#save').click(function(){
             if ($("#cheque").is(':checked')) {
                     $("#chequeform").submit();
@@ -707,9 +725,19 @@
                 var creditvalue= parseFloat($('#creditvalue').text());
             supplierid = $("#grnsupplier-id").val();
             var grncode = $("#grncode").val();
+            var grnStore = $("#grnStoreLoctn").val();
             var grn_ID;
             var rows = $("#datatable").find("tr").length;
-            
+
+            if(grnStore == '' || grnStore == '0' || grnStore == null){
+                swal({
+                    type: 'error',
+                    title: 'Oops...',
+                    text: 'You must select a store location!'
+                });
+                return false;
+            }
+
             if(rows>1&&supplierid>0&&cashvalue>=0&&grncode!=''){
                 if($("#cheque").is(':checked')) {
                     if(ChqFormsubmittd==true){
@@ -733,13 +761,11 @@
                     $.ajax({
                         type: "Post",
                         url:"<?php echo base_url('Grns/addGrnPOST2'); ?>",
-                        data: {grncode:grncode,supplierid:supplierid,grandtotal:grandtotal,subtotal:subtotal,invoiceDis:invoiceDis,date:date,grnDec:"",creditvalue:creditvalue},
+                        data: {grncode:grncode,supplierid:supplierid,grandtotal:grandtotal,subtotal:subtotal,invoiceDis:invoiceDis,date:date,grnDec:"",creditvalue:creditvalue,storeid:grnStore},
                         async: false,
                         dataType: "json",
                         success: function (grnid) {
-                        //  alert("W saveGrn success started");
-                            grn_ID= grnid
-                            saveStoreItems(grn_ID); // new line for store items table
+                            grn_ID= grnid;
                            swal({
                                 type: 'success',
                                 title: 'GRN Added',
@@ -892,7 +918,7 @@
                         $.ajax({
                             type: "Post",
                             url:"<?php echo base_url('CurQtyWithGrn/addGRNItems'); ?>",
-                            data: {grnID:grn_ID,itmid:itemid,qty:quantity,prc:price,ttl:total},
+                            data: {grnID:grn_ID,itmid:itemid,qty:quantity,prc:price,ttl:total,storeid:grnStore},
                             async: false,
                             dataType: "json",
                             success: function (res) {
@@ -952,7 +978,7 @@
                         $.ajax({
                             type: "Post",
                             url:"<?php echo base_url('Stocks/increaseStock'); ?>",
-                            data: {itmid:itemid,qty:quantity},
+                            data: {itmid:itemid,qty:quantity,storeid:grnStore},
                             async: false,
                             dataType: "json",
                             success: function (res) {
@@ -972,7 +998,7 @@
                         $.ajax({
                             type: "Post",
                             url:"<?php echo base_url('Stocks/stocklog'); ?>",
-                            data: {itmid:itemid,qty:quantity,grnID:grn_ID},
+                            data: {itmid:itemid,qty:quantity,grnID:grn_ID,storeid:grnStore},
                             async: false,
                             dataType: "json",
                             success: function (res) {
@@ -1337,60 +1363,6 @@
 
   });
 
-  function loadStores(selectID) {
-    $.ajax({
-        url: "<?php echo base_url('CurQtyWithGrn/getStores'); ?>",
-        type: "GET",
-        dataType: "json",
-        success: function(response) {
-            if (response.length > 0) {
-                $.each(response, function(index, store) {
-                    $(selectID).append('<option value="' + store.wh_id + '">' + store.wh_name + '</option>');
-                });
-            } else {
-                $(selectID).append('<option value="">No Stores Found</option>');
-            }
-        },
-        error: function() {
-            alert("Error loading stores!");
-        }
-    });
-}
-
-function saveStoreItems(grnID) {
-    let storeItems = [];
-
-    $("#datatable tbody tr").each(function() {
-        let storeID = $(this).find(".storeField").val(); // Get selected store ID
-        let itemID = $(this).find("td").eq(1).text(); // Get Item ID from table
-
-        if (storeID && itemID) {
-            storeItems.push({
-                store_id: storeID,
-                item_id: itemID
-            });
-        }
-    });
-
-    if (storeItems.length > 0) {
-        $.ajax({
-            url: "CurQtyWithGrn/saveStoreItems",
-            type: "POST",
-            data: { grn_id: grnID, store_items: storeItems },
-            dataType: "json",
-            success: function(response) {
-                if (response.status === "success") {
-                    console.log("Warehouse items saved successfully.");
-                } else {
-                    console.error("Error saving store items:", response.message);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error("AJAX Error:", error);
-            }
-        });
-    }
-}
 
 
 

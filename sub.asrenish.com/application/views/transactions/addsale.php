@@ -791,7 +791,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                         $.ajax({
                             type: "Post",
                             url:"<?php echo base_url('CurQtyWithGrn/ChangeQtyToSale'); ?>",
-                            data: {saleID:sale_ID,itmid:itemid1,qty:quantity,prc:price,ttl:total},
+                            data: {saleID:sale_ID,itmid:itemid1,qty:quantity,prc:price,ttl:total,storeid:store},
                             async: false,
                             dataType: "json",
                             success: function (res) {
@@ -817,7 +817,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                         $.ajax({
                             type: "Post",
                             url:"<?php echo base_url('Stocks/decreaseStock'); ?>",
-                            data: {itmid:itemid1,qty:quantity},
+                            data: {itmid:itemid1,qty:quantity,storeid:store},
                             async: false,
                             dataType: "json",
                             success: function (res) {
@@ -833,7 +833,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                         $.ajax({
                             type: "Post",
                             url:"<?php echo base_url('Stocks/stocklog'); ?>",
-                            data: {itmid:itemid1,qty:quantity,saleID:sale_ID},
+                            data: {itmid:itemid1,qty:quantity,saleID:sale_ID,storeid:store},
                             async: false,
                             dataType: "json",
                             success: function (res) {

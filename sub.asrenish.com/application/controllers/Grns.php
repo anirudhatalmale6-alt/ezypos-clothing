@@ -14,7 +14,8 @@ class Grns extends CI_Controller {
                $this->load->model('Items_model');
                $this->load->model('Grns_model');
                $this->load->model('CusPayment_model');
-               $this->load->model('Configs_model'); 
+               $this->load->model('Configs_model');
+               $this->load->model('Stores_model');
         }
 
         public function addGrnGET($page = 'index')
@@ -24,12 +25,18 @@ class Grns extends CI_Controller {
                         // Whoops, we don't have a page for that!
                         show_404();
                 }
-                $data1['title'] = ucfirst($page); 
-                $data1['config'] = $this->Configs_model->getConfigName(); 
-                $data = array(                                   
+                $data1['title'] = ucfirst($page);
+                $data1['config'] = $this->Configs_model->getConfigName();
+                $storeLoc = "";
+                if($_SESSION['userrole'] == 1){
+                    $storeLoc = $this->Stores_model->getAllStores();
+                } else {
+                    $storeLoc = $this->Stores_model->getAllStoresfornonadmin($_SESSION['userid']);
+                }
+                $data = array(
                         'suppliers' => $this->Suppliers_model->getSuppliers(),
-                        'items' => $this->Items_model->getItems()
-                       // 'prtyChqs' => $this->Cuspayment_model->getPartyCheques()
+                        'items' => $this->Items_model->getItems(),
+                        'storeLoc' => $storeLoc
                 );
         
                 $this->load->view('templates/header', $data1);

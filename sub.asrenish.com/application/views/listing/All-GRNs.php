@@ -15,6 +15,7 @@
                                         <tr>
                                             <th>#</th>
                                             <th>Supplier</th>
+                                            <th>Store</th>
                                             <th>Subtotal</th>
                                             <th>Discount</th>
                                             <th>Grandtotal</th>
@@ -169,6 +170,7 @@
                     rows+= '<tr>'+
                                 '<td>'+data[i].grn_id+'</td>'+
                                 '<td>'+data[i].sup_name+'</td>'+
+                                '<td>'+(data[i].store_name ? data[i].store_name : 'N/A')+'</td>'+
                                 '<td style="Text-align: right;">'+data[i].grn_subtotal+'</td>'+
                                 '<td style="Text-align: right;">'+data[i].grn_discount+'</td>'+
                                 '<td style="Text-align: right;">'+data[i].grn_grandtotal+'</td>'+

@@ -12,7 +12,8 @@ class Stocks extends CI_Controller {
                // }
                 $this->load->model('Stocks_model');
                 $this->load->model('Configs_model');
-                $this->load->model('Items_model'); // Assuming you have an Items model
+                $this->load->model('Items_model');
+                $this->load->model('Stores_model');
         }
 
      
@@ -20,15 +21,15 @@ class Stocks extends CI_Controller {
         {
                 if ( ! file_exists(APPPATH.'views/listing/'.$page.'.php'))
                 {
-                        // Whoops, we don't have a page for that!
                         show_404();
                 }
-        
+
                 $data['title'] = ucfirst($page);
                 $data['config'] = $this->Configs_model->getConfigName();
-        
+                $data['stores'] = $this->Stores_model->getAllStores();
+
                 $this->load->view('templates/header', $data);
-                $this->load->view('listing/'.$page);
+                $this->load->view('listing/'.$page, $data);
                 $this->load->view('templates/footer');
                 $this->load->view('templates/rightslidebar');
                 $this->load->view('templates/footerscripts');
@@ -76,8 +77,10 @@ class Stocks extends CI_Controller {
         }
         
         public function showAllStock(){
-                $result =$this->Stocks_model->showAllStockWithWarehouses();
-                echo json_encode($result); 
+                $store_id = $this->input->post('storeid');
+                if($store_id == '' || $store_id == null){ $store_id = 0; }
+                $result = $this->Stocks_model->showAllStockWithWarehouses($store_id);
+                echo json_encode($result);
         }
         public function showAllSupplierStock($page = 'index'){
                 if (!file_exists(APPPATH.'views/listing/'.$page.'.php'))

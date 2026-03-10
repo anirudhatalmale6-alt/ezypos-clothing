@@ -5,12 +5,15 @@ class CurQtyWithGrn_model extends CI_Model {
     {
             $this->load->database();
     }
-    public function addGRNItems()// add grn details 
+    public function addGRNItems()// add grn details
     {
         $cur_itmID = $this->input->post('itmid');
+        $storeid = $this->input->post('storeid');
+        if($storeid == '' || $storeid == null){ $storeid = 0; }
         $data = array(
-            'cur_grnID' => $this->input->post('grnID'),            
+            'cur_grnID' => $this->input->post('grnID'),
             'cur_itmID' => $cur_itmID,
+            'cur_store_id' => $storeid,
             'cur_grnQty' => $this->input->post('qty'),
             'cur_grnPrice' => $this->input->post('prc'),
             'cur_grnTotal' => $this->input->post('ttl'),
@@ -19,15 +22,22 @@ class CurQtyWithGrn_model extends CI_Model {
         );
         $this->db->insert('ezy_pos_currentqtywithgrn', $data);
         $insert_id = $this->db->insert_id();
-      //  $insert_id=100;
         return $insert_id;
     }
 
-    public function getOldStockQty($itmID){ 
-        $curQty="SELECT cur_currentQTY FROM ezy_pos_currentqtywithgrn
-        WHERE cur_itmID='".$itmID."' 
-        AND cur_currentQTY>0 
-        ORDER BY cur_id LIMIT 1";
+    public function getOldStockQty($itmID, $storeid = 0){
+        if($storeid > 0){
+            $curQty="SELECT cur_currentQTY FROM ezy_pos_currentqtywithgrn
+            WHERE cur_itmID='".$itmID."'
+            AND cur_store_id='".$storeid."'
+            AND cur_currentQTY>0
+            ORDER BY cur_id LIMIT 1";
+        } else {
+            $curQty="SELECT cur_currentQTY FROM ezy_pos_currentqtywithgrn
+            WHERE cur_itmID='".$itmID."'
+            AND cur_currentQTY>0
+            ORDER BY cur_id LIMIT 1";
+        }
         $query = $this->db->query($curQty);
         if($query->num_rows() == 1){
             $result= $query->row();
@@ -35,16 +45,25 @@ class CurQtyWithGrn_model extends CI_Model {
         }
         else{
             return false;
-        }   
+        }
     }
-    public function updateOldestQtyToZero($itmID){
+    public function updateOldestQtyToZero($itmID, $storeid = 0){
         $this->db->trans_start();
         $this->db->query("SET @update_id := 0");
-        $this->db->query("UPDATE ezy_pos_currentqtywithgrn
-        SET cur_currentQTY =0 ,cur_id = (SELECT @update_id := cur_id)
-        WHERE cur_itmID='".$itmID."'
-        AND cur_currentQTY>0
-        ORDER BY cur_id LIMIT 1");
+        if($storeid > 0){
+            $this->db->query("UPDATE ezy_pos_currentqtywithgrn
+            SET cur_currentQTY =0 ,cur_id = (SELECT @update_id := cur_id)
+            WHERE cur_itmID='".$itmID."'
+            AND cur_store_id='".$storeid."'
+            AND cur_currentQTY>0
+            ORDER BY cur_id LIMIT 1");
+        } else {
+            $this->db->query("UPDATE ezy_pos_currentqtywithgrn
+            SET cur_currentQTY =0 ,cur_id = (SELECT @update_id := cur_id)
+            WHERE cur_itmID='".$itmID."'
+            AND cur_currentQTY>0
+            ORDER BY cur_id LIMIT 1");
+        }
         $query=$this->db->query("SELECT @update_id AS updateid");
         if($this->db->affected_rows()>0){
             $result=$query->row();
@@ -54,16 +73,24 @@ class CurQtyWithGrn_model extends CI_Model {
             return false;
         }
         $this->db->trans_complete();
-       
     }
-    public function updateOldestQtyToValue($dif,$itmID){
+    public function updateOldestQtyToValue($dif, $itmID, $storeid = 0){
         $this->db->trans_start();
         $this->db->query("SET @update_id := 0");
-        $this->db->query("UPDATE ezy_pos_currentqtywithgrn
-        SET cur_currentQTY = '".$dif."',cur_id = (SELECT @update_id := cur_id)
-        WHERE cur_itmID='".$itmID."'
-        AND cur_currentQTY>0
-        ORDER BY cur_id LIMIT 1");
+        if($storeid > 0){
+            $this->db->query("UPDATE ezy_pos_currentqtywithgrn
+            SET cur_currentQTY = '".$dif."',cur_id = (SELECT @update_id := cur_id)
+            WHERE cur_itmID='".$itmID."'
+            AND cur_store_id='".$storeid."'
+            AND cur_currentQTY>0
+            ORDER BY cur_id LIMIT 1");
+        } else {
+            $this->db->query("UPDATE ezy_pos_currentqtywithgrn
+            SET cur_currentQTY = '".$dif."',cur_id = (SELECT @update_id := cur_id)
+            WHERE cur_itmID='".$itmID."'
+            AND cur_currentQTY>0
+            ORDER BY cur_id LIMIT 1");
+        }
         $query=$this->db->query("SELECT @update_id AS updateid");
         if($this->db->affected_rows()>0){
             $result=$query->row();
@@ -72,7 +99,7 @@ class CurQtyWithGrn_model extends CI_Model {
         else{
             return false;
         }
-        $this->db->trans_complete();      
+        $this->db->trans_complete();
     }
      public function addToGrnSale($cur_id_of_updated_row, $quantity){
     $data = array(
