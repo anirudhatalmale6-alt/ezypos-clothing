@@ -1,8 +1,8 @@
         <div class="wrapper">
-        <div class="container">
+        <div class="container-fluid">
 
             <div class="row">
-                <div class="col-lg-4 col-md-4"><!-- Add GRN Form -->
+                <div class="col-lg-4 col-md-5 col-sm-12"><!-- Add GRN Form -->
                     <div class="row">      
                         <div class="col-12"><!-- col-lg-6 col-md-6 col-sm-8 col-xs-12-->
                             <div class="card-box clearfix">
@@ -26,16 +26,16 @@
                                 <fieldset>
                                 <div class="form-group row">
                                     <label for="grnsupplier-auto" class="col-4 col-form-label">Supplier<span class="text-danger">*</span></label>
-                                    <div class="" id="supplierdiv">
+                                    <div class="col-6" id="supplierdiv">
                                         <input class="form-control"  id="grnsupplier-auto" placeholder="Select" >
                                         <input type="hidden" class="form-control" name="grnsupplier" id="grnsupplier-id">
                                     </div>
-                                    <div>
+                                    <div class="col-2">
                                         <a href="#"><b><span id="show_sup" class="hover" data-toggle="tooltip" ></span></b></a>
-                                        <button id="btnChange" style="display:none; margin-left: 20px;" class="btn btn-sm btn-warning">
+                                        <button id="btnChange" style="display:none;" class="btn btn-sm btn-warning">
                                             <i class="fa fa-exchange"></i>
                                         </button>
-                                    </div> 
+                                    </div>
                                 </div>
                                 <div class="form-group row">
                                     
@@ -50,46 +50,46 @@
                                 </div>
                                 <div class="form-group row">
                                     <label for="datepicker" class="col-4 col-form-label">Date<span class="text-danger">*</span></label>
-                                    <div class="">
+                                    <div class="col-8">
                                         <input class="form-control datepic" value="" id="datepicker">
                                     </div>
                                 </div>
                                 <div class="form-group row">
-                                    <label for="grncode" class="col-4 col-form-label">grncode<span class="text-danger">*</span></label>
-                                    <div class="">
+                                    <label for="grncode" class="col-4 col-form-label">GRN Code<span class="text-danger">*</span></label>
+                                    <div class="col-8">
                                         <input class="form-control" value="" id="grncode">
                                     </div>
                                 </div>
                                 </fieldset>
                                 <hr>
-                                <div class="form-group row">
-                                    <label class="col-7 col-form-label">Sub Total:</label>
-                                    <label class="col-form-label">LKR</label>
-                                    <label class="col-form-label" style="margin-left: 5px;" id="subtotal">0.00</label>
+                                <div style="background:#f8f9fa;border-radius:4px;padding:10px 5px;margin-bottom:10px;">
+                                <div class="form-group row mb-1">
+                                    <label class="col-5 col-form-label">Sub Total:</label>
+                                    <div class="col-7 col-form-label text-right"><strong>LKR <span id="subtotal">0.00</span></strong></div>
                                 </div>
-                                <div class="form-group row">
-                                    <label class="col-7 col-form-label">Discount(%):</label>    
-                                    <label class="col-form-label"></label> 
-                                    <label class="col-form-label" style="margin-left: 0px;"><input class="form-control DecimalFix" type="text" name="invoiceDis" placeholder="%" size="5" id="invoiceDis"/></label>
+                                <div class="form-group row mb-1">
+                                    <label class="col-5 col-form-label">Discount(%):</label>
+                                    <div class="col-7"><input class="form-control DecimalFix" type="text" name="invoiceDis" placeholder="%" id="invoiceDis"/></div>
                                 </div>
-                                <div class="form-group row">
-                                    <label class="col-7 col-form-label">Grand Total:</label>    
-                                    <label class="col-form-label">LKR</label>              
-                                    <label class="col-form-label" style="margin-left: 5px; clear: both;float:left;" id="grandtotalLbl">0.00</label> 
-                                    <input size="10" type="text" class="col-form-label DecimalFix staticValication" style="margin-left: 5px;display:none;" id="noitemTotalLbl">                                   
+                                <div class="form-group row mb-0">
+                                    <label class="col-5 col-form-label" style="font-size:16px;"><strong>Grand Total:</strong></label>
+                                    <div class="col-7 col-form-label text-right" style="font-size:16px;">
+                                        <strong>LKR <span id="grandtotalLbl">0.00</span></strong>
+                                        <input type="text" class="form-control DecimalFix staticValication" style="display:none;" id="noitemTotalLbl">
+                                    </div>
+                                </div>
                                 </div>
                                 <hr>
                                 <div class="form-group row">
                                     <label for="cashvalue" class="col-4 col-form-label">Cash:</label>
-                                    <div class="">
-                                        <input class="form-control DecimalFix staticValication" type="text" placeholder="Enter Cash Value 0.00" 
+                                    <div class="col-8">
+                                        <input class="form-control DecimalFix staticValication" type="text" placeholder="Enter Cash Value 0.00"
                                         name="cashvalue" id="cashvalue" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$">
                                     </div>
                                 </div>
                                 <div class="form-group row">
-                                    <label for="creditvalue" class="col-4 col-form-label">Credit:</label>
-                                    <label class="col-form-label">LKR</label> 
-                                    <label class="col-form-label" style="margin-left: 5px;" id="creditvalue">0.00</label>
+                                    <label class="col-5 col-form-label">Credit:</label>
+                                    <div class="col-7 col-form-label text-right">LKR <span id="creditvalue">0.00</span></div>
                                 </div>
                                 <hr>
                                 <div class="form-group row">
@@ -124,7 +124,7 @@
                     </div>
                 </div><!-- End of Add GRN Form -->
 
-                <div class="col-lg-8 col-md-8"><!--Start Table & row -->
+                <div class="col-lg-8 col-md-7 col-sm-12"><!--Start Table & row -->
                     <div class="row"> 
                         <div class="col-12">
                         <section>
@@ -192,7 +192,7 @@
                     </div>
                 </div> <!--End of  Table & row -->
             </div>           
-        </div> <!-- container -->
+        </div> <!-- container-fluid -->
                 
 <!-- Validation js (Parsleyjs) -->
 <script type="text/javascript" src="<?php echo base_url().'assets/plugins/parsleyjs/parsley.min.js'?>"></script>

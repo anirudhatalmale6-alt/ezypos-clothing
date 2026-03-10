@@ -2,7 +2,7 @@
 <div class="container-fluid">
     <div class="row">
         <!-- Left Panel: Production Details -->
-        <div class="col-lg-4 col-md-5">
+        <div class="col-lg-4 col-md-5 col-sm-12">
             <div class="card-box clearfix">
                 <h4 class="header-title m-t-0 m-b-20"><i class="fa fa-industry"></i> New Production Order</h4>
                 <fieldset>
@@ -120,7 +120,7 @@
         </div>
 
         <!-- Right Panel: Materials & Costs -->
-        <div class="col-lg-8 col-md-7">
+        <div class="col-lg-8 col-md-7 col-sm-12">
             <!-- Add Material Section -->
             <div class="card-box clearfix" id="material_section" style="display:none;">
                 <h5 class="header-title m-t-0 m-b-15"><i class="fa fa-scissors"></i> Raw Materials</h5>

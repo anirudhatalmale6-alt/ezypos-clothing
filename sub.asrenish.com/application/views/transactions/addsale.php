@@ -2,10 +2,10 @@
         <!-- Start right Content here -->
         <!-- ============================================================== -->
         <div class="wrapper">
-        <div class="container">
+        <div class="container-fluid">
 
             <div class="row">            
-                <div class="col-lg-4 col-md-4"><!-- Add Sales Form -->
+                <div class="col-lg-4 col-md-5 col-sm-12"><!-- Add Sales Form -->
                     <div class="row">      
                         <div class="col-12"><!-- col-lg-6 col-md-6 col-sm-8 col-xs-12-->
                             <div class="card-box clearfix">
@@ -27,46 +27,44 @@
                                 </div>
                                 <fieldset>
                                 <div class="form-group row">
-                                    <label for="customer-auto" class="col-4 col-form-label">Customer<span class="text-danger">*</span></label>                                    
-                                    <div>
+                                    <label for="customer-auto" class="col-4 col-form-label">Customer<span class="text-danger">*</span></label>
+                                    <div class="col-6">
                                         <input class="form-control"  id="customer-auto" placeholder="Select" >
                                         <input type="hidden" class="form-control" name="customer" id="customer-id">
                                    </div>
-
-                                    <div>
+                                    <div class="col-2">
                                         <a href="#"><b><span id="show_cus" class="hover" data-toggle="tooltip" ></span></b></a>
-                                        <button id="btnChange" style="display:none; margin-left: 20px;" class="btn btn-sm btn-warning">
+                                        <button id="btnChange" style="display:none;" class="btn btn-sm btn-warning">
                                             <i class="fa fa-exchange"></i>
                                         </button>
                                     </div>
                                 </div>
                                 <div class="form-group row">
                                     <label for="datepicker" class="col-4 col-form-label">Date<span class="text-danger">*</span></label>
-                                    <div class="">
+                                    <div class="col-8">
                                         <input class="form-control datepic" value="" id="datepicker">
                                     </div>
                                 </div>                              
                                 </fieldset>
                                 <hr>
-                                <div class="form-group row">
-                                    <label class="col-7 col-form-label">Sub Total:</label>
-                                    <label class="col-form-label">LKR</label>
-                                    <label class="col-form-label" style="margin-left: 5px;" id="subtotal">0.00</label>
+                                <div style="background:#f8f9fa;border-radius:4px;padding:10px 5px;margin-bottom:10px;">
+                                <div class="form-group row mb-1">
+                                    <label class="col-5 col-form-label">Sub Total:</label>
+                                    <div class="col-7 col-form-label text-right"><strong>LKR <span id="subtotal">0.00</span></strong></div>
                                 </div>
-                                <div class="form-group row">
-                                    <label class="col-7 col-form-label">Discount(%):</label>    
-                                    <label class="col-form-label"></label> 
-                                    <label class="col-form-label" style="margin-left: 0px;"><input class="form-control DecimalFix" type="text" name="invoiceDis" placeholder="%" size="5" id="invoiceDis"/></label>
+                                <div class="form-group row mb-1">
+                                    <label class="col-5 col-form-label">Discount(%):</label>
+                                    <div class="col-7"><input class="form-control DecimalFix" type="text" name="invoiceDis" placeholder="%" id="invoiceDis"/></div>
                                 </div>
-                                <div class="form-group row">
-                                    <label class="col-7 col-form-label">Grand Total:</label>    
-                                    <label class="col-form-label">LKR</label>              
-                                    <label class="col-form-label" style="margin-left: 5px;" id="grandtotalLbl">0.00</label>                                     
+                                <div class="form-group row mb-0">
+                                    <label class="col-5 col-form-label" style="font-size:16px;"><strong>Grand Total:</strong></label>
+                                    <div class="col-7 col-form-label text-right" style="font-size:16px;"><strong>LKR <span id="grandtotalLbl">0.00</span></strong></div>
+                                </div>
                                 </div>
                                 <hr>
                                 <div class="form-group row">
                                     <label for="cashvalue" class="col-4 col-form-label">Cash:</label>
-                                    <div class="">
+                                    <div class="col-8">
                                         <input class="form-control DecimalFix staticValication" type="text" placeholder="Enter Cash Value 0.00"
                                         name="cashvalue" id="cashvalue" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$">
                                     </div>
@@ -74,26 +72,23 @@
                                 <?php if(isset($paymentMethods) && count($paymentMethods) > 0){ foreach($paymentMethods as $pm){ ?>
                                 <div class="form-group row">
                                     <label class="col-4 col-form-label"><?php echo $pm->pm_name; ?>:</label>
-                                    <div class="">
+                                    <div class="col-8">
                                         <input class="form-control DecimalFix pm-amount-input" type="text" placeholder="0.00"
                                         data-pmid="<?php echo $pm->pm_id; ?>" data-parsley-pattern="^[0-9]*\.?[0-9]*$">
                                     </div>
                                 </div>
                                 <?php }} ?>
                                 <div class="form-group row">
-                                    <label for="creditvalue" class="col-7 col-form-label">Credit Limit:</label>
-                                    <label class="col-form-label">LKR</label    > 
-                                    <label class="col-form-label" style="text-align: right;margin-left: 5px;" id="credit_lmt_value">0.00</label> 
+                                    <label class="col-5 col-form-label">Credit Limit:</label>
+                                    <div class="col-7 col-form-label text-right">LKR <span id="credit_lmt_value">0.00</span></div>
                                 </div>
                                 <div class="form-group row">
-                                    <label for="creditvalue" class="col-7 col-form-label">Customer Balance:</label>
-                                    <label class="col-form-label">LKR</label> 
-                                    <label class="col-form-label" style="text-align: right;margin-left: 5px;" id="customer_balance">0.00</label> 
+                                    <label class="col-5 col-form-label">Customer Balance:</label>
+                                    <div class="col-7 col-form-label text-right">LKR <span id="customer_balance">0.00</span></div>
                                 </div>
                                 <div class="form-group row">
-                                    <label for="creditvalue" class="col-7 col-form-label">Credit:</label>
-                                    <label class="col-form-label">LKR</label> 
-                                    <label class="col-form-label" style="text-align: right;margin-left: 5px;" id="creditvalue">0.00</label> 
+                                    <label class="col-5 col-form-label">Credit:</label>
+                                    <div class="col-7 col-form-label text-right">LKR <span id="creditvalue">0.00</span></div>
                                 </div>
                                 <hr>
                                 <div class="form-group row">
@@ -107,31 +102,33 @@
                                     <div class="field_wrapper" id="cheaqueDetailsDiv" style="display:none;">
                                             <div class="form-group row">
                                                 <label for="amount" class="col-4 col-form-label">Amount:</label>
-                                                <div class="">
-                                                    <input class="form-control DecimalFix staticValication staticChqAmount" type="text" placeholder="Enter Amount 0.00" 
+                                                <div class="col-8">
+                                                    <input class="form-control DecimalFix staticValication staticChqAmount" type="text" placeholder="Enter Amount 0.00"
                                                     name="amount[]" id="amount" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$">
                                                 </div>
                                             </div>
                                             <div class="form-group row">
                                                 <label for="bank" class="col-4 col-form-label">Bank:</label>
-                                                <div class="">
-                                                    <input class="form-control" type="text" placeholder="Bank Name" 
+                                                <div class="col-8">
+                                                    <input class="form-control" type="text" placeholder="Bank Name"
                                                     name="bank[]" id="bankname" required >
                                                 </div>
                                             </div>
                                             <div class="form-group row">
                                                 <label for="chequeno" class="col-4 col-form-label">Cheque no:</label>
-                                                <div class="">
-                                                    <input class="form-control" type="text" placeholder="Cheque Number" 
+                                                <div class="col-8">
+                                                    <input class="form-control" type="text" placeholder="Cheque Number"
                                                     name="chequeno[]" id="chequeno" required>
-                                                </div>                                            
+                                                </div>
                                             </div>
                                             <div class="form-group row">
                                                 <label for="" class="col-4 col-form-label">Date<span class="text-danger">*</span></label>
-                                                <div class="">
-                                                    <input class="form-control datepic" id="chequedate" value=""  name="chequedate[]" required> 
+                                                <div class="col-6">
+                                                    <input class="form-control datepic" id="chequedate" value=""  name="chequedate[]" required>
                                                 </div>
-                                                <a href="javascript:void(0);" class="add_button" title="Add another cheque"><i class="fa fa-plus-square" style="font-size:24px;color:green"></i></a>
+                                                <div class="col-2 d-flex align-items-center">
+                                                    <a href="javascript:void(0);" class="add_button" title="Add another cheque"><i class="fa fa-plus-square" style="font-size:24px;color:green"></i></a>
+                                                </div>
                                             </div>
                                     </div>
                                 </form>                                 
@@ -144,7 +141,7 @@
                     </div>
                 </div><!-- End of Add Sales Form // href="javascript:window.print()" _blank//-->
 
-                <div class="col-lg-8 col-md-8"><!--Start Table & row -->
+                <div class="col-lg-8 col-md-7 col-sm-12"><!--Start Table & row -->
                     <div class="row"> 
                         <div class="col-12">
                         <section>
@@ -222,7 +219,7 @@
                 </div> <!--End of  Table & row -->
             </div>
           </div> 
-        </div> <!-- container -->
+        </div> <!-- container-fluid -->
                 
 <!-- Validation js (Parsleyjs) -->
 <script type="text/javascript" src="<?php echo base_url().'assets/plugins/parsleyjs/parsley.min.js'?>"></script>
