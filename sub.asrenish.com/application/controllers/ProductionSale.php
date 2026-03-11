@@ -109,9 +109,19 @@ class ProductionSale extends CI_Controller {
     {
         $id = $this->input->post('item_id');
         $prodsale_id = $this->input->post('prodsale_id');
+
+        // Get item details before deletion (for stock reversal)
+        $item = $this->ProductionSale_model->getItemById($id);
+
         $this->ProductionSale_model->deleteItem($id);
         $this->ProductionSale_model->recalculateTotals($prodsale_id);
-        echo json_encode(true);
+
+        // Return item data so JS can reverse the stock
+        echo json_encode(array(
+            'success' => true,
+            'item_id' => $item ? $item->prodsaleitem_item_id : 0,
+            'qty' => $item ? $item->prodsaleitem_qty : 0
+        ));
     }
 
     public function deleteService()

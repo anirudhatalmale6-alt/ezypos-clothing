@@ -249,6 +249,7 @@
 <script>
 var BASE_URL = '<?php echo base_url(); ?>';
 var currentPsId = null;
+var currentPsStoreId = 0;
 
 $(document).ready(function() {
     // Customer autocomplete
@@ -327,6 +328,7 @@ $(document).ready(function() {
             success: function(id){
                 if(id > 0){
                     currentPsId = id;
+                    currentPsStoreId = $('#ps_store').val();
                     $('#ps_code, #ps_store, #ps_customer_search, #ps_date, #ps_delivery_date, #ps_tailoring_charge, #ps_notes').prop('disabled', true);
                     $('#ps_create_btn').hide();
                     $('#ps_items_section, #ps_services_section, #ps_status_section, #ps_status_buttons').show();
@@ -344,6 +346,7 @@ $(document).ready(function() {
         var price = parseFloat($('#ps_item_price').val());
         if(!itemId){ alert('Select an item'); return; }
         if(!qty || qty <= 0){ alert('Enter valid quantity'); return; }
+        var lineTotal = qty * price;
 
         $.ajax({
             type: 'POST',
@@ -351,6 +354,25 @@ $(document).ready(function() {
             data: { prodsale_id: currentPsId, item_id: itemId, qty: qty, unit_price: price, type: 'material' },
             dataType: 'json',
             success: function(res){
+                // Decrease stock (ezy_pos_stock)
+                $.ajax({
+                    type: 'POST', url: BASE_URL + 'Stocks/decreaseStock',
+                    data: { itmid: itemId, qty: qty, storeid: currentPsStoreId },
+                    async: false, dataType: 'json'
+                });
+                // FIFO deduction (ezy_pos_currentqtywithgrn)
+                $.ajax({
+                    type: 'POST', url: BASE_URL + 'CurQtyWithGrn/ChangeQtyToSale',
+                    data: { saleID: 0, itmid: itemId, qty: qty, prc: price, ttl: lineTotal, storeid: currentPsStoreId },
+                    async: false, dataType: 'json'
+                });
+                // Stock log
+                $.ajax({
+                    type: 'POST', url: BASE_URL + 'Stocks/stocklog',
+                    data: { itmid: itemId, qty: qty, saleID: 0, storeid: currentPsStoreId },
+                    async: false, dataType: 'json'
+                });
+
                 loadPsItems();
                 refreshPsOrder();
                 $('#ps_item_id').val(''); $('#ps_item_search').val('');
@@ -424,7 +446,16 @@ function loadPsItems(){
         $('#ps_items_body').html(html);
         $('.btn-del-psitem').click(function(){
             if(confirm('Remove this item?')){
-                $.post(BASE_URL + 'ProductionSale/deleteItem', { item_id: $(this).data('id'), prodsale_id: currentPsId }, function(){
+                $.post(BASE_URL + 'ProductionSale/deleteItem', { item_id: $(this).data('id'), prodsale_id: currentPsId }, function(res){
+                    var data = (typeof res === 'string') ? JSON.parse(res) : res;
+                    // Reverse stock deduction
+                    if(data.item_id && data.item_id > 0){
+                        $.ajax({
+                            type: 'POST', url: BASE_URL + 'Stocks/increaseStock',
+                            data: { itmid: data.item_id, qty: data.qty, storeid: currentPsStoreId },
+                            async: false, dataType: 'json'
+                        });
+                    }
                     loadPsItems(); refreshPsOrder();
                 });
             }

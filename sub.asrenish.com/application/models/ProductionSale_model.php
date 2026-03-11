@@ -74,6 +74,13 @@ class ProductionSale_model extends CI_Model {
         return $q->row();
     }
 
+    public function getItemById($id)
+    {
+        $this->db->where('prodsaleitem_id', $id);
+        $q = $this->db->get('ezy_pos_prodsale_items');
+        return $q->row();
+    }
+
     public function deleteItem($id)
     {
         $this->db->where('prodsaleitem_id', $id);
