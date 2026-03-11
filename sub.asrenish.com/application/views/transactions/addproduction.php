@@ -19,6 +19,19 @@
                         </div>
                     </div>
                     <div class="form-group row">
+                        <label class="col-5 col-form-label">Store<span class="text-danger">*</span></label>
+                        <div class="col-7">
+                            <select class="form-control" id="prod_store">
+                                <?php if($this->session->userdata('userrole')==1): ?>
+                                <option value="0">Select Store</option>
+                                <?php endif; ?>
+                                <?php if(isset($storeLoc) && $storeLoc): foreach($storeLoc as $s): ?>
+                                <option value="<?php echo $s->store_id; ?>"><?php echo $s->store_name; ?></option>
+                                <?php endforeach; endif; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group row">
                         <label class="col-5 col-form-label">Output Item<span class="text-danger">*</span></label>
                         <div class="col-7">
                             <input class="form-control" id="output_item_search" placeholder="Search garment..." autocomplete="off">
@@ -343,7 +356,8 @@ $(document).ready(function() {
                 prod_id: currentProdId,
                 item_id: itemId,
                 qty: qty,
-                unit_price: price
+                unit_price: price,
+                storeid: $('#prod_store').val() || 0
             },
             dataType: 'json',
             success: function(res) {
@@ -441,7 +455,7 @@ function loadMaterials() {
         $('.btn-del-mat').click(function() {
             var matId = $(this).data('id');
             if (confirm('Remove this material?')) {
-                $.post(BASE_URL + 'production/deleteMaterial', { matId: matId }, function() {
+                $.post(BASE_URL + 'production/deleteMaterial', { matId: matId, storeid: $('#prod_store').val() || 0 }, function() {
                     loadMaterials();
                     refreshCosts();
                 });

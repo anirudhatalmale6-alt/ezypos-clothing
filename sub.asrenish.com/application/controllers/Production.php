@@ -11,6 +11,7 @@ class Production extends CI_Controller {
         $this->load->model('Items_model');
         $this->load->model('CurQtyWithGrn_model');
         $this->load->model('Configs_model');
+        $this->load->model('Stores_model');
     }
 
     // Show Add Production form
@@ -24,6 +25,12 @@ class Production extends CI_Controller {
         $data['finishedItems'] = $this->Production_model->getFinishedItems();
         $data['suppliers'] = $this->Production_model->getTailors();
         $data['nextCode'] = $this->Production_model->getNextProductionCode();
+        // Load stores based on role
+        if ($this->session->userdata('userrole') == 1) {
+            $data['storeLoc'] = $this->Stores_model->getAllStores();
+        } else {
+            $data['storeLoc'] = $this->Stores_model->getAllStoresfornonadmin($_SESSION['userid']);
+        }
         $this->load->view('templates/header', $data);
         $this->load->view('transactions/' . $page, $data);
         $this->load->view('templates/footer');
@@ -53,6 +60,8 @@ class Production extends CI_Controller {
         $item_id = $this->input->post('item_id');
         $qty = $this->input->post('qty');
         $unit_price = $this->input->post('unit_price');
+        $storeid = $this->input->post('storeid');
+        if ($storeid == '' || $storeid == null) { $storeid = 0; }
         $total = $qty * $unit_price;
 
         $data = array(
@@ -64,13 +73,53 @@ class Production extends CI_Controller {
         );
         $result = $this->Production_model->addMaterial($data);
 
-        // Deduct from stock (direct SQL since Stocks_model uses POST)
-        $this->db->query("UPDATE ezy_pos_stock SET stock_qty = stock_qty - ? WHERE stock_itm_id = ?", array($qty, $item_id));
+        // Deduct from ezy_pos_stock (with store filter)
+        if ($storeid > 0) {
+            $this->db->query("UPDATE ezy_pos_stock SET stock_qty = stock_qty - ? WHERE stock_itm_id = ? AND stock_store_id = ?", array($qty, $item_id, $storeid));
+        } else {
+            $this->db->query("UPDATE ezy_pos_stock SET stock_qty = stock_qty - ? WHERE stock_itm_id = ?", array($qty, $item_id));
+        }
+
+        // FIFO deduction from ezy_pos_currentqtywithgrn
+        $this->_deductFromFifo($item_id, $qty, $storeid);
+
+        // Stock log
+        $log_data = array(
+            'stocklog_itmid' => $item_id,
+            'stocklog_store_id' => $storeid,
+            'stocklog_qty' => $qty,
+            'stocklog_grnID' => 0,
+            'stocklog_saleID' => 0,
+            'stocklog_return_sup_retrnID' => 0,
+            'stocklog_return_supID' => 0,
+            'stocklog_return_cus_retrnID' => 0,
+            'stocklog_return_cusID' => 0,
+            'stocklog_status' => 1
+        );
+        $this->db->insert('ezy_pos_stock_log', $log_data);
 
         // Update production material cost
         $this->Production_model->recalculateCosts($prod_id);
 
         echo json_encode($result);
+    }
+
+    // FIFO deduction helper (same logic as CurQtyWithGrn/ChangeQtyToSale)
+    private function _deductFromFifo($item_id, $saleQty, $storeid = 0) {
+        $cQty = $this->CurQtyWithGrn_model->getOldStockQty($item_id, $storeid);
+        if (!$cQty || $cQty <= 0) return;
+
+        $dif = $cQty - $saleQty;
+        while ($cQty < $saleQty) {
+            $cur_id = $this->CurQtyWithGrn_model->updateOldestQtyToZero($item_id, $storeid);
+            $saleQty -= $cQty;
+            $cQty = $this->CurQtyWithGrn_model->getOldStockQty($item_id, $storeid);
+            if (!$cQty || $cQty <= 0) return;
+            $dif = $cQty - $saleQty;
+        }
+        if ($cQty >= $saleQty) {
+            $this->CurQtyWithGrn_model->updateOldestQtyToValue($dif, $item_id, $storeid);
+        }
     }
 
     // Add cost to production
@@ -214,13 +263,19 @@ class Production extends CI_Controller {
     // Delete material from production
     public function deleteMaterial() {
         $matId = $this->input->post('matId');
+        $storeid = $this->input->post('storeid');
+        if ($storeid == '' || $storeid == null) { $storeid = 0; }
         $material = $this->Production_model->getMaterialById($matId);
         if ($material) {
             // Restore stock
-            $this->db->query("UPDATE ezy_pos_stock SET stock_qty = stock_qty + ? WHERE stock_itm_id = ?", array($material->prodmat_qty, $material->prodmat_item_id));
+            if ($storeid > 0) {
+                $this->db->query("UPDATE ezy_pos_stock SET stock_qty = stock_qty + ? WHERE stock_itm_id = ? AND stock_store_id = ?", array($material->prodmat_qty, $material->prodmat_item_id, $storeid));
+            } else {
+                $this->db->query("UPDATE ezy_pos_stock SET stock_qty = stock_qty + ? WHERE stock_itm_id = ?", array($material->prodmat_qty, $material->prodmat_item_id));
+            }
             $this->Production_model->deleteMaterial($matId);
             $this->Production_model->recalculateCosts($material->prodmat_prod_id);
-            echo json_encode(true);
+            echo json_encode(array('success' => true, 'item_id' => $material->prodmat_item_id, 'qty' => $material->prodmat_qty));
         } else {
             echo json_encode(false);
         }

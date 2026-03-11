@@ -139,7 +139,7 @@ CREATE TABLE `ezy_pos_cur_grn_vs_sale` (
   KEY `idx_saleID` (`grnvssale_saleID`),
   KEY `idx_itmID` (`grnvssale_itmID`),
   KEY `idx_curQtyWithGrnID` (`grnvssale_curQtyWithGrnID`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -148,6 +148,7 @@ CREATE TABLE `ezy_pos_cur_grn_vs_sale` (
 
 LOCK TABLES `ezy_pos_cur_grn_vs_sale` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_cur_grn_vs_sale` DISABLE KEYS */;
+INSERT INTO `ezy_pos_cur_grn_vs_sale` VALUES (2,3,1,1,1,10),(3,3,1,0,1,15);
 /*!40000 ALTER TABLE `ezy_pos_cur_grn_vs_sale` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -170,7 +171,7 @@ CREATE TABLE `ezy_pos_currentqtywithgrn` (
   `cur_status` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`cur_id`),
   KEY `idx_curqty_item_store` (`cur_itmID`,`cur_store_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=7 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -179,6 +180,7 @@ CREATE TABLE `ezy_pos_currentqtywithgrn` (
 
 LOCK TABLES `ezy_pos_currentqtywithgrn` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_currentqtywithgrn` DISABLE KEYS */;
+INSERT INTO `ezy_pos_currentqtywithgrn` VALUES (3,100,1,6,100.00,100.00,10000.00,75.00,1),(4,100,2,6,50.00,150.00,7500.00,45.00,1),(5,1,3,6,25.00,200.00,5000.00,25.00,1),(6,2,3,0,5.00,240.00,1200.00,5.00,1);
 /*!40000 ALTER TABLE `ezy_pos_currentqtywithgrn` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -561,7 +563,7 @@ CREATE TABLE `ezy_pos_grn_item` (
   `grnitm_discount` double(5,2) NOT NULL,
   `grnitm_createdat` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`grnitm_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -570,6 +572,7 @@ CREATE TABLE `ezy_pos_grn_item` (
 
 LOCK TABLES `ezy_pos_grn_item` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_grn_item` DISABLE KEYS */;
+INSERT INTO `ezy_pos_grn_item` VALUES (1,1,3,200.00,25.00,5000.00,0.00,'2026-03-11 09:36:20'),(2,2,3,240.00,5.00,1200.00,0.00,'2026-03-11 09:37:07');
 /*!40000 ALTER TABLE `ezy_pos_grn_item` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -594,7 +597,7 @@ CREATE TABLE `ezy_pos_grns` (
   `grn_status` tinyint(1) NOT NULL,
   `grn_createdat` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`grn_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -603,6 +606,7 @@ CREATE TABLE `ezy_pos_grns` (
 
 LOCK TABLES `ezy_pos_grns` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_grns` DISABLE KEYS */;
+INSERT INTO `ezy_pos_grns` VALUES (1,'GRN-TEST-001',1,5000.00,5000.00,0.00,0.00,138,6,'2026-03-11',1,'2026-03-11 09:36:20'),(2,'PROD-PROD-TEST-001',0,1200.00,1200.00,0.00,0.00,138,0,'2026-03-11',1,'2026-03-11 09:37:07');
 /*!40000 ALTER TABLE `ezy_pos_grns` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -800,7 +804,7 @@ CREATE TABLE `ezy_pos_prodsale` (
   `prodsale_createdat` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `prodsale_updatedat` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`prodsale_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -809,6 +813,7 @@ CREATE TABLE `ezy_pos_prodsale` (
 
 LOCK TABLES `ezy_pos_prodsale` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_prodsale` DISABLE KEYS */;
+INSERT INTO `ezy_pos_prodsale` VALUES (1,'PS-00001',288,6,'2026-03-11','2026-03-20',0.00,500.00,0.00,0.00,0.00,'','Pending',138,'2026-03-11 09:24:42','2026-03-11 09:24:42'),(2,'PS-00002',288,6,'2026-03-11','2026-03-20',0.00,500.00,0.00,0.00,0.00,'','Pending',138,'2026-03-11 09:25:33','2026-03-11 09:25:33'),(3,'PS-00003',288,6,'2026-03-11','2026-03-20',500.00,500.00,1000.00,0.00,1000.00,'','Pending',138,'2026-03-11 09:26:22','2026-03-11 09:26:27'),(4,'PS-TEST-001',288,6,'2026-03-11','2026-03-20',1500.00,500.00,2000.00,0.00,2000.00,'Test tailoring','Pending',138,'2026-03-11 09:37:46','2026-03-11 09:37:46');
 /*!40000 ALTER TABLE `ezy_pos_prodsale` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -829,7 +834,7 @@ CREATE TABLE `ezy_pos_prodsale_items` (
   `prodsaleitem_type` varchar(20) DEFAULT 'material',
   `prodsaleitem_status` int DEFAULT '1',
   PRIMARY KEY (`prodsaleitem_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -838,6 +843,7 @@ CREATE TABLE `ezy_pos_prodsale_items` (
 
 LOCK TABLES `ezy_pos_prodsale_items` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_prodsale_items` DISABLE KEYS */;
+INSERT INTO `ezy_pos_prodsale_items` VALUES (1,3,1,5.00,100.00,500.00,'material',1),(2,4,1,15.00,100.00,1500.00,'material',1);
 /*!40000 ALTER TABLE `ezy_pos_prodsale_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -893,7 +899,7 @@ CREATE TABLE `ezy_pos_production` (
   `prod_createdat` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `prod_completedat` datetime DEFAULT NULL,
   PRIMARY KEY (`prod_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -902,6 +908,7 @@ CREATE TABLE `ezy_pos_production` (
 
 LOCK TABLES `ezy_pos_production` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_production` DISABLE KEYS */;
+INSERT INTO `ezy_pos_production` VALUES (1,'PROD-TEST-001','2026-03-11',3,5.00,NULL,'in-house',1200.00,0.00,0.00,1200.00,240.00,'Completed','Test production',138,'2026-03-11 09:37:07','2026-03-11 09:37:07'),(2,'PROD-TEST-002','2026-03-11',3,3.00,NULL,'in-house',0.00,0.00,0.00,0.00,0.00,'Issued','Test FIFO',138,'2026-03-11 09:40:10',NULL);
 /*!40000 ALTER TABLE `ezy_pos_production` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -951,7 +958,7 @@ CREATE TABLE `ezy_pos_production_materials` (
   PRIMARY KEY (`prodmat_id`),
   KEY `idx_prod` (`prodmat_prod_id`),
   KEY `idx_item` (`prodmat_item_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -960,6 +967,7 @@ CREATE TABLE `ezy_pos_production_materials` (
 
 LOCK TABLES `ezy_pos_production_materials` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_production_materials` DISABLE KEYS */;
+INSERT INTO `ezy_pos_production_materials` VALUES (1,1,2,8.00,150.00,1200.00,'2026-03-11 09:37:07'),(2,2,2,5.00,150.00,750.00,'2026-03-11 09:40:10');
 /*!40000 ALTER TABLE `ezy_pos_production_materials` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -988,7 +996,7 @@ CREATE TABLE `ezy_pos_sale` (
   KEY `idx_sale_cus_id` (`sale_cus_id`),
   KEY `idx_sale_date` (`sale_date`),
   KEY `idx_sale_status` (`sale_status`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -997,6 +1005,7 @@ CREATE TABLE `ezy_pos_sale` (
 
 LOCK TABLES `ezy_pos_sale` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_sale` DISABLE KEYS */;
+INSERT INTO `ezy_pos_sale` VALUES (1,288,1000.00,1000.00,0.00,0.00,138,'2026-03-11',6,1,'2026-03-11 09:36:38',NULL,0.00);
 /*!40000 ALTER TABLE `ezy_pos_sale` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1017,7 +1026,7 @@ CREATE TABLE `ezy_pos_sale_item` (
   `saleitem_discount` double(5,2) NOT NULL,
   `saleitem_ctreatedat` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`saleitem_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1026,6 +1035,7 @@ CREATE TABLE `ezy_pos_sale_item` (
 
 LOCK TABLES `ezy_pos_sale_item` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_sale_item` DISABLE KEYS */;
+INSERT INTO `ezy_pos_sale_item` VALUES (1,1,1,100.00,10.00,1000.00,0.00,'2026-03-11 09:36:38');
 /*!40000 ALTER TABLE `ezy_pos_sale_item` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1113,7 +1123,7 @@ CREATE TABLE `ezy_pos_stock` (
 
 LOCK TABLES `ezy_pos_stock` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_stock` DISABLE KEYS */;
-INSERT INTO `ezy_pos_stock` VALUES (1,1,6,0.00,1),(2,2,6,0.00,1),(3,3,6,0.00,1),(4,4,6,0.00,1),(5,5,6,0.00,1),(6,6,6,0.00,1),(7,7,6,0.00,1),(8,8,6,0.00,1),(9,9,6,0.00,1),(10,10,6,0.00,1),(11,11,6,0.00,1),(12,12,6,0.00,1),(13,13,6,0.00,1),(14,14,6,0.00,1),(15,15,6,0.00,1),(16,16,6,0.00,1),(17,17,6,0.00,1),(18,18,6,0.00,1),(19,19,6,0.00,1),(20,20,6,0.00,1),(21,21,6,0.00,1),(22,22,6,0.00,1),(23,23,6,0.00,1),(24,24,6,0.00,1);
+INSERT INTO `ezy_pos_stock` VALUES (1,1,6,75.00,1),(2,2,6,37.00,1),(3,3,6,30.00,1),(4,4,6,0.00,1),(5,5,6,0.00,1),(6,6,6,0.00,1),(7,7,6,0.00,1),(8,8,6,0.00,1),(9,9,6,0.00,1),(10,10,6,0.00,1),(11,11,6,0.00,1),(12,12,6,0.00,1),(13,13,6,0.00,1),(14,14,6,0.00,1),(15,15,6,0.00,1),(16,16,6,0.00,1),(17,17,6,0.00,1),(18,18,6,0.00,1),(19,19,6,0.00,1),(20,20,6,0.00,1),(21,21,6,0.00,1),(22,22,6,0.00,1),(23,23,6,0.00,1),(24,24,6,0.00,1);
 /*!40000 ALTER TABLE `ezy_pos_stock` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1139,7 +1149,7 @@ CREATE TABLE `ezy_pos_stock_log` (
   `stocklog_createdat` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`stocklog_id`),
   KEY `idx_stocklog_store` (`stocklog_store_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=7 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1148,6 +1158,7 @@ CREATE TABLE `ezy_pos_stock_log` (
 
 LOCK TABLES `ezy_pos_stock_log` WRITE;
 /*!40000 ALTER TABLE `ezy_pos_stock_log` DISABLE KEYS */;
+INSERT INTO `ezy_pos_stock_log` VALUES (2,3,6,25.00,1,0,0,0,0,0,1,'2026-03-11 09:36:20'),(3,1,6,10.00,0,1,0,0,0,0,1,'2026-03-11 09:36:39'),(4,3,0,5.00,2,0,0,0,0,0,1,'2026-03-11 09:37:07'),(5,1,6,15.00,0,0,0,0,0,0,1,'2026-03-11 09:37:47'),(6,2,6,5.00,0,0,0,0,0,0,1,'2026-03-11 09:40:10');
 /*!40000 ALTER TABLE `ezy_pos_stock_log` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1601,4 +1612,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-11  8:15:32
+-- Dump completed on 2026-03-11  9:40:20
