@@ -12,9 +12,38 @@ class Reports extends CI_Controller {
                // }
                 $this->load->model('Report_model');
                 $this->load->model('Configs_model');
+                $this->load->model('Stores_model');
         }
 
-     
+        // Helper: get SQL WHERE clause for store filtering based on user role
+        private function _storeFilter($column = 'sale_location', $storeid_override = null){
+            if($storeid_override && $storeid_override != 'all' && $storeid_override != '0'){
+                return " AND $column = '".intval($storeid_override)."'";
+            }
+            if($this->session->userdata('userrole') == 1){
+                return ''; // admin sees all stores
+            }
+            // Non-admin: restrict to assigned stores
+            $uid = $this->session->userdata('userid');
+            $this->db->select('store_id');
+            $this->db->where('user_id', $uid);
+            $this->db->where('user_store_status', 1);
+            $q = $this->db->get('ezy_pos_user_store');
+            $ids = array();
+            foreach($q->result() as $r){ $ids[] = intval($r->store_id); }
+            if(empty($ids)) return " AND $column = -1"; // no store assigned, show nothing
+            return " AND $column IN (".implode(',', $ids).")";
+        }
+
+        // Helper: load stores for dropdown (admin=all, staff=assigned only)
+        private function _loadStoresForUser(){
+            if($this->session->userdata('userrole') == 1){
+                return $this->Stores_model->getAllStores();
+            }
+            $uid = $this->session->userdata('userid');
+            return $this->Stores_model->getAllStoresfornonadmin($uid);
+        }
+
        public function sales_report($page = 'index')
         {
            

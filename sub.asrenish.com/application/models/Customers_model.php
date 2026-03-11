@@ -99,8 +99,8 @@ class Customers_model extends CI_Model {
             return false;
         }
     }
-    public function getCustomers(){ //get name& id
-        $this->db->select('cus_id,cus_name');
+    public function getCustomers(){ //get name, id & contact
+        $this->db->select('cus_id,cus_name,cus_contact');
         $this->db->from('ezy_pos_customers');
         $this->db->where('cus_status', 1);
         $query = $this->db->get();

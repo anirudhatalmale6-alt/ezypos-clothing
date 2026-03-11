@@ -936,7 +936,7 @@
                         });
                         
                         if(curgrnInsrtdid>0){
-                            //change crrent qty of grn with pending insufficient stock solds 
+                            //change crrent qty of grn with pending insufficient stock solds
                             $.ajax({
                                 type: "Post",
                                 url:"<?php echo base_url('InsufficentStockSale/adjustGrnWithinsuffi'); ?>",
@@ -945,32 +945,17 @@
                                 dataType: "json",
                                 success: function (res) {
                                     if (res.status === 'error') {
-                                        // If the response status is error, display the error message from the controller
-                                        swal({
-                                            type: 'error',
-                                            title: 'Oops...',
-                                            text: res.message // Display error message from controller
-                                        });
+                                        console.log('Insufficient stock adjustment error:', res.message);
                                     } else {
-                                        // Handle success case here (if needed)
-                                        console.log('Success:', res);
+                                        console.log('Insufficient stock adjusted:', res);
                                     }
                                 },
                                 error: function (err) {
-                                    swal({
-                                        type: 'error',
-                                        title: 'Oops...',
-                                        text: 'Error in managing insufficient sold stock !'
-                                    });
-                                    console.log(err);
+                                    console.log('Insufficient stock adjustment skipped:', err);
                                 }
                             });
                         }else{
-                            swal({
-                                type: 'error',
-                                title: 'Oops...',
-                                text: 'Insufficient stock sale not adjusted with grn..'
-                            });
+                            console.log('GRN item added, no insufficient stock to adjust');
                         }
                     
 

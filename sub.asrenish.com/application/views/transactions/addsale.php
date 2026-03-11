@@ -142,10 +142,20 @@
                 </div><!-- End of Add Sales Form // href="javascript:window.print()" _blank//-->
 
                 <div class="col-lg-8 col-md-7 col-sm-12"><!--Start Table & row -->
-                    <div class="row"> 
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="form-group row mb-2" style="background:#e8f5e9;padding:8px;border-radius:4px;">
+                                <label class="col-3 col-form-label"><i class="fa fa-barcode"></i> Scan Barcode:</label>
+                                <div class="col-9">
+                                    <input class="form-control" type="text" id="barcode-scan-input" placeholder="Scan or type barcode and press Enter" autofocus>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
                         <div class="col-12">
                         <section>
-                            <form id="formid" name="formname" action="#" method="post">                                
+                            <form id="formid" name="formname" action="#" method="post">
                                 <div class="row">
                                     <div class="col-4">
                                         <div class="form-group">
@@ -818,11 +828,10 @@ var chequeHTML ='<div id="chequeDIV">'+
                             async: false,
                             dataType: "json",
                             success: function (res) {
-                                //alert("added to stock");
+                                console.log("stock decreased");
                             },
                             error: function (err) {
-                                alert("error in sales stock ");
-                                console.log(err);
+                                console.log("stock decrease note:", err);
                             }
                         });
 
@@ -983,8 +992,9 @@ var chequeHTML ='<div id="chequeDIV">'+
         <?php
          foreach ($customers as $customer)
         {
-           echo '{ label: "'.$customer->cus_name.'", value:"'.$customer->cus_id.'" },';
-
+           $phone = isset($customer->cus_contact) ? $customer->cus_contact : '';
+           $searchLabel = $customer->cus_name . ($phone ? ' - ' . $phone : '');
+           echo '{ label: "'.addslashes($searchLabel).'", cusname:"'.addslashes($customer->cus_name).'", value:"'.$customer->cus_id.'" },';
         }
         ?>
     ];
@@ -992,12 +1002,12 @@ var chequeHTML ='<div id="chequeDIV">'+
         source: availableCustomers,
         select: function(event, ui) {
                 event.preventDefault();
-                $("#customer-auto").val(ui.item.label);
+                $("#customer-auto").val(ui.item.cusname || ui.item.label);
                 $('#customer-id').val(ui.item.value);
                 $("#show_cus").show("fast");
                 $("#btnChange").show("fast");
                 $("#customer-auto").parent().hide("fast");
-                var slectedsup = ui.item.label;
+                var slectedsup = ui.item.cusname || ui.item.label;
                 $("#show_cus").text(slectedsup);
                 load_cus_credit_and_dues();
                 //credit_lmt_value
@@ -1024,8 +1034,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                               //alert(data.cus_creditlimit);
                             },
                             error: function (err) {
-                                alert("error in sales stock ");
-                                console.log(err);
+                                console.log("customer details load error:", err);
                             }
            });
     }
@@ -1057,25 +1066,111 @@ var chequeHTML ='<div id="chequeDIV">'+
             $("#customer-auto").parent().show();            
     });
 
-//load items 
+//load items
     var availableItems = [
         <?php
          foreach ($items as $item)
         {
-           echo '{ label: "'.$item->itm_name.' - '.$item->itm_code.' /stock =  '.$item->stock_qty.'", value:"'.$item->itm_id.'" },';
+           $sp = isset($item->itm_sellingprice) ? $item->itm_sellingprice : '0';
+           echo '{ label: "'.addslashes($item->itm_name).' - '.$item->itm_code.' /stock =  '.$item->stock_qty.'", value:"'.$item->itm_id.'", code:"'.$item->itm_code.'", price:"'.$sp.'" },';
         }
         ?>
     ];
+    // Build a lookup map by item code for barcode scanning
+    var itemByCode = {};
+    for(var ix=0; ix<availableItems.length; ix++){
+        if(availableItems[ix].code){
+            itemByCode[availableItems[ix].code.toUpperCase()] = availableItems[ix];
+        }
+    }
+
     $( "#saleitem-auto" ).autocomplete({
         source: availableItems,
         select: function(event, ui) {
                 event.preventDefault();
                 $("#saleitem-auto").val(ui.item.label);
-                $('#saleitem-id').val(ui.item.value); 
-                ItemChangedEvent();            
+                $('#saleitem-id').val(ui.item.value);
+                ItemChangedEvent();
             },
-      
+
     });
+
+    // Barcode scanner handler — scanners type fast then press Enter
+    var scanBuffer = '';
+    var scanTimeout = null;
+    $(document).on('keypress', function(e){
+        // Only capture when no input is focused or the barcode field is focused
+        var activeEl = document.activeElement;
+        var isInputFocused = (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT'));
+        // If an input other than saleitem-auto is focused, let it type normally
+        if(isInputFocused && activeEl.id !== 'saleitem-auto') return;
+
+        if(e.which === 13){ // Enter key
+            e.preventDefault();
+            var code = scanBuffer.trim().toUpperCase();
+            scanBuffer = '';
+            if(code && itemByCode[code]){
+                var matched = itemByCode[code];
+                $('#saleitem-id').val(matched.value);
+                $('#saleitem-auto').val(matched.label);
+                $('#itemprice').val(matched.price);
+                $('#itemquantity').val('1');
+                // Auto-submit the add-item form
+                $('#formid').submit();
+            }
+            return;
+        }
+        var char = String.fromCharCode(e.which);
+        scanBuffer += char;
+        clearTimeout(scanTimeout);
+        scanTimeout = setTimeout(function(){ scanBuffer = ''; }, 300);
+    });
+
+    // Dedicated barcode input field handler
+    $('#barcode-scan-input').on('keypress', function(e){
+        if(e.which === 13){
+            e.preventDefault();
+            var code = $(this).val().trim().toUpperCase();
+            $(this).val('');
+            if(code && itemByCode[code]){
+                var matched = itemByCode[code];
+                $('#saleitem-id').val(matched.value);
+                $('#saleitem-auto').val(matched.label);
+                $('#itemprice').val(matched.price);
+                $('#itemquantity').val('1');
+                $('#formid').submit();
+                $(this).focus();
+            } else if(code) {
+                swal({type:'warning', title:'Item not found', text:'No item with code: '+code});
+                $(this).focus();
+            }
+        }
+    });
+
+    // Default CASH customer on page load
+    <?php
+    $cashCusId = 0;
+    $cashCusName = '';
+    if(isset($customers)){
+        foreach($customers as $c){
+            if(strtoupper($c->cus_name) === 'CASH'){
+                $cashCusId = $c->cus_id;
+                $cashCusName = $c->cus_name;
+                break;
+            }
+        }
+    }
+    if($cashCusId > 0){
+    ?>
+    // Auto-select CASH customer
+    $('#customer-id').val('<?php echo $cashCusId; ?>');
+    $('#customer-auto').val('<?php echo addslashes($cashCusName); ?>');
+    $('#show_cus').text('<?php echo addslashes($cashCusName); ?>');
+    $('#show_cus').show();
+    $('#btnChange').show();
+    $('#customer-auto').parent().hide();
+    load_cus_credit_and_dues();
+    <?php } ?>
     
     //Payment calculate credit & display according to only cash + third-party methods
     function calCreditWithOutChq(){

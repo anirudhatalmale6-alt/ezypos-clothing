@@ -4,6 +4,18 @@ class Report_model extends CI_Model {
     {
           $this->load->database();
     }
+
+    // Helper: build store filter SQL for non-admin users
+    protected function _storeFilter($column = 'sale_location'){
+        $userrole = $this->session->userdata('userrole');
+        if($userrole == 1) return ''; // admin sees all stores
+        $userid = $this->session->userdata('userid');
+        $q = $this->db->query("SELECT store_id FROM ezy_pos_user_store WHERE user_id='".intval($userid)."' AND user_store_status=1");
+        $ids = array();
+        foreach($q->result() as $r){ $ids[] = intval($r->store_id); }
+        if(empty($ids)) return " AND $column = -1";
+        return " AND $column IN (".implode(',', $ids).")";
+    }
     
     
         public function getSaleReport(){
@@ -20,7 +32,8 @@ class Report_model extends CI_Model {
     
     
         public function get_sale_Report_for_today_summary_total(){
-        $str="SELECT SUM(sale_grandtotal) AS sum_sale_grandtotal FROM ezy_pos_sale WHERE sale_date = CURDATE() AND sale_status='1'";
+        $sf = $this->_storeFilter('sale_location');
+        $str="SELECT SUM(sale_grandtotal) AS sum_sale_grandtotal FROM ezy_pos_sale WHERE sale_date = CURDATE() AND sale_status='1'".$sf;
         $query = $this->db->query($str);
         if($query->num_rows()>0){
             return $query->row();
@@ -387,10 +400,11 @@ class Report_model extends CI_Model {
         $to=$this->input->post('to');
         $cus_id=$this->input->post('cus_id');
         $start=$from." 00:00:00";
-        $end=$to." 23:59:59"; 
-        
+        $end=$to." 23:59:59";
+        $sf = $this->_storeFilter('s.sale_location');
+
         $str="SELECT s.sale_id,s.sale_cus_id,s.sale_grandtotal,s.sale_subtotal,s.sale_discount,s.sale_createdat,c.cus_name "
-        . "FROM ezy_pos_sale s,ezy_pos_customers c WHERE s.sale_cus_id='$cus_id' AND c.cus_id='$cus_id' AND sale_createdat BETWEEN '".$start."' AND '".$end."' ";
+        . "FROM ezy_pos_sale s,ezy_pos_customers c WHERE s.sale_cus_id='$cus_id' AND c.cus_id='$cus_id' AND sale_createdat BETWEEN '".$start."' AND '".$end."' ".$sf;
         $query = $this->db->query($str);
         if($query->num_rows()>0){
             return $query->result();
@@ -404,10 +418,11 @@ class Report_model extends CI_Model {
         $from=$this->input->post('from');
         $to=$this->input->post('to');
         $start=$from." 00:00:00";
-        $end=$to." 23:59:59"; 
-        
+        $end=$to." 23:59:59";
+        $sf = $this->_storeFilter('s.sale_location');
+
         $str="SELECT s.sale_id,s.sale_cus_id,s.sale_grandtotal,s.sale_subtotal,s.sale_discount,s.sale_createdat,c.cus_name "
-        . "FROM ezy_pos_sale s,ezy_pos_customers c WHERE s.sale_cus_id=c.cus_id AND sale_createdat BETWEEN '".$start."' AND '".$end."' ";
+        . "FROM ezy_pos_sale s,ezy_pos_customers c WHERE s.sale_cus_id=c.cus_id AND sale_createdat BETWEEN '".$start."' AND '".$end."' ".$sf;
         $query = $this->db->query($str);
         if($query->num_rows()>0){
             return $query->result();
@@ -422,9 +437,10 @@ class Report_model extends CI_Model {
         $from=$this->input->post('from');
         $to=$this->input->post('to');
         $start=$from." 00:00:00";
-        $end=$to." 23:59:59"; 
-        
-        $str="SELECT SUM(sale_grandtotal) AS sum_sale_grandtotal FROM ezy_pos_sale WHERE sale_date BETWEEN '".$start."' AND '".$end."' ";
+        $end=$to." 23:59:59";
+        $sf = $this->_storeFilter('sale_location');
+
+        $str="SELECT SUM(sale_grandtotal) AS sum_sale_grandtotal FROM ezy_pos_sale WHERE sale_date BETWEEN '".$start."' AND '".$end."' ".$sf;
         $query = $this->db->query($str);
         if($query->num_rows()>0){
             return $query->row();
@@ -436,7 +452,8 @@ class Report_model extends CI_Model {
     
     public function get_sales_Report_by_month(){ //2020-09-14 10:08:36
         $selected_month=$this->input->post('selected_month');
-        $str="SELECT SUM(sale_grandtotal) AS sum_sale_grandtotal FROM ezy_pos_sale WHERE sale_date LIKE '%".$selected_month."%' ";
+        $sf = $this->_storeFilter('sale_location');
+        $str="SELECT SUM(sale_grandtotal) AS sum_sale_grandtotal FROM ezy_pos_sale WHERE sale_date LIKE '%".$selected_month."%' ".$sf;
         $query = $this->db->query($str);
         if($query->num_rows()>0){
             return $query->row();
@@ -479,9 +496,10 @@ class Report_model extends CI_Model {
         $from=$this->input->post('from');
         $to=$this->input->post('to');
         $start=$from." 00:00:00";
-        $end=$to." 23:59:59"; 
-        
-        $str="SELECT SUM(grn_grandtotal) AS sum_grn_grandtotal FROM ezy_pos_grns WHERE grn_date BETWEEN '".$start."' AND '".$end."' ";
+        $end=$to." 23:59:59";
+        $sf = $this->_storeFilter('grn_location');
+
+        $str="SELECT SUM(grn_grandtotal) AS sum_grn_grandtotal FROM ezy_pos_grns WHERE grn_date BETWEEN '".$start."' AND '".$end."' ".$sf;
         $query = $this->db->query($str);
         if($query->num_rows()>0){
             return $query->row();

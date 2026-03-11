@@ -157,7 +157,7 @@ class Items_model extends CI_Model {
 
 
     public function getItems(){ //get name& id only
-        $this->db->select('i.itm_id,i.itm_code,i.itm_name,s.stock_qty');
+        $this->db->select('i.itm_id,i.itm_code,i.itm_name,i.itm_sellingprice,s.stock_qty');
         $this->db->from('ezy_pos_items i');
         $this->db->join('ezy_pos_stock s','i.itm_id=s.stock_itm_id','left');
         $this->db->where('itm_status', 1);

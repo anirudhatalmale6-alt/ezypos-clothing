@@ -142,7 +142,24 @@ class Userauthentication extends CI_Controller {
                 );
                         
                 $this->session->set_userdata($session_data);
-                echo json_encode(true);     
+                // Store user's assigned store IDs in session
+                $user_stores = array();
+                if($user_info[0]['user_role'] == 1){
+                    // Admin can see all stores
+                    $this->load->model('Stores_model');
+                    $allStores = $this->Stores_model->getAllStores();
+                    if($allStores){
+                        foreach($allStores as $s){ $user_stores[] = $s->store_id; }
+                    }
+                } else {
+                    $this->db->select('store_id');
+                    $this->db->where('user_id', $user_info[0]['user_id']);
+                    $this->db->where('user_store_status', 1);
+                    $q = $this->db->get('ezy_pos_user_store');
+                    foreach($q->result() as $r){ $user_stores[] = $r->store_id; }
+                }
+                $this->session->set_userdata('user_stores', $user_stores);
+                echo json_encode(true);
                 
             
             }

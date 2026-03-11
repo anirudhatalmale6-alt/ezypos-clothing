@@ -63,6 +63,10 @@ $route['warehouse'] = 'StoreItems/warehouse/warehouse';
 $route['payment-methods'] = 'sales/paymentMethods';
 $route['payment-methods-report'] = 'reports/payment_methods_report/payment-methods-report';
 
+// Production Sale (Tailoring Orders)
+$route['add-production-sale'] = 'ProductionSale/addProductionSale/addproductionsale';
+$route['all-production-sales'] = 'ProductionSale/allProductionSales/allproductionsales';
+
 
 
 

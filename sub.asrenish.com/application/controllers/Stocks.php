@@ -26,7 +26,11 @@ class Stocks extends CI_Controller {
 
                 $data['title'] = ucfirst($page);
                 $data['config'] = $this->Configs_model->getConfigName();
-                $data['stores'] = $this->Stores_model->getAllStores();
+                if($this->session->userdata('userrole') == 1){
+                    $data['stores'] = $this->Stores_model->getAllStores();
+                } else {
+                    $data['stores'] = $this->Stores_model->getAllStoresfornonadmin($this->session->userdata('userid'));
+                }
 
                 $this->load->view('templates/header', $data);
                 $this->load->view('listing/'.$page, $data);
@@ -79,6 +83,16 @@ class Stocks extends CI_Controller {
         public function showAllStock(){
                 $store_id = $this->input->post('storeid');
                 if($store_id == '' || $store_id == null){ $store_id = 0; }
+                // Non-admin: force filter to their assigned store
+                if($this->session->userdata('userrole') != 1 && $store_id == 0){
+                    $uid = $this->session->userdata('userid');
+                    $this->db->select('store_id');
+                    $this->db->where('user_id', $uid);
+                    $this->db->where('user_store_status', 1);
+                    $q = $this->db->get('ezy_pos_user_store');
+                    $row = $q->row();
+                    if($row){ $store_id = $row->store_id; }
+                }
                 $result = $this->Stocks_model->showAllStockWithWarehouses($store_id);
                 echo json_encode($result);
         }

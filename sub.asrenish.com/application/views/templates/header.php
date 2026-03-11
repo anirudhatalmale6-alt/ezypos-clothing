@@ -264,6 +264,9 @@
                                     <?php }} ?>
                                     <li><a href="<?php echo base_url('add-production')?>"><i class="fa fa-industry"></i> Production</a></li>
                                     <li><a href="<?php echo base_url('show-all-productions')?>"><i class="fa fa-list"></i> All Productions</a></li>
+                                    <li class="divider"></li>
+                                    <li><a href="<?php echo base_url('add-production-sale')?>"><i class="fa fa-scissors"></i> Tailoring Order</a></li>
+                                    <li><a href="<?php echo base_url('all-production-sales')?>"><i class="fa fa-list"></i> All Tailoring Orders</a></li>
                                 </ul>
                             </li>
                             <?php ?>
