@@ -175,12 +175,19 @@ class Production_model extends CI_Model {
         return $this->db->delete('ezy_pos_production_costs');
     }
 
-    // Get oldest GRN price for material (FIFO costing)
-    public function getOldestGrnPrice($item_id) {
-        $str = "SELECT cur_grnPrice FROM ezy_pos_currentqtywithgrn
-                WHERE cur_itmID = ? AND cur_currentQTY > 0
-                ORDER BY cur_id ASC LIMIT 1";
-        $query = $this->db->query($str, array($item_id));
+    // Get oldest GRN price for material (FIFO costing), filtered by store
+    public function getOldestGrnPrice($item_id, $store_id = 0) {
+        if ($store_id > 0) {
+            $str = "SELECT cur_grnPrice FROM ezy_pos_currentqtywithgrn
+                    WHERE cur_itmID = ? AND cur_currentQTY > 0 AND cur_store_id = ?
+                    ORDER BY cur_id ASC LIMIT 1";
+            $query = $this->db->query($str, array($item_id, $store_id));
+        } else {
+            $str = "SELECT cur_grnPrice FROM ezy_pos_currentqtywithgrn
+                    WHERE cur_itmID = ? AND cur_currentQTY > 0
+                    ORDER BY cur_id ASC LIMIT 1";
+            $query = $this->db->query($str, array($item_id));
+        }
         if ($query->num_rows() > 0) {
             return $query->row()->cur_grnPrice;
         }
@@ -189,5 +196,29 @@ class Production_model extends CI_Model {
         $this->db->where('itm_id', $item_id);
         $item = $this->db->get('ezy_pos_items')->row();
         return $item ? $item->itm_sellingprice : 0;
+    }
+
+    // Get raw material items filtered by store (only items with stock in that store)
+    public function getRawMaterialItemsByStore($store_id = 0) {
+        if ($store_id > 0) {
+            $str = "SELECT i.itm_id, i.itm_code, i.itm_name, i.itm_uom, c.cat_name,
+                    COALESCE(s.stock_qty, 0) as stock_qty
+                    FROM ezy_pos_items i
+                    INNER JOIN ezy_pos_categories c ON i.itm_category = c.cat_id
+                    LEFT JOIN ezy_pos_stock s ON i.itm_id = s.stock_itm_id AND s.stock_store_id = ?
+                    WHERE c.cat_is_raw = 1 AND i.itm_status = 1
+                    ORDER BY c.cat_name, i.itm_name";
+            $query = $this->db->query($str, array($store_id));
+        } else {
+            $str = "SELECT i.itm_id, i.itm_code, i.itm_name, i.itm_uom, c.cat_name,
+                    COALESCE(s.stock_qty, 0) as stock_qty
+                    FROM ezy_pos_items i
+                    INNER JOIN ezy_pos_categories c ON i.itm_category = c.cat_id
+                    LEFT JOIN ezy_pos_stock s ON i.itm_id = s.stock_itm_id
+                    WHERE c.cat_is_raw = 1 AND i.itm_status = 1
+                    ORDER BY c.cat_name, i.itm_name";
+            $query = $this->db->query($str);
+        }
+        return $query->result();
     }
 }

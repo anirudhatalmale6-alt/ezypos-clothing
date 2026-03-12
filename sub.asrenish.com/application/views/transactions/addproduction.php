@@ -19,9 +19,22 @@
                         </div>
                     </div>
                     <div class="form-group row">
-                        <label class="col-5 col-form-label">Store<span class="text-danger">*</span></label>
+                        <label class="col-5 col-form-label">Material From<span class="text-danger">*</span></label>
                         <div class="col-7">
                             <select class="form-control" id="prod_store">
+                                <?php if($this->session->userdata('userrole')==1): ?>
+                                <option value="0">Select Store</option>
+                                <?php endif; ?>
+                                <?php if(isset($storeLoc) && $storeLoc): foreach($storeLoc as $s): ?>
+                                <option value="<?php echo $s->store_id; ?>"><?php echo $s->store_name; ?></option>
+                                <?php endforeach; endif; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-5 col-form-label">GRN Output To<span class="text-danger">*</span></label>
+                        <div class="col-7">
+                            <select class="form-control" id="prod_output_store">
                                 <?php if($this->session->userdata('userrole')==1): ?>
                                 <option value="0">Select Store</option>
                                 <?php endif; ?>
@@ -265,19 +278,51 @@ $(document).ready(function() {
         $('#mat_total').val((qty * price).toFixed(2));
     });
 
-    // Material autocomplete search
-    var rawMaterials = [
-        <?php if($rawMaterials): foreach($rawMaterials as $mat): ?>
-        { label: "<?php echo addslashes($mat->itm_code . ' - ' . $mat->itm_name . ' (Stock: ' . $mat->stock_qty . ' ' . $mat->itm_uom . ')'); ?>",
-          value: "<?php echo $mat->itm_id; ?>",
-          code: "<?php echo addslashes($mat->itm_code); ?>",
-          name: "<?php echo addslashes($mat->itm_name); ?>",
-          stock: <?php echo ($mat->stock_qty ? $mat->stock_qty : 0); ?>,
-          uom: "<?php echo addslashes($mat->itm_uom); ?>" },
-        <?php endforeach; endif; ?>
-    ];
+    // Material autocomplete - loaded dynamically by store
+    var rawMaterials = [];
     var selectedMatStock = 0;
     var selectedMatUom = '';
+
+    function loadRawMaterialsByStore(storeId) {
+        $.ajax({
+            type: 'POST',
+            url: BASE_URL + 'production/getRawMaterialsByStore',
+            data: { store_id: storeId },
+            dataType: 'json',
+            success: function(data) {
+                rawMaterials = [];
+                if (data) {
+                    for (var i = 0; i < data.length; i++) {
+                        var m = data[i];
+                        rawMaterials.push({
+                            label: m.itm_code + ' - ' + m.itm_name + ' (Stock: ' + parseFloat(m.stock_qty).toFixed(0) + ' ' + m.itm_uom + ')',
+                            value: m.itm_id,
+                            code: m.itm_code,
+                            name: m.itm_name,
+                            stock: parseFloat(m.stock_qty) || 0,
+                            uom: m.itm_uom
+                        });
+                    }
+                }
+                // Re-initialize autocomplete with new data
+                $('#mat_item_search').autocomplete('option', 'source', rawMaterials);
+                // Clear any existing selection
+                $('#mat_item_search').val('');
+                $('#mat_item').val('');
+                $('#mat_stock_info').text('');
+            }
+        });
+    }
+
+    // Reload materials when source store changes
+    $('#prod_store').change(function() {
+        var storeId = $(this).val() || 0;
+        if (currentProdId) {
+            loadRawMaterialsByStore(storeId);
+        }
+    });
+
+    // Initialize autocomplete
     $('#mat_item_search').autocomplete({
         source: rawMaterials,
         minLength: 0,
@@ -288,8 +333,8 @@ $(document).ready(function() {
             selectedMatStock = ui.item.stock;
             selectedMatUom = ui.item.uom;
             $('#mat_stock_info').text('Stock: ' + ui.item.stock + ' ' + ui.item.uom);
-            // Auto-fetch price
-            $.post(BASE_URL + 'production/getMaterialPrice', { item_id: ui.item.value }, function(res) {
+            // Auto-fetch price filtered by store
+            $.post(BASE_URL + 'production/getMaterialPrice', { item_id: ui.item.value, store_id: $('#prod_store').val() || 0 }, function(res) {
                 var price = JSON.parse(res);
                 $('#mat_price').val(parseFloat(price).toFixed(2));
                 $('#mat_qty').trigger('input');
@@ -301,6 +346,10 @@ $(document).ready(function() {
     $('#btn_create_production').click(function() {
         var outputItem = $('#output_item').val();
         var outputQty = $('#output_qty').val();
+        var storeId = $('#prod_store').val();
+        var outputStoreId = $('#prod_output_store').val();
+        if (!storeId || storeId == '0') { alert('Please select the source store (Material From)'); return; }
+        if (!outputStoreId || outputStoreId == '0') { alert('Please select the output store (GRN Output To)'); return; }
         if (!outputItem) { alert('Please select an output item'); return; }
         if (!outputQty || outputQty < 1) { alert('Please enter output quantity'); return; }
 
@@ -314,17 +363,21 @@ $(document).ready(function() {
                 output_qty: outputQty,
                 prod_type: $('#prod_type').val(),
                 tailor_id: $('#tailor_id').val(),
-                prod_notes: $('#prod_notes').val()
+                prod_notes: $('#prod_notes').val(),
+                store_id: storeId,
+                output_store_id: outputStoreId
             },
             dataType: 'json',
             success: function(prodId) {
                 if (prodId > 0) {
                     currentProdId = prodId;
                     // Disable header fields
-                    $('#prod_code, #prod_date, #output_item, #output_item_search, #output_qty, #prod_type, #tailor_id').prop('disabled', true);
+                    $('#prod_code, #prod_date, #output_item, #output_item_search, #output_qty, #prod_type, #tailor_id, #prod_store, #prod_output_store').prop('disabled', true);
                     $('#btn_create_production').hide();
                     // Show material & cost sections
                     $('#material_section, #cost_section, #status_section, #status_buttons').show();
+                    // Load raw materials for the selected source store
+                    loadRawMaterialsByStore(storeId);
                     Swal.fire('Success', 'Production order created! Now add materials and costs.', 'success');
                 } else {
                     Swal.fire('Error', 'Failed to create production order', 'error');

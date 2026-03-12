@@ -908,6 +908,9 @@ CREATE TABLE `ezy_pos_production` (
   `prod_createdby` int NOT NULL,
   `prod_createdat` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `prod_completedat` datetime DEFAULT NULL,
+  `prod_grn_id` int DEFAULT NULL COMMENT 'FK to ezy_pos_grns.grn_id',
+  `prod_store_id` int NOT NULL DEFAULT '0' COMMENT 'Source store for materials',
+  `prod_output_store_id` int NOT NULL DEFAULT '0' COMMENT 'Destination store for GRN',
   PRIMARY KEY (`prod_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

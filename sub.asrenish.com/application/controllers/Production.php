@@ -48,7 +48,9 @@ class Production extends CI_Controller {
             'prod_type' => $this->input->post('prod_type'),
             'prod_notes' => $this->input->post('prod_notes'),
             'prod_createdby' => $this->session->userdata('userid'),
-            'prod_status' => 'Issued'
+            'prod_status' => 'Issued',
+            'prod_store_id' => $this->input->post('store_id') ?: 0,
+            'prod_output_store_id' => $this->input->post('output_store_id') ?: 0
         );
         $prod_id = $this->Production_model->createProduction($data);
         echo json_encode($prod_id);
@@ -159,6 +161,9 @@ class Production extends CI_Controller {
         $prod = $this->Production_model->getProduction($prod_id);
         if (!$prod) return false;
 
+        // Determine output store (where GRN goes)
+        $output_store = isset($prod->prod_output_store_id) ? $prod->prod_output_store_id : 0;
+
         // Create a GRN for the finished output
         $grn_data = array(
             'grn_code' => 'PROD-' . $prod->prod_code,
@@ -168,6 +173,7 @@ class Production extends CI_Controller {
             'grn_discount' => 0,
             'grn_less' => 0,
             'grn_createdby' => $this->session->userdata('userid'),
+            'grn_location' => $output_store,
             'grn_date' => date('Y-m-d'),
             'grn_status' => 1
         );
@@ -185,7 +191,7 @@ class Production extends CI_Controller {
         );
         $this->db->insert('ezy_pos_grn_item', $grn_item_data);
 
-        // Add to currentqtywithgrn (for FIFO cost tracking)
+        // Add to currentqtywithgrn (for FIFO cost tracking) with store
         $cur_data = array(
             'cur_grnID' => $grn_id,
             'cur_itmID' => $prod->prod_output_item_id,
@@ -193,31 +199,44 @@ class Production extends CI_Controller {
             'cur_grnPrice' => $prod->prod_unit_cost,
             'cur_grnTotal' => $prod->prod_total_cost,
             'cur_currentQTY' => $prod->prod_output_qty,
+            'cur_store_id' => $output_store,
             'cur_status' => 1
         );
         $this->db->insert('ezy_pos_currentqtywithgrn', $cur_data);
 
-        // Increase stock for the finished item
-        $exists = $this->db->query("SELECT stock_id FROM ezy_pos_stock WHERE stock_itm_id = ?", array($prod->prod_output_item_id))->num_rows();
-        if ($exists > 0) {
-            $this->db->query("UPDATE ezy_pos_stock SET stock_qty = stock_qty + ? WHERE stock_itm_id = ?", array($prod->prod_output_qty, $prod->prod_output_item_id));
+        // Increase stock for the finished item in the output store
+        if ($output_store > 0) {
+            $exists = $this->db->query("SELECT stock_id FROM ezy_pos_stock WHERE stock_itm_id = ? AND stock_store_id = ?", array($prod->prod_output_item_id, $output_store))->num_rows();
+            if ($exists > 0) {
+                $this->db->query("UPDATE ezy_pos_stock SET stock_qty = stock_qty + ? WHERE stock_itm_id = ? AND stock_store_id = ?", array($prod->prod_output_qty, $prod->prod_output_item_id, $output_store));
+            } else {
+                $this->db->insert('ezy_pos_stock', array('stock_itm_id' => $prod->prod_output_item_id, 'stock_qty' => $prod->prod_output_qty, 'stock_store_id' => $output_store, 'stock_status' => 1));
+            }
         } else {
-            $this->db->insert('ezy_pos_stock', array('stock_itm_id' => $prod->prod_output_item_id, 'stock_qty' => $prod->prod_output_qty, 'stock_status' => 1));
+            $exists = $this->db->query("SELECT stock_id FROM ezy_pos_stock WHERE stock_itm_id = ?", array($prod->prod_output_item_id))->num_rows();
+            if ($exists > 0) {
+                $this->db->query("UPDATE ezy_pos_stock SET stock_qty = stock_qty + ? WHERE stock_itm_id = ?", array($prod->prod_output_qty, $prod->prod_output_item_id));
+            } else {
+                $this->db->insert('ezy_pos_stock', array('stock_itm_id' => $prod->prod_output_item_id, 'stock_qty' => $prod->prod_output_qty, 'stock_status' => 1));
+            }
         }
 
         // Log stock movement
         $stocklog_data = array(
             'stocklog_itmid' => $prod->prod_output_item_id,
+            'stocklog_store_id' => $output_store,
             'stocklog_qty' => $prod->prod_output_qty,
             'stocklog_grnID' => $grn_id,
             'stocklog_status' => 1
         );
         $this->db->insert('ezy_pos_stock_log', $stocklog_data);
 
-        // Update production with GRN reference
-        $this->Production_model->updateStatus($prod_id, 'Completed');
+        // Link production to GRN (foreign key relationship)
         $this->db->where('prod_id', $prod_id);
-        $this->db->update('ezy_pos_production', array('prod_completedat' => date('Y-m-d H:i:s')));
+        $this->db->update('ezy_pos_production', array(
+            'prod_grn_id' => $grn_id,
+            'prod_completedat' => date('Y-m-d H:i:s')
+        ));
     }
 
     // Get production materials
@@ -303,7 +322,15 @@ class Production extends CI_Controller {
     // Get stock price for a raw material item (FIFO - oldest GRN price)
     public function getMaterialPrice() {
         $item_id = $this->input->post('item_id');
-        $price = $this->Production_model->getOldestGrnPrice($item_id);
+        $store_id = $this->input->post('store_id') ?: 0;
+        $price = $this->Production_model->getOldestGrnPrice($item_id, $store_id);
         echo json_encode($price);
+    }
+
+    // Get raw materials filtered by store (AJAX)
+    public function getRawMaterialsByStore() {
+        $store_id = $this->input->post('store_id') ?: 0;
+        $items = $this->Production_model->getRawMaterialItemsByStore($store_id);
+        echo json_encode($items);
     }
 }
