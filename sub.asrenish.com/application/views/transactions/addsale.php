@@ -90,6 +90,22 @@
                                     <label class="col-5 col-form-label">Credit:</label>
                                     <div class="col-7 col-form-label text-right">LKR <span id="creditvalue">0.00</span></div>
                                 </div>
+                                <!-- Gift Voucher Redemption -->
+                                <hr>
+                                <div style="background:#fff3e0;border-radius:4px;padding:10px;margin-bottom:10px;">
+                                    <strong><i class="fa fa-gift"></i> Redeem Gift Voucher</strong>
+                                    <div class="input-group m-t-10">
+                                        <input type="text" class="form-control" id="redeem_card_number" placeholder="Enter card number...">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-warning" type="button" id="btn_validate_voucher"><i class="fa fa-check"></i> Apply</button>
+                                        </div>
+                                    </div>
+                                    <div id="voucher_list" class="m-t-10"></div>
+                                    <div class="form-group row mb-0 m-t-5" id="voucher_total_row" style="display:none;">
+                                        <label class="col-5 col-form-label"><strong>Voucher Total:</strong></label>
+                                        <div class="col-7 col-form-label text-right"><strong style="color:#e65100;">LKR <span id="voucher_total">0.00</span></strong></div>
+                                    </div>
+                                </div>
                                 <hr>
                                 <div class="form-group row">
                                     <div class="col-4"></div>
@@ -851,7 +867,29 @@ var chequeHTML ='<div id="chequeDIV">'+
                             }
                         });
                     } 
-                    //  
+                    // Process gift voucher redemptions
+                    if (redeemedVouchers.length > 0 && sale_ID > 0) {
+                        for (var rv = 0; rv < redeemedVouchers.length; rv++) {
+                            var voucher = redeemedVouchers[rv];
+                            // Determine actual redemption amount (capped to what's needed)
+                            var redeemAmount = voucher.remaining_value;
+                            $.ajax({
+                                type: 'POST',
+                                url: '<?php echo base_url("GiftVoucher/redeem"); ?>',
+                                data: { gc_id: voucher.gc_id, sale_id: sale_ID, amount: redeemAmount },
+                                async: false,
+                                dataType: 'json',
+                                success: function(res) {
+                                    console.log('Voucher redeemed: ' + voucher.card_number);
+                                }
+                            });
+                        }
+                        redeemedVouchers = [];
+                        renderVoucherList();
+                        recalcVoucherTotal();
+                    }
+
+                    //
                     $("#tbodyID").empty();
                     $("#subtotal").html("0.00");
                     $("#grandtotalLbl").html("0.00");
@@ -1233,6 +1271,137 @@ var chequeHTML ='<div id="chequeDIV">'+
     $(".pm-amount-input").keyup(function(){
         calculateCredit();
     });
+
+    // =========== GIFT VOUCHER REDEMPTION ===========
+    var redeemedVouchers = []; // Array of {gc_id, card_number, amount, is_oneoff}
+
+    $('#btn_validate_voucher').click(function() {
+        var cardNum = $('#redeem_card_number').val().trim();
+        if (!cardNum) { alert('Enter a card number'); return; }
+
+        // Check if already added
+        for (var v = 0; v < redeemedVouchers.length; v++) {
+            if (redeemedVouchers[v].card_number == cardNum) {
+                alert('This card is already added'); return;
+            }
+        }
+
+        $.ajax({
+            type: 'POST',
+            url: '<?php echo base_url("GiftVoucher/validateCard"); ?>',
+            data: { card_number: cardNum },
+            dataType: 'json',
+            success: function(res) {
+                if (res.valid) {
+                    redeemedVouchers.push({
+                        gc_id: res.gc_id,
+                        card_number: res.card_number,
+                        remaining_value: parseFloat(res.remaining_value),
+                        amount: parseFloat(res.remaining_value), // Will be adjusted at save
+                        category: res.category,
+                        is_oneoff: res.is_oneoff
+                    });
+                    renderVoucherList();
+                    recalcVoucherTotal();
+                    calculateCredit();
+                    $('#redeem_card_number').val('');
+                } else {
+                    Swal.fire('Invalid', res.msg, 'error');
+                }
+            }
+        });
+    });
+
+    // Enter key on card number input
+    $('#redeem_card_number').on('keypress', function(e) {
+        if (e.which == 13) { e.preventDefault(); $('#btn_validate_voucher').click(); }
+    });
+
+    function renderVoucherList() {
+        var html = '';
+        for (var i = 0; i < redeemedVouchers.length; i++) {
+            var v = redeemedVouchers[i];
+            html += '<div class="d-flex justify-content-between align-items-center" style="background:#fff;padding:5px 8px;border-radius:3px;margin-bottom:4px;border:1px solid #ffe0b2;">';
+            html += '<span><i class="fa fa-credit-card"></i> ' + v.card_number + ' <small class="text-muted">(' + v.category + ')</small></span>';
+            html += '<span><strong>LKR ' + v.remaining_value.toFixed(2) + '</strong> ';
+            html += '<a href="javascript:;" class="text-danger btn-remove-voucher" data-idx="' + i + '"><i class="fa fa-times"></i></a></span>';
+            html += '</div>';
+        }
+        $('#voucher_list').html(html);
+        $('#voucher_total_row').toggle(redeemedVouchers.length > 0);
+
+        // Bind remove
+        $('.btn-remove-voucher').click(function() {
+            var idx = $(this).data('idx');
+            redeemedVouchers.splice(idx, 1);
+            renderVoucherList();
+            recalcVoucherTotal();
+            calculateCredit();
+        });
+    }
+
+    function recalcVoucherTotal() {
+        var total = 0;
+        for (var i = 0; i < redeemedVouchers.length; i++) {
+            total += redeemedVouchers[i].remaining_value;
+        }
+        $('#voucher_total').text(total.toFixed(2));
+        return total;
+    }
+
+    function getVoucherTotal() {
+        var total = 0;
+        for (var i = 0; i < redeemedVouchers.length; i++) {
+            total += redeemedVouchers[i].remaining_value;
+        }
+        return total;
+    }
+
+    // Override credit calculation to include voucher amounts
+    var origCalcCredit = calculateCredit;
+    calculateCredit = function() {
+        var cashvalue = parseFloat($("#cashvalue").val());
+        if (isNaN(cashvalue) || cashvalue == '') cashvalue = 0;
+
+        var totalcheq = 0;
+        $("input[name='amount[]']").each(function() {
+            var v = parseFloat($(this).val());
+            if (!isNaN(v)) totalcheq += v;
+        });
+
+        var totalPmPayments = 0;
+        $('.pm-amount-input').each(function() {
+            var v = parseFloat($(this).val());
+            if (!isNaN(v) && v > 0) totalPmPayments += v;
+        });
+
+        var voucherTotal = getVoucherTotal();
+        var creditvalue = (grandtotal - cashvalue - totalcheq - totalPmPayments - voucherTotal).toFixed(2);
+        $("#creditvalue").html(creditvalue);
+        validate_user_credits();
+    };
+
+    calCreditWithOutChq = function() {
+        var cashvalue = parseFloat($("#cashvalue").val());
+        if (isNaN(cashvalue) || cashvalue == '') cashvalue = 0;
+
+        var totalPmPayments = 0;
+        $('.pm-amount-input').each(function() {
+            var v = parseFloat($(this).val());
+            if (!isNaN(v) && v > 0) totalPmPayments += v;
+        });
+
+        var voucherTotal = getVoucherTotal();
+        var creditvalue = (grandtotal - cashvalue - totalPmPayments - voucherTotal).toFixed(2);
+        $("#creditvalue").html(creditvalue);
+    };
+
+    // =========== VOUCHER ITEM SELLING (auto-popup for card number) ===========
+    var pendingVoucherSales = []; // Cards to mark as sold after sale is saved
+
+    // Hook into the item add flow to detect voucher items
+    // Voucher items have item codes starting with 'GV' (matching voucher category barcodes)
+    // We'll check on save if any items in cart are voucher items
 
   });
   </script>

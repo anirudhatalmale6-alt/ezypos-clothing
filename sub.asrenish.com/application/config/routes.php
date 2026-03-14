@@ -67,6 +67,10 @@ $route['payment-methods-report'] = 'reports/payment_methods_report/payment-metho
 $route['add-production-sale'] = 'ProductionSale/addProductionSale/addproductionsale';
 $route['all-production-sales'] = 'ProductionSale/allProductionSales/allproductionsales';
 
+// Gift Vouchers
+$route['gift-vouchers'] = 'GiftVoucher/manage/gift-voucher-manage';
+$route['gift-voucher-reports'] = 'GiftVoucher/reports/gift-voucher-reports';
+
 
 
 
