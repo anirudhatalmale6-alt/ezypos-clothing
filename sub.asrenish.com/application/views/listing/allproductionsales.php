@@ -88,7 +88,7 @@ function loadAllProdSales(){
                 var psId = $(this).data('id');
                 var newStatus = $(this).val();
                 $.post(BASE_URL + 'ProductionSale/updateStatus', { prodsale_id: psId, status: newStatus }, function(res) {
-                    Swal.fire('Updated', 'Tailoring order status changed to ' + newStatus, 'success');
+                    swal({ title: 'Updated', text: 'Tailoring order status changed to ' + newStatus, type: 'success' });
                     loadAllProdSales();
                 });
             });

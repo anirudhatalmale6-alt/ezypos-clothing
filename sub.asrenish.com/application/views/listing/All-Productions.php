@@ -103,15 +103,15 @@ function loadProductions() {
                 var $select = $(this);
 
                 if (newStatus == 'Completed') {
-                    Swal.fire({
+                    swal({
                         title: 'Complete Production?',
                         text: 'This will create a GRN for the finished garments and add them to stock. This cannot be undone.',
-                        icon: 'question',
+                        type: 'question',
                         showCancelButton: true,
                         confirmButtonText: 'Yes, Complete',
                         cancelButtonText: 'Cancel'
                     }).then(function(result) {
-                        if (result.isConfirmed) {
+                        if (result.value) {
                             updateProductionStatus(prodId, newStatus);
                         } else {
                             // Revert selection
@@ -119,15 +119,15 @@ function loadProductions() {
                         }
                     });
                 } else if (newStatus == 'Cancelled') {
-                    Swal.fire({
+                    swal({
                         title: 'Cancel Production?',
                         text: 'Are you sure you want to cancel this production?',
-                        icon: 'warning',
+                        type: 'warning',
                         showCancelButton: true,
                         confirmButtonText: 'Yes, Cancel It',
                         cancelButtonText: 'No'
                     }).then(function(result) {
-                        if (result.isConfirmed) {
+                        if (result.value) {
                             updateProductionStatus(prodId, newStatus);
                         } else {
                             loadProductions();
@@ -143,7 +143,7 @@ function loadProductions() {
 
 function updateProductionStatus(prodId, status) {
     $.post(BASE_URL + 'production/updateStatus', { prod_id: prodId, status: status }, function(res) {
-        Swal.fire('Updated', 'Production status changed to ' + status, 'success');
+        swal({ title: 'Updated', text: 'Production status changed to ' + status, type: 'success' });
         loadProductions();
     });
 }

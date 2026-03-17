@@ -158,7 +158,7 @@ $(document).ready(function() {
         $.post(url, postData, function(res) {
             var data = JSON.parse(res);
             if (data.success) {
-                Swal.fire('Saved', 'Voucher category saved!', 'success');
+                swal({ title: 'Saved', text: 'Voucher category saved!', type: 'success' });
                 resetCatForm();
                 loadCategorySummary();
                 location.reload(); // Refresh to update generate dropdown
@@ -178,23 +178,23 @@ $(document).ready(function() {
         if (!vcatId) { alert('Select a category'); return; }
         if (!count || count < 1) { alert('Enter number of cards'); return; }
 
-        Swal.fire({
+        swal({
             title: 'Generate ' + count + ' cards?',
             text: 'This will create ' + count + ' new gift cards for the selected category.',
-            icon: 'question',
+            type: 'question',
             showCancelButton: true,
             confirmButtonText: 'Generate'
         }).then(function(result) {
-            if (result.isConfirmed) {
+            if (result.value) {
                 $.post(BASE_URL + 'GiftVoucher/generateCards', { vcat_id: vcatId, count: count }, function(res) {
                     var data = JSON.parse(res);
                     if (data.success) {
-                        Swal.fire('Done', data.count + ' cards generated!', 'success');
+                        swal({ title: 'Done', text: data.count + ' cards generated!', type: 'success' });
                         loadCards();
                         loadCategorySummary();
                         $('#gen_count').val('');
                     } else {
-                        Swal.fire('Error', data.msg, 'error');
+                        swal({ title: 'Error', text: data.msg, type: 'error' });
                     }
                 });
             }
