@@ -16,8 +16,9 @@ class Sales extends CI_Controller {
                $this->load->model('User_model');
                $this->load->model('CusPayment_model');
                $this->load->model('Stores_model');
-               $this->load->model('Configs_model'); 
-               $this->load->helper("language");        
+               $this->load->model('Configs_model');
+               $this->load->model('DeliveryCompany_model');
+               $this->load->helper("language");
         }
 
         public function addSaleGET($page = 'index')
@@ -39,7 +40,8 @@ class Sales extends CI_Controller {
                         'customers'=>$this->Customers_model->getCustomers(),
                         'items'=>$this->Items_model->getItems(),
                         'storeLoc'=> $storeLoc,
-                        'paymentMethods'=>$this->Sales_model->getActivePaymentMethods()
+                        'paymentMethods'=>$this->Sales_model->getActivePaymentMethods(),
+                        'deliveryCompanies'=>$this->DeliveryCompany_model->getActive()
                 );
         
                 $this->load->view('templates/header', $data1);

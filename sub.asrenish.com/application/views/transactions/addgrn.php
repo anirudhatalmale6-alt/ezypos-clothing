@@ -68,8 +68,14 @@
                                     <div class="col-7 col-form-label text-right"><strong>LKR <span id="subtotal">0.00</span></strong></div>
                                 </div>
                                 <div class="form-group row mb-1">
-                                    <label class="col-5 col-form-label">Discount(%):</label>
-                                    <div class="col-7"><input class="form-control DecimalFix" type="text" name="invoiceDis" placeholder="%" id="invoiceDis"/></div>
+                                    <label class="col-3 col-form-label">Discount:</label>
+                                    <div class="col-5"><input class="form-control DecimalFix" type="text" name="invoiceDis" placeholder="0" id="invoiceDis"/></div>
+                                    <div class="col-4">
+                                        <select class="form-control" id="invoiceDisType">
+                                            <option value="percentage">%</option>
+                                            <option value="flat">Flat (LKR)</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="form-group row mb-0">
                                     <label class="col-5 col-form-label" style="font-size:16px;"><strong>Grand Total:</strong></label>
@@ -354,7 +360,7 @@
                 $.ajax({
                     type: "Post",
                     url:"<?php echo base_url('Grns/addGrnPOST2'); ?>",
-                    data: {grncode:grncde,supplierid:supplierid,grandtotal:amount,subtotal:0,invoiceDis:0,date:date,grnDec:grnDec,storeid:grnStore},
+                    data: {grncode:grncde,supplierid:supplierid,grandtotal:amount,subtotal:0,invoiceDis:0,discount_type:'percentage',date:date,grnDec:grnDec,storeid:grnStore},
                     async: false,
                     dataType: "json",
                     success: function (grnid) {
@@ -554,7 +560,7 @@
                                         '<td class="editable priceField" id="price_'+k+'" style="Text-align: right;">'+(price).toFixed(2)+'</td>'+
                                         '<td class="editable qtyField" id="quantity_'+k+'"  style="Text-align: right;">'+(quantity).toFixed(2)+'</td>'+
                                         '<td class="totalField" id="priceINTOqty1_'+k+'"  style="Text-align: right;">'+priceINTOqty1+'</td>'+
-                                        '<td class="discount"><input type="text" id="discount_'+k+'"  style="Text-align: right;" class="form-control itm_discnt dcmlFixDynmc validationDynmic" size="6"/></td>'+
+                                        '<td class="discount"><div class="input-group input-group-sm"><input type="text" id="discount_'+k+'" style="Text-align: right;" class="form-control itm_discnt dcmlFixDynmc validationDynmic" size="4"/><select class="form-control itm_dis_type" style="max-width:55px;"><option value="percentage">%</option><option value="flat">LKR</option></select></div></td>'+
                                         '<td>'+
                                             '<a href="javascript:;" class="btn btn-sm btn-danger deleteBtn"><i class="fa fa-times-rectangle-o"></i></a>'+
                                         '</td>'+
@@ -590,19 +596,24 @@
         //single item total with discnt calculations when price & qty edited
         var newContent = 0;
         $('#tbodyID').on('keyup', '.priceANDqty', function(e){
-            e.preventDefault();            
-                newContent = $(this).val();                                                
+            e.preventDefault();
+                newContent = $(this).val();
+                var discType = $(this).closest('tr').find('.itm_dis_type').val() || 'percentage';
+                function applyDiscGrn(lineTotal, disc, dtype){
+                    if(dtype == 'flat') return +(lineTotal - disc).toFixed(2);
+                    return +((100-disc)*lineTotal/100).toFixed(2);
+                }
                 if(price==''){
                     priceINTOqty = +(newContent*qty).toFixed(2);
-                    itmTotalWithItmDiscnt = +((100-discount)*priceINTOqty/100).toFixed(2);
+                    itmTotalWithItmDiscnt = applyDiscGrn(priceINTOqty, discount, discType);
                     totalElmt.text(itmTotalWithItmDiscnt);
-                    calSubtotal();                      
+                    calSubtotal();
                 }
                 else if(qty==''){
                     priceINTOqty = +(newContent*price).toFixed(2);
-                    itmTotalWithItmDiscnt = +((100-discount)*priceINTOqty/100).toFixed(2);
-                    totalElmt.text(itmTotalWithItmDiscnt); 
-                    calSubtotal();                   
+                    itmTotalWithItmDiscnt = applyDiscGrn(priceINTOqty, discount, discType);
+                    totalElmt.text(itmTotalWithItmDiscnt);
+                    calSubtotal();
                 }
         });
         $('#tbodyID').on('focusout', '.priceANDqty', function(){ 
@@ -625,17 +636,30 @@
 
  
 
-        //Item discount & subtotal calculation , when discount field change 
-        $('#tbodyID').on('keyup', '.itm_discnt', function(e){
-            if (this.value.length >= 0) {  //validation required
-                var dis =$( this ).val();
-                var prc = $(this).parent().siblings('.priceField').text();
-                var qnty = $(this).parent().siblings('.qtyField').text();
-                var totalElemnt = $(this).parent().siblings('.totalField');
-                itmTotalWithItmDiscnt = +((100-dis)*prc*qnty/100).toFixed(2);
-                totalElemnt.text(itmTotalWithItmDiscnt);
-                calSubtotal();
+        //Item discount & subtotal calculation , when discount field change
+        function recalcGrnItemDiscount(el){
+            var $row = $(el).closest('tr');
+            var dis = parseFloat($row.find('.itm_discnt').val());
+            if(isNaN(dis)) dis = 0;
+            var disType = $row.find('.itm_dis_type').val() || 'percentage';
+            var prc = parseFloat($row.find('.priceField').text());
+            var qnty = parseFloat($row.find('.qtyField').text());
+            var totalElemnt = $row.find('.totalField');
+            var lineTotal = prc * qnty;
+            if(disType == 'flat'){
+                itmTotalWithItmDiscnt = +(lineTotal - dis).toFixed(2);
+            } else {
+                itmTotalWithItmDiscnt = +((100-dis)*lineTotal/100).toFixed(2);
             }
+            if(itmTotalWithItmDiscnt < 0) itmTotalWithItmDiscnt = 0;
+            totalElemnt.text(itmTotalWithItmDiscnt);
+            calSubtotal();
+        }
+        $('#tbodyID').on('keyup', '.itm_discnt', function(e){
+            recalcGrnItemDiscount(this);
+        });
+        $('#tbodyID').on('change', '.itm_dis_type', function(e){
+            recalcGrnItemDiscount(this);
         });
         //Subtotal
         function calSubtotal(){
@@ -648,20 +672,29 @@
             }
             grandtotalCalculation();
         }
-        //Grand total calculation 
+        //Grand total calculation
         function grandtotalCalculation(){
-            invoiceDis = $('#invoiceDis').val();
-            if(invoiceDis==''){invoiceDis=0;}
-            var grandtotal1= +((100-invoiceDis)*subtotal/100).toFixed(2);
-
-            grandtotal= +(grandtotal1).toFixed(2);
+            invoiceDis = parseFloat($('#invoiceDis').val());
+            if(isNaN(invoiceDis)){invoiceDis=0;}
+            var disType = $('#invoiceDisType').val();
+            var discountedTotal = 0;
+            if(disType == 'flat'){
+                discountedTotal = +(subtotal - invoiceDis).toFixed(2);
+            } else {
+                discountedTotal = +((100-invoiceDis)*subtotal/100).toFixed(2);
+            }
+            if(discountedTotal < 0) discountedTotal = 0;
+            grandtotal = +(discountedTotal).toFixed(2);
 
             $("#grandtotalLbl").html(grandtotal);
-            $("#creditvalue").html(grandtotal); //newchange
-        }        
+            $("#creditvalue").html(grandtotal);
+        }
 
         // invoice Discount
         $( "#invoiceDis" ).keyup(function() {
+            grandtotalCalculation();
+        });
+        $('#invoiceDisType').change(function(){
             grandtotalCalculation();
         });
 
@@ -761,7 +794,7 @@
                     $.ajax({
                         type: "Post",
                         url:"<?php echo base_url('Grns/addGrnPOST2'); ?>",
-                        data: {grncode:grncode,supplierid:supplierid,grandtotal:grandtotal,subtotal:subtotal,invoiceDis:invoiceDis,date:date,grnDec:"",creditvalue:creditvalue,storeid:grnStore},
+                        data: {grncode:grncode,supplierid:supplierid,grandtotal:grandtotal,subtotal:subtotal,invoiceDis:invoiceDis,discount_type:$('#invoiceDisType').val(),date:date,grnDec:"",creditvalue:creditvalue,storeid:grnStore},
                         async: false,
                         dataType: "json",
                         success: function (grnid) {
@@ -895,11 +928,12 @@
                         quantity=$("#datatable").find("tr").eq(i).find("td").eq(4).text();
                         total=$("#datatable").find("tr").eq(i).find("td").eq(5).text();
                         itmDis=$("#datatable").find("tr").eq(i).find("td").eq(6).find('input[type=text]').val();
+                        var itmDisType=$("#datatable").find("tr").eq(i).find("td").eq(6).find('.itm_dis_type').val() || 'percentage';
 
                         $.ajax({
                             type: "Post",
                             url:"<?php echo base_url('Grns/insertGrnItemPOST2'); ?>",
-                            data: {grnID:grn_ID,itemid:itemid,price:price,quantity:quantity,total:total,itmDis:itmDis},
+                            data: {grnID:grn_ID,itemid:itemid,price:price,quantity:quantity,total:total,itmDis:itmDis,itmDisType:itmDisType},
                             async: false,
                             dataType: "json",
                             success: function () {

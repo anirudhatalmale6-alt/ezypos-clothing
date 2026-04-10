@@ -53,8 +53,31 @@
                                     <div class="col-7 col-form-label text-right"><strong>LKR <span id="subtotal">0.00</span></strong></div>
                                 </div>
                                 <div class="form-group row mb-1">
-                                    <label class="col-5 col-form-label">Discount(%):</label>
-                                    <div class="col-7"><input class="form-control DecimalFix" type="text" name="invoiceDis" placeholder="%" id="invoiceDis"/></div>
+                                    <label class="col-3 col-form-label">Discount:</label>
+                                    <div class="col-5"><input class="form-control DecimalFix" type="text" name="invoiceDis" placeholder="0" id="invoiceDis"/></div>
+                                    <div class="col-4">
+                                        <select class="form-control" id="invoiceDisType">
+                                            <option value="percentage">%</option>
+                                            <option value="flat">Flat (LKR)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group row mb-1">
+                                    <label class="col-5 col-form-label"><i class="fa fa-truck"></i> Delivery:</label>
+                                    <div class="col-7">
+                                        <select class="form-control form-control-sm" id="delivery_company">
+                                            <option value="">No Delivery</option>
+                                            <?php if(isset($deliveryCompanies)): foreach($deliveryCompanies as $dc): ?>
+                                            <option value="<?php echo $dc->dc_id; ?>"><?php echo $dc->dc_name; ?></option>
+                                            <?php endforeach; endif; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group row mb-1" id="delivery_charge_div" style="display:none;">
+                                    <label class="col-5 col-form-label">Delivery Charge:</label>
+                                    <div class="col-7">
+                                        <input class="form-control DecimalFix" type="text" placeholder="0.00" id="delivery_charge_input">
+                                    </div>
                                 </div>
                                 <div class="form-group row mb-0">
                                     <label class="col-5 col-form-label" style="font-size:16px;"><strong>Grand Total:</strong></label>
@@ -489,7 +512,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                                     '<td class="editable priceField" style="Text-align: right;">'+(price).toFixed(2)+'</td>'+
                                     '<td class="editable qtyField" style="Text-align: right;">'+(quantity).toFixed(2)+'</td>'+
                                     '<td class="totalField" style="Text-align: right;">'+priceINTOqty1+'</td>'+
-                                    '<td class="discount"><input type="text" style="Text-align: right;" class="form-control itm_discnt dcmlFixDynmc validationDynmic" size="6"/></td>'+
+                                    '<td class="discount"><div class="input-group input-group-sm"><input type="text" style="Text-align: right;" class="form-control itm_discnt dcmlFixDynmc validationDynmic" size="4"/><select class="form-control itm_dis_type" style="max-width:55px;"><option value="percentage">%</option><option value="flat">LKR</option></select></div></td>'+
                                     '<td>'+
                                         '<a href="javascript:;" class="btn btn-sm btn-danger deleteBtn"><i class="fa fa-times-rectangle-o"></i></a>'+
                                     '</td>'+
@@ -524,19 +547,24 @@ var chequeHTML ='<div id="chequeDIV">'+
         //single item total with discnt calculations when price & qty edited
         var newContent = 0;
         $('#tbodyID').on('keyup', '.priceANDqty', function(e){
-            e.preventDefault();            
-                newContent = $(this).val();                                                
+            e.preventDefault();
+                newContent = $(this).val();
+                var discType = $(this).closest('tr').find('.itm_dis_type').val() || 'percentage';
+                function applyDisc(lineTotal, disc, dtype){
+                    if(dtype == 'flat') return +(lineTotal - disc).toFixed(2);
+                    return +((100-disc)*lineTotal/100).toFixed(2);
+                }
                 if(price==''){
                     priceINTOqty = +(newContent*qty).toFixed(2);
-                    itmTotalWithItmDiscnt = +((100-discount)*priceINTOqty/100).toFixed(2);
+                    itmTotalWithItmDiscnt = applyDisc(priceINTOqty, discount, discType);
                     totalElmt.text(itmTotalWithItmDiscnt);
-                    calSubtotal();                      
+                    calSubtotal();
                 }
                 else if(qty==''){
                     priceINTOqty = +(newContent*price).toFixed(2);
-                    itmTotalWithItmDiscnt = +((100-discount)*priceINTOqty/100).toFixed(2);
-                    totalElmt.text(itmTotalWithItmDiscnt); 
-                    calSubtotal();                   
+                    itmTotalWithItmDiscnt = applyDisc(priceINTOqty, discount, discType);
+                    totalElmt.text(itmTotalWithItmDiscnt);
+                    calSubtotal();
                 }
         });
         $('#tbodyID').on('focusout', '.priceANDqty', function(){ 
@@ -559,17 +587,30 @@ var chequeHTML ='<div id="chequeDIV">'+
 
  
 
-        //Item discount & subtotal calculation , when discount field change 
-        $('#tbodyID').on('keyup', '.itm_discnt', function(e){
-            if (this.value.length >= 0) {  //validation required
-                var dis =$( this ).val();
-                var prc = $(this).parent().siblings('.priceField').text();
-                var qnty = $(this).parent().siblings('.qtyField').text();
-                var totalElemnt = $(this).parent().siblings('.totalField');
-                itmTotalWithItmDiscnt = +((100-dis)*prc*qnty/100).toFixed(2);
-                totalElemnt.text(itmTotalWithItmDiscnt);
-                calSubtotal();
+        //Item discount & subtotal calculation , when discount field change
+        function recalcItemDiscount(el){
+            var $row = $(el).closest('tr');
+            var dis = parseFloat($row.find('.itm_discnt').val());
+            if(isNaN(dis)) dis = 0;
+            var disType = $row.find('.itm_dis_type').val() || 'percentage';
+            var prc = parseFloat($row.find('.priceField').text());
+            var qnty = parseFloat($row.find('.qtyField').text());
+            var totalElemnt = $row.find('.totalField');
+            var lineTotal = prc * qnty;
+            if(disType == 'flat'){
+                itmTotalWithItmDiscnt = +(lineTotal - dis).toFixed(2);
+            } else {
+                itmTotalWithItmDiscnt = +((100-dis)*lineTotal/100).toFixed(2);
             }
+            if(itmTotalWithItmDiscnt < 0) itmTotalWithItmDiscnt = 0;
+            totalElemnt.text(itmTotalWithItmDiscnt);
+            calSubtotal();
+        }
+        $('#tbodyID').on('keyup', '.itm_discnt', function(e){
+            recalcItemDiscount(this);
+        });
+        $('#tbodyID').on('change', '.itm_dis_type', function(e){
+            recalcItemDiscount(this);
         });
         //Subtotal
         function calSubtotal(){
@@ -582,20 +623,47 @@ var chequeHTML ='<div id="chequeDIV">'+
             }
             grandtotalCalculation();
         }
-        //Grand total calculation 
+        //Grand total calculation
         function grandtotalCalculation(){
-            invoiceDis = $('#invoiceDis').val();
-            if(invoiceDis==''){invoiceDis=0;}
-            var grandtotal1= +((100-invoiceDis)*subtotal/100).toFixed(2);
-
-            grandtotal= +(grandtotal1).toFixed(2);
+            invoiceDis = parseFloat($('#invoiceDis').val());
+            if(isNaN(invoiceDis)){invoiceDis=0;}
+            var disType = $('#invoiceDisType').val();
+            var discountedTotal = 0;
+            if(disType == 'flat'){
+                discountedTotal = +(subtotal - invoiceDis).toFixed(2);
+            } else {
+                discountedTotal = +((100-invoiceDis)*subtotal/100).toFixed(2);
+            }
+            if(discountedTotal < 0) discountedTotal = 0;
+            // Add delivery charge
+            var deliveryCharge = parseFloat($('#delivery_charge_input').val());
+            if(isNaN(deliveryCharge)) deliveryCharge = 0;
+            grandtotal = +(discountedTotal + deliveryCharge).toFixed(2);
 
             $("#grandtotalLbl").html(grandtotal);
-            $("#creditvalue").html(grandtotal); //newchange
-        }        
+            $("#creditvalue").html(grandtotal);
+        }
 
         // invoice Discount
         $( "#invoiceDis" ).keyup(function() {
+            grandtotalCalculation();
+        });
+        // Discount type change
+        $('#invoiceDisType').change(function(){
+            grandtotalCalculation();
+        });
+        // Delivery company toggle
+        $('#delivery_company').change(function(){
+            if($(this).val()){
+                $('#delivery_charge_div').show();
+            } else {
+                $('#delivery_charge_div').hide();
+                $('#delivery_charge_input').val('');
+            }
+            grandtotalCalculation();
+        });
+        // Delivery charge input
+        $('#delivery_charge_input').keyup(function(){
             grandtotalCalculation();
         });
 
@@ -646,11 +714,14 @@ var chequeHTML ='<div id="chequeDIV">'+
                             }).get();
                     }                    
 
+                    var discountType = $('#invoiceDisType').val();
+                    var deliveryCompanyId = $('#delivery_company').val();
+                    var deliveryCharge = parseFloat($('#delivery_charge_input').val()) || 0;
                     console.log(" cusid:"+cusID+" grndttl:"+grandtotal+" subttl:"+subtotal+" invceDis:"+invoiceDis+" date:"+date);
                     $.ajax({
                         type: "Post",
                         url:"<?php echo base_url('Sales/addSalePOST'); ?>",
-                        data: {cusID:cusID,grandtotal:grandtotal,subtotal:subtotal,invoiceDis:invoiceDis,store:store,date:date},
+                        data: {cusID:cusID,grandtotal:grandtotal,subtotal:subtotal,invoiceDis:invoiceDis,discount_type:discountType,delivery_company_id:deliveryCompanyId,delivery_charge:deliveryCharge,store:store,date:date},
                         async: false,
                         dataType: "json",
                         success: function (saleID) {
@@ -780,7 +851,8 @@ var chequeHTML ='<div id="chequeDIV">'+
                         quantity=$("#datatable").find("tr").eq(i).find("td").eq(4).text();
                         total=$("#datatable").find("tr").eq(i).find("td").eq(5).text();
                         itmDis=$("#datatable").find("tr").eq(i).find("td").eq(6).find('input[type=text]').val();
-                        
+                        var itmDisType=$("#datatable").find("tr").eq(i).find("td").eq(6).find('select.itm_dis_type').val() || 'percentage';
+
                     /* $.ajax({
                             type: "Post",
                             url:"<?php //echo base_url('Stocks/checkItemStock'); ?>",
@@ -798,7 +870,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                         $.ajax({
                             type: "Post",
                             url:"<?php echo base_url('Sales/addSaleItemPOST'); ?>",
-                            data: {sale_ID:sale_ID,itemid1:itemid1,price:price,quantity:quantity,total:total,itmDis:itmDis},
+                            data: {sale_ID:sale_ID,itemid1:itemid1,price:price,quantity:quantity,total:total,itmDis:itmDis,itmDisType:itmDisType},
                             async: false,
                             dataType: "json",
                             success: function () {
@@ -896,6 +968,10 @@ var chequeHTML ='<div id="chequeDIV">'+
                     $("#credit_lmt_value").html("0.00");
                     $("#creditvalue").html("0.00");
                     $("#invoiceDis").val("");
+                    $("#invoiceDisType").val("percentage");
+                    $("#delivery_company").val("");
+                    $("#delivery_charge_input").val("");
+                    $("#delivery_charge_div").hide();
                     $("#cashvalue").val("");
                     $("#amount").val("");
                     $("#bankname").val("");

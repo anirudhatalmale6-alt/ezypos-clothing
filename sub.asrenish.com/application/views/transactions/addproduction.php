@@ -101,6 +101,22 @@
                     </div>
                     <hr>
                     <div class="form-group row">
+                        <label class="col-7 col-form-label"><strong>Gross Cost:</strong></label>
+                        <label class="col-form-label">LKR <span id="gross_cost_lbl">0.00</span></label>
+                    </div>
+                    <div class="form-group row">
+                        <label class="col-4 col-form-label"><strong>Discount:</strong></label>
+                        <div class="col-4">
+                            <input type="number" class="form-control form-control-sm" id="prod_discount" value="0" min="0" step="0.01">
+                        </div>
+                        <div class="col-4">
+                            <select class="form-control form-control-sm" id="prod_discount_type">
+                                <option value="percentage">%</option>
+                                <option value="flat">Flat LKR</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group row">
                         <label class="col-7 col-form-label"><strong style="font-size:16px;">Total Cost:</strong></label>
                         <label class="col-form-label"><strong style="font-size:16px;">LKR <span id="total_cost_lbl">0.00</span></strong></label>
                     </div>
@@ -548,11 +564,45 @@ function loadCosts() {
 function refreshCosts() {
     $.post(BASE_URL + 'production/getProductionDetails', { prod_id: currentProdId }, function(res) {
         var prod = JSON.parse(res);
-        $('#material_cost_lbl').text(parseFloat(prod.prod_material_cost).toFixed(2));
-        $('#tailoring_cost_lbl').text(parseFloat(prod.prod_tailoring_cost).toFixed(2));
-        $('#other_cost_lbl').text(parseFloat(prod.prod_other_cost).toFixed(2));
-        $('#total_cost_lbl').text(parseFloat(prod.prod_total_cost).toFixed(2));
-        $('#unit_cost_lbl').text(parseFloat(prod.prod_unit_cost).toFixed(2));
+        var matCost = parseFloat(prod.prod_material_cost) || 0;
+        var tailCost = parseFloat(prod.prod_tailoring_cost) || 0;
+        var otherCost = parseFloat(prod.prod_other_cost) || 0;
+        var grossCost = matCost + tailCost + otherCost;
+        $('#material_cost_lbl').text(matCost.toFixed(2));
+        $('#tailoring_cost_lbl').text(tailCost.toFixed(2));
+        $('#other_cost_lbl').text(otherCost.toFixed(2));
+        $('#gross_cost_lbl').text(grossCost.toFixed(2));
+        if (prod.prod_discount) $('#prod_discount').val(parseFloat(prod.prod_discount));
+        if (prod.prod_discount_type) $('#prod_discount_type').val(prod.prod_discount_type);
+        applyProdDiscount(grossCost);
+    });
+}
+
+function applyProdDiscount(grossCost) {
+    if (typeof grossCost === 'undefined') grossCost = parseFloat($('#gross_cost_lbl').text()) || 0;
+    var disc = parseFloat($('#prod_discount').val()) || 0;
+    var discType = $('#prod_discount_type').val();
+    var totalCost = 0;
+    if (discType == 'flat') {
+        totalCost = grossCost - disc;
+    } else {
+        totalCost = grossCost * (100 - disc) / 100;
+    }
+    if (totalCost < 0) totalCost = 0;
+    $('#total_cost_lbl').text(totalCost.toFixed(2));
+    var outQty = parseFloat($('#output_qty').val()) || 1;
+    $('#unit_cost_lbl').text((totalCost / outQty).toFixed(2));
+}
+
+$('#prod_discount').on('keyup change', function() { applyProdDiscount(); saveProdDiscount(); });
+$('#prod_discount_type').on('change', function() { applyProdDiscount(); saveProdDiscount(); });
+
+function saveProdDiscount() {
+    if (!currentProdId) return;
+    $.post(BASE_URL + 'production/saveDiscount', {
+        prod_id: currentProdId,
+        discount: $('#prod_discount').val(),
+        discount_type: $('#prod_discount_type').val()
     });
 }
 </script>

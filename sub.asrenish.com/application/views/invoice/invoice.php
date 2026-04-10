@@ -132,7 +132,10 @@
                                 <div class="row" style="margin-right: 5px ">                                 
                                     <div class="col-lg-12 col-md-12 col-sm-12 col-xm-12 col-12">
                                             <div><b>Sub-total:</b><span style="float:right;font-family: arial"><?php echo $sales->sale_subtotal ?></span></div>
-                                            <div><b>Discount:</b><span style="float:right;font-family: arial"> <?php echo $sales->sale_discount ?></span></div>
+                                            <div><b>Discount<?php echo (isset($sales->sale_discount_type) && $sales->sale_discount_type=='flat') ? ' (Flat)' : ' (%)'; ?>:</b><span style="float:right;font-family: arial"> <?php echo $sales->sale_discount ?></span></div>
+                                            <?php if(isset($sales->sale_delivery_charge) && $sales->sale_delivery_charge > 0){ ?>
+                                            <div><b>Delivery Charge:</b><span style="float:right;font-family: arial"><?php echo number_format($sales->sale_delivery_charge, 2) ?></span></div>
+                                            <?php } ?>
                                             <div><b>Grand Total:</b><span style="float:right;font-family: arial"><?php echo $sales->sale_grandtotal ?></span></div>
                                         <hr>
                                         <?php 

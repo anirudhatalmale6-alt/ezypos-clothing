@@ -22,16 +22,25 @@ class Sales_model extends CI_Model {
         if(isset($_SESSION['userid'])){
             $userid = $_SESSION['userid'];
         }
+        $deliveryCompanyId = $this->input->post('delivery_company_id');
+        $deliveryCharge = $this->input->post('delivery_charge');
+        if($deliveryCompanyId == '' || $deliveryCompanyId == null){ $deliveryCompanyId = NULL; }
+        if($deliveryCharge == '' || $deliveryCharge == null){ $deliveryCharge = 0; }
+        $discountType = $this->input->post('discount_type');
+        if($discountType == '' || $discountType == null){ $discountType = 'percentage'; }
         $data = array(
-            'sale_cus_id'=>$this->input->post('cusID'),            
+            'sale_cus_id'=>$this->input->post('cusID'),
             'sale_grandtotal'=>$this->input->post('grandtotal'),
             'sale_subtotal'=>$this->input->post('subtotal'),
             'sale_discount'=>$this->input->post('invoiceDis'),
+            'sale_discount_type'=>$discountType,
             'sale_less'=>0,
             'sale_createdby'=>$userid,
             'sale_date'=>$this->input->post('date'),
             'sale_location'=>$this->input->post('store'),
-            'sale_status'=>1            
+            'sale_delivery_company_id'=>$deliveryCompanyId,
+            'sale_delivery_charge'=>$deliveryCharge,
+            'sale_status'=>1
         );
         $this->db->insert('ezy_pos_sale', $data);
         $sale_id = $this->db->insert_id();
@@ -40,11 +49,12 @@ class Sales_model extends CI_Model {
     public function addSaleItemPOST(){
         $data = array(
             'saleitem_sale_id' => $this->input->post('sale_ID'),
-            'saleitem_item_id' => $this->input->post('itemid1'),            
+            'saleitem_item_id' => $this->input->post('itemid1'),
             'saleitem_price' => $this->input->post('price'),
             'saleitem_quantity' => $this->input->post('quantity'),
             'saleitem_total' => $this->input->post('total'),
-            'saleitem_discount' => $this->input->post('itmDis')         
+            'saleitem_discount' => $this->input->post('itmDis'),
+            'saleitem_discount_type' => ($this->input->post('itmDisType') ? $this->input->post('itmDisType') : 'percentage')
         );
         return $this->db->insert('ezy_pos_sale_item', $data);
     }

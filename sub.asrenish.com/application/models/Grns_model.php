@@ -17,6 +17,7 @@ class Grns_model extends CI_Model {
             'grn_grandtotal'=>$this->input->post('grandtotal'),
             'grn_subtotal'=>$this->input->post('subtotal'),
             'grn_discount'=>$this->input->post('invoiceDis'),
+            'grn_discount_type'=>($this->input->post('discount_type') ? $this->input->post('discount_type') : 'percentage'),
             'grn_less'=>0,
             'grn_createdby'=>$userid,
             'grn_location'=>$storeid,
@@ -43,7 +44,8 @@ class Grns_model extends CI_Model {
             'grnitm_price' => $this->input->post('price'),
             'grnitm_quantity' => $this->input->post('quantity'),
             'grnitm_total' => $this->input->post('total'),
-            'grnitm_discount' => $this->input->post('itmDis')         
+            'grnitm_discount' => $this->input->post('itmDis'),
+            'grnitm_discount_type' => ($this->input->post('itmDisType') ? $this->input->post('itmDisType') : 'percentage')
         );
         return $this->db->insert('ezy_pos_grn_item', $data);
     }

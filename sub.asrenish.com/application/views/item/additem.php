@@ -349,6 +349,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <button type="button" id="exportBarcodeJpeg" class="btn btn-success"><i class="fa fa-download"></i> Export JPEG (144 DPI)</button>
                             <button type="button" id="printBarcodeBtn" class="btn btn-primary"><i class="fa fa-print"></i> Print Barcodes</button>
                         </div>
                         </div>
@@ -1209,5 +1210,103 @@ $('#printBarcodeBtn').on('click', function(){
     printWin.document.write(html);
     printWin.document.close();
 });
-</script> 
+
+// Export JPEG at 144 DPI for TSC TTP-244 Pro
+// Label size: 50mm x 25mm at 144 DPI = 283 x 142 pixels
+$('#exportBarcodeJpeg').on('click', function(){
+    var DPI = 144;
+    var LABEL_W_MM = 50, LABEL_H_MM = 25;
+    var LABEL_W = Math.round(LABEL_W_MM / 25.4 * DPI); // ~283px
+    var LABEL_H = Math.round(LABEL_H_MM / 25.4 * DPI); // ~142px
+    var copies = parseInt($('#barcodeCopies').val()) || 1;
+    var format = $('#barcodeFormat').val();
+    var showPrice = $('#barcodeShowPrice').val() == '1';
+    var code = currentBarcodeData.code;
+    var name = currentBarcodeData.name;
+    var price = currentBarcodeData.price;
+
+    // Create a hidden SVG for barcode generation
+    var tmpSvg = document.createElement('svg');
+    tmpSvg.style.position = 'absolute';
+    tmpSvg.style.left = '-9999px';
+    document.body.appendChild(tmpSvg);
+    try {
+        JsBarcode(tmpSvg, code, {
+            format: format,
+            width: 1.5,
+            height: Math.round(LABEL_H * 0.4),
+            fontSize: Math.round(LABEL_H * 0.08),
+            margin: 0,
+            displayValue: true
+        });
+    } catch(e) {
+        alert('Invalid barcode format for this item code.');
+        document.body.removeChild(tmpSvg);
+        return;
+    }
+
+    var svgData = new XMLSerializer().serializeToString(tmpSvg);
+    var svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+    var svgUrl = URL.createObjectURL(svgBlob);
+    var img = new Image();
+    img.onload = function(){
+        // Render labels in a grid: 4 columns
+        var COLS = 4;
+        var ROWS = Math.ceil(copies / COLS);
+        var GAP = 4;
+        var canvasW = COLS * LABEL_W + (COLS - 1) * GAP;
+        var canvasH = ROWS * LABEL_H + (ROWS - 1) * GAP;
+        var canvas = document.createElement('canvas');
+        canvas.width = canvasW;
+        canvas.height = canvasH;
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvasW, canvasH);
+
+        for (var i = 0; i < copies; i++) {
+            var col = i % COLS;
+            var row = Math.floor(i / COLS);
+            var x = col * (LABEL_W + GAP);
+            var y = row * (LABEL_H + GAP);
+
+            // White background for label
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(x, y, LABEL_W, LABEL_H);
+
+            // Item name
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold ' + Math.round(LABEL_H * 0.09) + 'px Arial';
+            ctx.textAlign = 'center';
+            var nameY = y + Math.round(LABEL_H * 0.12);
+            ctx.fillText(name, x + LABEL_W / 2, nameY, LABEL_W - 4);
+
+            // Barcode SVG
+            var bcY = nameY + 2;
+            var bcH = Math.round(LABEL_H * 0.55);
+            var bcW = Math.min(img.width, LABEL_W - 10);
+            var bcX = x + (LABEL_W - bcW) / 2;
+            ctx.drawImage(img, bcX, bcY, bcW, bcH);
+
+            // Price
+            if (showPrice) {
+                ctx.font = 'bold ' + Math.round(LABEL_H * 0.10) + 'px Arial';
+                var priceY = bcY + bcH + Math.round(LABEL_H * 0.10);
+                ctx.fillText('LKR ' + parseFloat(price).toFixed(2), x + LABEL_W / 2, priceY, LABEL_W - 4);
+            }
+        }
+
+        // Download as JPEG
+        var jpegUrl = canvas.toDataURL('image/jpeg', 0.95);
+        var a = document.createElement('a');
+        a.href = jpegUrl;
+        a.download = 'barcode_' + code + '_' + copies + 'labels.jpg';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(svgUrl);
+        document.body.removeChild(tmpSvg);
+    };
+    img.src = svgUrl;
+});
+</script>
 

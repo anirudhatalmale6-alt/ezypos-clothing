@@ -237,6 +237,7 @@
                                     <li><a href="<?php echo base_url('add-bankacc')?>">Bank Account</a></li>
                                     <?php  }}?>
                                     <li><a href="<?php echo base_url('payment-methods')?>"><i class="fa fa-credit-card"></i> Payment Methods</a></li>
+                                    <li><a href="<?php echo base_url('delivery-companies')?>"><i class="fa fa-truck"></i> Delivery Companies</a></li>
                                 </ul>
                             </li>
                             <?php }} ?>

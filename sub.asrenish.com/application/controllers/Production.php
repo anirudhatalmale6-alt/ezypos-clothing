@@ -327,6 +327,21 @@ class Production extends CI_Controller {
         echo json_encode($price);
     }
 
+    // Save discount on production
+    public function saveDiscount() {
+        $prod_id = $this->input->post('prod_id');
+        $discount = $this->input->post('discount') ?: 0;
+        $discount_type = $this->input->post('discount_type') ?: 'percentage';
+        $this->db->where('prod_id', $prod_id);
+        $this->db->update('ezy_pos_production', array(
+            'prod_discount' => $discount,
+            'prod_discount_type' => $discount_type
+        ));
+        // Recalculate to update total_cost and unit_cost with discount
+        $this->Production_model->recalculateCosts($prod_id);
+        echo json_encode(true);
+    }
+
     // Get raw materials filtered by store (AJAX)
     public function getRawMaterialsByStore() {
         $store_id = $this->input->post('store_id') ?: 0;
