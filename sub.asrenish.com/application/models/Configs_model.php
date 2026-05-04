@@ -13,7 +13,9 @@ class Configs_model extends CI_Model {
     public function fetch_config_value($config_id, $config_key) {
         $this->db->select('config_value');
         $this->db->from('ezy_pos_config2');
-        $this->db->where('config_id', $config_id);
+        if ($config_id !== null) {
+            $this->db->where('config_id', $config_id);
+        }
         $this->db->where('config_key', $config_key);
         $query = $this->db->get();
         if ($query->num_rows() > 0) {

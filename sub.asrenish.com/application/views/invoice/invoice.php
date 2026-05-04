@@ -79,6 +79,16 @@
                                                                 <tr>
                                                                     <td >Inv No: <?php echo " "."AS00".$sales->sale_id ?></td>
                                                                 </tr>
+                                                                <?php if(isset($sales->sale_type) && $sales->sale_type != 'cash'): ?>
+                                                                <tr>
+                                                                    <td>Type: <?php echo ucfirst($sales->sale_type); ?></td>
+                                                                </tr>
+                                                                <?php endif; ?>
+                                                                <?php if(isset($sales->sale_online_id) && $sales->sale_online_id): ?>
+                                                                <tr>
+                                                                    <td>Online Ref: <?php echo $sales->sale_online_id; ?></td>
+                                                                </tr>
+                                                                <?php endif; ?>
                                                                 <tr>
                                                                     <td >Bill By:<?php echo " ".$user ?></td>
                                                                 </tr>                                              

@@ -170,6 +170,45 @@ class Sales extends CI_Controller {
         echo json_encode(array('result' => true, 'total_commission' => $total_commission));
     }
 
+    // Send SMS bill notification
+    public function sendSmsReceipt() {
+        $sale_id = $this->input->post('sale_id');
+        $phone = $this->input->post('phone');
+        if (!$sale_id || !$phone) {
+            echo json_encode(array('status' => 'error', 'message' => 'Missing sale ID or phone'));
+            return;
+        }
+        $sale = $this->Sales_model->saleDetails($sale_id);
+        if (!$sale) {
+            echo json_encode(array('status' => 'error', 'message' => 'Sale not found'));
+            return;
+        }
+        $config = $this->Configs_model->getConfigName();
+        $shopName = $config ? $config[0]->config_value : 'Our Store';
+        $msg = $shopName . "\n";
+        $msg .= "Sale #" . $sale_id . "\n";
+        $msg .= "Total: LKR " . number_format($sale->sale_grandtotal, 2) . "\n";
+        if ($sale->sale_discount > 0) {
+            $msg .= "Discount: " . $sale->sale_discount . ($sale->sale_discount_type == 'flat' ? ' LKR' : '%') . "\n";
+        }
+        $msg .= "Date: " . $sale->sale_date . "\n";
+        $msg .= "Thank you for shopping with us!";
+
+        $this->load->library('HutchSMS');
+        $result = $this->hutchsms->send($phone, $msg);
+
+        // Log the SMS
+        $this->db->insert('ezy_pos_sms_log', array(
+            'smslog_sale_id' => $sale_id,
+            'smslog_phone' => $phone,
+            'smslog_message' => $msg,
+            'smslog_status' => $result['status'],
+            'smslog_response' => json_encode($result)
+        ));
+
+        echo json_encode($result);
+    }
+
     // Payment Methods Master Page
     public function paymentMethods() {
         $data1['title'] = 'Payment Methods';

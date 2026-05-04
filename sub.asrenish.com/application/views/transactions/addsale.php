@@ -27,6 +27,23 @@
                                 </div>
                                 <fieldset>
                                 <div class="form-group row">
+                                    <label class="col-4 col-form-label">Sale Type<span class="text-danger">*</span></label>
+                                    <div class="col-8">
+                                        <select class="form-control" id="sale_type">
+                                            <option value="cash">Cash Customer</option>
+                                            <option value="card">Card Customer</option>
+                                            <option value="credit">Credit Customer</option>
+                                            <option value="online">Online Sale</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group row" id="online_sale_id_div" style="display:none;">
+                                    <label class="col-4 col-form-label">Online ID<span class="text-danger">*</span></label>
+                                    <div class="col-8">
+                                        <input class="form-control" type="text" id="online_sale_id" placeholder="Online order/sale reference ID">
+                                    </div>
+                                </div>
+                                <div class="form-group row">
                                     <label for="customer-auto" class="col-4 col-form-label">Customer<span class="text-danger">*</span></label>
                                     <div class="col-6">
                                         <input class="form-control"  id="customer-auto" placeholder="Select" >
@@ -40,11 +57,17 @@
                                     </div>
                                 </div>
                                 <div class="form-group row">
+                                    <label class="col-4 col-form-label">Phone<span class="text-danger">*</span></label>
+                                    <div class="col-8">
+                                        <input class="form-control" type="text" id="customer_phone" placeholder="Customer phone number">
+                                    </div>
+                                </div>
+                                <div class="form-group row">
                                     <label for="datepicker" class="col-4 col-form-label">Date<span class="text-danger">*</span></label>
                                     <div class="col-8">
                                         <input class="form-control datepic" value="" id="datepicker">
                                     </div>
-                                </div>                              
+                                </div>
                                 </fieldset>
                                 <hr>
                                 <div style="background:#f8f9fa;border-radius:4px;padding:10px 5px;margin-bottom:10px;">
@@ -270,11 +293,137 @@
           </div> 
         </div> <!-- container-fluid -->
                 
+<!-- Card Reference Modal -->
+<div class="modal" id="cardRefModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa fa-credit-card"></i> Card Machine Reference IDs</h5>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Enter the reference/bill ID from the card machine receipt for each payment:</p>
+                <div id="cardRefFields"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="btnConfirmCardRefs"><i class="fa fa-check"></i> Confirm & Save Sale</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Customer Popup for Credit Sales -->
+<div class="modal" id="newCustomerModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa fa-user-plus"></i> Add New Customer</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-warning">Credit sale requires a saved customer. Add details below:</p>
+                <div class="form-group">
+                    <label>Name<span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="nc_name" placeholder="Customer name">
+                </div>
+                <div class="form-group">
+                    <label>Phone<span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="nc_phone" placeholder="Phone number">
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <input type="text" class="form-control" id="nc_address" placeholder="Address">
+                </div>
+                <div class="form-group">
+                    <label>Credit Limit</label>
+                    <input type="number" class="form-control" id="nc_creditlimit" value="0" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="btnSaveNewCustomer"><i class="fa fa-save"></i> Save Customer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SMS Send Confirmation Modal -->
+<div class="modal" id="smsModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa fa-envelope"></i> Send Bill SMS</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body text-center">
+                <p>Send bill SMS to customer?</p>
+                <p><strong id="sms_phone_display"></strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Skip</button>
+                <button type="button" class="btn btn-success" id="btnSendSms"><i class="fa fa-paper-plane"></i> Send SMS</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Validation js (Parsleyjs) -->
 <script type="text/javascript" src="<?php echo base_url().'assets/plugins/parsleyjs/parsley.min.js'?>"></script>
 <script>
-    $( function() { 
+    $( function() {
         document.getElementById("save").disabled = true;
+
+        // =========== SALE TYPE LOGIC ===========
+        function applySaleType() {
+            var st = $('#sale_type').val();
+            // Show/hide online sale ID
+            if (st == 'online') {
+                $('#online_sale_id_div').show();
+                $('#delivery_company').closest('.form-group').show();
+            } else {
+                $('#online_sale_id_div').hide();
+            }
+            // Show/hide payment method inputs based on sale type
+            if (st == 'cash') {
+                $('#cashvalue').closest('.form-group').show();
+                $('.pm-amount-input').closest('.form-group').hide();
+            } else if (st == 'card') {
+                $('#cashvalue').closest('.form-group').show();
+                $('.pm-amount-input').closest('.form-group').show();
+            } else if (st == 'credit') {
+                $('#cashvalue').closest('.form-group').show();
+                $('.pm-amount-input').closest('.form-group').show();
+            } else if (st == 'online') {
+                $('#cashvalue').closest('.form-group').show();
+                $('.pm-amount-input').closest('.form-group').show();
+            }
+        }
+        $('#sale_type').on('change', function(){ applySaleType(); });
+        applySaleType();
+
+        // =========== PHONE AUTO-POPULATE ON CUSTOMER SELECT ===========
+        $(document).on('customerSelected', function(){
+            var cusid = $("#customer-id").val();
+            if(cusid){
+                $.ajax({
+                    type: "Post",
+                    url:"<?php echo base_url('Customers/getCusDetails'); ?>",
+                    data: {id:cusid},
+                    async: false,
+                    dataType: "json",
+                    success: function(data){
+                        if(data && data.cus_contact){
+                            $('#customer_phone').val(data.cus_contact);
+                        }
+                    }
+                });
+            }
+        });
+
+        // =========== CARD REF + SMS FLOW GLOBALS ===========
+        var pendingCardRefs = [];
+        var lastSavedSaleId = 0;
+        var lastSavedPhone = '';
+
         $('.hover').tooltip({
             borderWidth: 0,
             show: { delay: 0, duration: 0 },
@@ -675,19 +824,63 @@ var chequeHTML ='<div id="chequeDIV">'+
         });
 
         //insert sales to DB with for loop
-        var sale_ID = 0;         
+        var sale_ID = 0;
         $('#save').click(function(){
             if ($("#cheque").is(':checked')) {
                     $("#chequeform").submit();
-            } 
+            }
             var cashvalue=$("#cashvalue").val();
                 if(cashvalue==''){cashvalue=0;}
             var creditvalue= parseFloat($('#creditvalue').text());
-            console.log("cashvalue"+cashvalue);
-            console.log("creditvalue"+creditvalue);
-            var custID= $('#customer-id').val();            
+            var custID= $('#customer-id').val();
             var rows = $("#datatable").find("tr").length;
-            if(rows>1&&custID>0&&cashvalue>=0){  //rows>1&&custID>0 ///
+            var saleType = $('#sale_type').val();
+            var customerPhone = $('#customer_phone').val().trim();
+
+            // Validate phone
+            if(!customerPhone){
+                swal({type:'error',title:'Phone Required',text:'Please enter customer phone number.'});
+                return;
+            }
+            // Validate online sale ID
+            if(saleType == 'online' && !$('#online_sale_id').val().trim()){
+                swal({type:'error',title:'Online ID Required',text:'Please enter the online sale reference ID.'});
+                return;
+            }
+            // Credit sale without customer: show new customer popup
+            if(saleType == 'credit' && (!custID || custID == '')){
+                $('#nc_phone').val(customerPhone);
+                $('#newCustomerModal').modal('show');
+                return;
+            }
+
+            if(rows>1&&custID>0&&cashvalue>=0){
+                // Check if card payments were used — if so, show card ref popup
+                var pmPaymentsForRef = [];
+                $('.pm-amount-input').each(function(){
+                    var amt = parseFloat($(this).val());
+                    if(!isNaN(amt) && amt > 0){
+                        var pmid = $(this).data('pmid');
+                        var pmname = $(this).closest('.form-group').find('label').first().text().replace(':','').trim();
+                        pmPaymentsForRef.push({pm_id: pmid, amount: amt, name: pmname, card_ref: ''});
+                    }
+                });
+
+                if(pmPaymentsForRef.length > 0){
+                    // Show card reference popup
+                    var html = '';
+                    for(var r=0; r<pmPaymentsForRef.length; r++){
+                        html += '<div class="form-group">';
+                        html += '<label><strong>'+pmPaymentsForRef[r].name+'</strong> - LKR '+pmPaymentsForRef[r].amount.toFixed(2)+'</label>';
+                        html += '<input type="text" class="form-control card-ref-input" data-idx="'+r+'" placeholder="Card machine reference/bill ID">';
+                        html += '</div>';
+                    }
+                    $('#cardRefFields').html(html);
+                    pendingCardRefs = pmPaymentsForRef;
+                    $('#cardRefModal').modal({backdrop:'static',keyboard:false});
+                    return;
+                }
+
                 if($("#cheque").is(':checked')) {
                     if(ChqFormsubmittd==true){
                         saveSale();
@@ -717,24 +910,34 @@ var chequeHTML ='<div id="chequeDIV">'+
                     var discountType = $('#invoiceDisType').val();
                     var deliveryCompanyId = $('#delivery_company').val();
                     var deliveryCharge = parseFloat($('#delivery_charge_input').val()) || 0;
-                    console.log(" cusid:"+cusID+" grndttl:"+grandtotal+" subttl:"+subtotal+" invceDis:"+invoiceDis+" date:"+date);
+                    var saleType = $('#sale_type').val();
+                    var onlineSaleId = $('#online_sale_id').val();
+                    var customerPhone = $('#customer_phone').val().trim();
+                    lastSavedPhone = customerPhone;
                     $.ajax({
                         type: "Post",
                         url:"<?php echo base_url('Sales/addSalePOST'); ?>",
-                        data: {cusID:cusID,grandtotal:grandtotal,subtotal:subtotal,invoiceDis:invoiceDis,discount_type:discountType,delivery_company_id:deliveryCompanyId,delivery_charge:deliveryCharge,store:store,date:date},
+                        data: {cusID:cusID,grandtotal:grandtotal,subtotal:subtotal,invoiceDis:invoiceDis,discount_type:discountType,delivery_company_id:deliveryCompanyId,delivery_charge:deliveryCharge,store:store,date:date,sale_type:saleType,online_sale_id:onlineSaleId,customer_phone:customerPhone},
                         async: false,
                         dataType: "json",
                         success: function (saleID) {
                             sale_ID=saleID ;
                         console.log(" saleid:"+saleID+" cusid:"+cusID);
-                        // Save third-party payment method amounts
+                        lastSavedSaleId = saleID;
+                        // Save third-party payment method amounts with card refs
                         var pmPayments = [];
-                        $('.pm-amount-input').each(function(){
-                            var amt = parseFloat($(this).val());
-                            if(!isNaN(amt) && amt > 0){
-                                pmPayments.push({pm_id: $(this).data('pmid'), amount: amt});
+                        if(pendingCardRefs.length > 0){
+                            for(var cr=0; cr<pendingCardRefs.length; cr++){
+                                pmPayments.push({pm_id: pendingCardRefs[cr].pm_id, amount: pendingCardRefs[cr].amount, card_ref: pendingCardRefs[cr].card_ref});
                             }
-                        });
+                        } else {
+                            $('.pm-amount-input').each(function(){
+                                var amt = parseFloat($(this).val());
+                                if(!isNaN(amt) && amt > 0){
+                                    pmPayments.push({pm_id: $(this).data('pmid'), amount: amt, card_ref: ''});
+                                }
+                            });
+                        }
                         if(pmPayments.length > 0 && saleID > 0){
                             $.ajax({
                                 type: "Post",
@@ -972,6 +1175,11 @@ var chequeHTML ='<div id="chequeDIV">'+
                     $("#delivery_company").val("");
                     $("#delivery_charge_input").val("");
                     $("#delivery_charge_div").hide();
+                    $("#customer_phone").val("");
+                    $("#online_sale_id").val("");
+                    $("#sale_type").val("cash");
+                    applySaleType();
+                    $(".pm-amount-input").val("");
                     $("#cashvalue").val("");
                     $("#amount").val("");
                     $("#bankname").val("");
@@ -980,14 +1188,24 @@ var chequeHTML ='<div id="chequeDIV">'+
                     $("#customer-id").val("");
                     // $("#customer-auto").html('<input class="form-control"  id="customer-auto" placeholder="Select" >');
                     $("#chequeDIV").remove();
+                    pendingCardRefs = [];
                     if(itemAdded==true)
                     {  // get the print window
                         var horizontal = Math.floor(window.innerWidth/2);
                         var left=horizontal-200;
                         var rurl="<?= base_url('Sales/print_inv')?>/"+sale_ID;
                         console.log(rurl);
-                        window.open(rurl, "_blank", "toolbar=yes,scrollbars=yes,resizable=yes,top=40,left="+left+",width=400,height=600");                       
-                        location. reload() ;
+                        window.open(rurl, "_blank", "toolbar=yes,scrollbars=yes,resizable=yes,top=40,left="+left+",width=400,height=600");
+                        // Show SMS option for online sales or if user wants
+                        var st = $('#sale_type').val();
+                        if(st == 'online' || lastSavedPhone){
+                            $('#sms_phone_display').text(lastSavedPhone);
+                            $('#smsModal').modal('show');
+                            // Reload after modal closes
+                            $('#smsModal').on('hidden.bs.modal', function(){ location.reload(); });
+                        } else {
+                            location.reload();
+                        }
                     }
                 }//end saveSale
   
@@ -1124,6 +1342,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                 var slectedsup = ui.item.cusname || ui.item.label;
                 $("#show_cus").text(slectedsup);
                 load_cus_credit_and_dues();
+                $(document).trigger('customerSelected');
                 //credit_lmt_value
                 //window.location="#"; //location to go when you select an item
             },
@@ -1284,6 +1503,7 @@ var chequeHTML ='<div id="chequeDIV">'+
     $('#btnChange').show();
     $('#customer-auto').parent().hide();
     load_cus_credit_and_dues();
+    $(document).trigger('customerSelected');
     <?php } ?>
     
     //Payment calculate credit & display according to only cash + third-party methods
@@ -1471,6 +1691,86 @@ var chequeHTML ='<div id="chequeDIV">'+
         var creditvalue = (grandtotal - cashvalue - totalPmPayments - voucherTotal).toFixed(2);
         $("#creditvalue").html(creditvalue);
     };
+
+    // =========== CARD REF CONFIRM HANDLER ===========
+    $('#btnConfirmCardRefs').click(function(){
+        var allFilled = true;
+        $('.card-ref-input').each(function(){
+            var idx = $(this).data('idx');
+            var refVal = $(this).val().trim();
+            if(!refVal){ allFilled = false; $(this).css('border-color','red'); }
+            else { pendingCardRefs[idx].card_ref = refVal; $(this).css('border-color',''); }
+        });
+        if(!allFilled){
+            swal({type:'warning',title:'Missing Reference',text:'Please enter all card machine reference IDs.'});
+            return;
+        }
+        $('#cardRefModal').modal('hide');
+        // Now proceed with save
+        if($("#cheque").is(':checked')){
+            if(ChqFormsubmittd==true){ saveSale(); ChqFormsubmittd=false; }
+            else { alert("cheques fields not completed"); }
+        } else {
+            saveSale();
+        }
+    });
+
+    // =========== NEW CUSTOMER SAVE (Credit Sales) ===========
+    $('#btnSaveNewCustomer').click(function(){
+        var ncName = $('#nc_name').val().trim();
+        var ncPhone = $('#nc_phone').val().trim();
+        if(!ncName){ alert('Customer name is required'); return; }
+        if(!ncPhone){ alert('Customer phone is required'); return; }
+        $.ajax({
+            type:'POST',
+            url:'<?php echo base_url("Customers/quickAddCustomer"); ?>',
+            data: {name:ncName, contact:ncPhone, address:$('#nc_address').val(), creditlimit:$('#nc_creditlimit').val()||0},
+            async:false,
+            dataType:'json',
+            success:function(newCusId){
+                if(newCusId > 0){
+                    $('#customer-id').val(newCusId);
+                    $('#customer-auto').val(ncName);
+                    $("#show_cus").text(ncName).show();
+                    $("#btnChange").show();
+                    $("#customer-auto").parent().hide();
+                    $('#customer_phone').val(ncPhone);
+                    $('#newCustomerModal').modal('hide');
+                    load_cus_credit_and_dues();
+                    swal({type:'success',title:'Customer Saved',text:'Now click Pay again to complete the sale.',showConfirmButton:true});
+                } else {
+                    alert('Error creating customer');
+                }
+            },
+            error:function(){ alert('Error creating customer'); }
+        });
+    });
+
+    // =========== SMS SEND HANDLER ===========
+    $('#btnSendSms').click(function(){
+        var btn = $(this);
+        btn.prop('disabled',true).html('<i class="fa fa-spinner fa-spin"></i> Sending...');
+        $.ajax({
+            type:'POST',
+            url:'<?php echo base_url("Sales/sendSmsReceipt"); ?>',
+            data:{sale_id: lastSavedSaleId, phone: lastSavedPhone},
+            dataType:'json',
+            success:function(res){
+                btn.prop('disabled',false).html('<i class="fa fa-paper-plane"></i> Send SMS');
+                if(res.status == 'success'){
+                    swal({type:'success',title:'SMS Sent',showConfirmButton:false,timer:1500});
+                } else {
+                    swal({type:'error',title:'SMS Failed',text:res.message||'Could not send SMS'});
+                }
+                $('#smsModal').modal('hide');
+            },
+            error:function(){
+                btn.prop('disabled',false).html('<i class="fa fa-paper-plane"></i> Send SMS');
+                swal({type:'error',title:'SMS Error',text:'Network error sending SMS'});
+                $('#smsModal').modal('hide');
+            }
+        });
+    });
 
     // =========== VOUCHER ITEM SELLING (auto-popup for card number) ===========
     var pendingVoucherSales = []; // Cards to mark as sold after sale is saved

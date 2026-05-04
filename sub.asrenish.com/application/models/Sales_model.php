@@ -28,6 +28,10 @@ class Sales_model extends CI_Model {
         if($deliveryCharge == '' || $deliveryCharge == null){ $deliveryCharge = 0; }
         $discountType = $this->input->post('discount_type');
         if($discountType == '' || $discountType == null){ $discountType = 'percentage'; }
+        $saleType = $this->input->post('sale_type');
+        if(!$saleType) $saleType = 'cash';
+        $onlineId = $this->input->post('online_sale_id');
+        $cusPhone = $this->input->post('customer_phone');
         $data = array(
             'sale_cus_id'=>$this->input->post('cusID'),
             'sale_grandtotal'=>$this->input->post('grandtotal'),
@@ -40,6 +44,9 @@ class Sales_model extends CI_Model {
             'sale_location'=>$this->input->post('store'),
             'sale_delivery_company_id'=>$deliveryCompanyId,
             'sale_delivery_charge'=>$deliveryCharge,
+            'sale_type'=>$saleType,
+            'sale_online_id'=>$onlineId ? $onlineId : NULL,
+            'sale_customer_phone'=>$cusPhone ? $cusPhone : NULL,
             'sale_status'=>1
         );
         $this->db->insert('ezy_pos_sale', $data);
@@ -248,11 +255,13 @@ class Sales_model extends CI_Model {
             if ($amount <= 0) continue;
             $commission = $this->calculateCommission($pm_id, $amount);
             $total_commission += $commission;
+            $card_ref = isset($p['card_ref']) ? $p['card_ref'] : NULL;
             $this->db->insert('ezy_pos_sale_payments', array(
                 'sp_sale_id' => $sale_id,
                 'sp_pm_id' => $pm_id,
                 'sp_amount' => $amount,
-                'sp_commission' => $commission
+                'sp_commission' => $commission,
+                'sp_card_ref' => $card_ref
             ));
         }
         // Update total commission on sale

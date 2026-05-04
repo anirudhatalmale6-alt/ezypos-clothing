@@ -55,8 +55,24 @@ class Customers extends CI_Controller {
 		echo json_encode($result);
         }
         public function getCusDetails(){
-                $result =$this->Customers_model->getCusDetails();		 
-		echo json_encode($result); 
+                $result =$this->Customers_model->getCusDetails();
+		echo json_encode($result);
+        }
+        public function quickAddCustomer(){
+            $data = array(
+                'cus_name' => $this->input->post('name'),
+                'cus_address' => $this->input->post('address'),
+                'cus_contact' => $this->input->post('contact'),
+                'cus_balance' => 0,
+                'cus_creditlimit' => $this->input->post('creditlimit') ?: 0,
+                'cus_status' => 1
+            );
+            $this->db->insert('ezy_pos_customers', $data);
+            $cus_id = $this->db->insert_id();
+            if($cus_id){
+                $this->db->insert('ezy_pos_cus_balnce', array('bal_cusid'=>$cus_id,'bal_amount'=>0));
+            }
+            echo json_encode($cus_id);
         }
         public function getBal() {
     header('Content-Type: application/json');
