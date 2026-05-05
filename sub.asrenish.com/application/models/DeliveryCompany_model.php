@@ -6,11 +6,13 @@ class DeliveryCompany_model extends CI_Model {
     }
 
     public function getAll() {
+        if (!$this->db->table_exists('ezy_pos_delivery_companies')) return array();
         $this->db->order_by('dc_name', 'ASC');
         return $this->db->get('ezy_pos_delivery_companies')->result();
     }
 
     public function getActive() {
+        if (!$this->db->table_exists('ezy_pos_delivery_companies')) return array();
         $this->db->where('dc_status', 1);
         $this->db->order_by('dc_name', 'ASC');
         return $this->db->get('ezy_pos_delivery_companies')->result();

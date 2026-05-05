@@ -87,7 +87,11 @@ class Production_model extends CI_Model {
         $gross_cost = $material_cost + $tailoring_cost + $other_cost;
 
         // Get output qty and discount for unit cost
-        $this->db->select('prod_output_qty, prod_discount, prod_discount_type');
+        $fields = $this->db->list_fields('ezy_pos_production');
+        $selectFields = 'prod_output_qty';
+        if (in_array('prod_discount', $fields)) $selectFields .= ', prod_discount';
+        if (in_array('prod_discount_type', $fields)) $selectFields .= ', prod_discount_type';
+        $this->db->select($selectFields);
         $this->db->where('prod_id', $prod_id);
         $prod = $this->db->get('ezy_pos_production')->row();
         $discount = isset($prod->prod_discount) ? floatval($prod->prod_discount) : 0;

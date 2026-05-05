@@ -28,27 +28,33 @@ class Sales_model extends CI_Model {
         if($deliveryCharge == '' || $deliveryCharge == null){ $deliveryCharge = 0; }
         $discountType = $this->input->post('discount_type');
         if($discountType == '' || $discountType == null){ $discountType = 'percentage'; }
-        $saleType = $this->input->post('sale_type');
-        if(!$saleType) $saleType = 'cash';
-        $onlineId = $this->input->post('online_sale_id');
-        $cusPhone = $this->input->post('customer_phone');
         $data = array(
             'sale_cus_id'=>$this->input->post('cusID'),
             'sale_grandtotal'=>$this->input->post('grandtotal'),
             'sale_subtotal'=>$this->input->post('subtotal'),
             'sale_discount'=>$this->input->post('invoiceDis'),
-            'sale_discount_type'=>$discountType,
             'sale_less'=>0,
             'sale_createdby'=>$userid,
             'sale_date'=>$this->input->post('date'),
             'sale_location'=>$this->input->post('store'),
-            'sale_delivery_company_id'=>$deliveryCompanyId,
-            'sale_delivery_charge'=>$deliveryCharge,
-            'sale_type'=>$saleType,
-            'sale_online_id'=>$onlineId ? $onlineId : NULL,
-            'sale_customer_phone'=>$cusPhone ? $cusPhone : NULL,
             'sale_status'=>1
         );
+        $fields = $this->db->list_fields('ezy_pos_sale');
+        if (in_array('sale_discount_type', $fields)) $data['sale_discount_type'] = $discountType;
+        if (in_array('sale_delivery_company_id', $fields)) $data['sale_delivery_company_id'] = $deliveryCompanyId;
+        if (in_array('sale_delivery_charge', $fields)) $data['sale_delivery_charge'] = $deliveryCharge;
+        if (in_array('sale_type', $fields)) {
+            $saleType = $this->input->post('sale_type');
+            $data['sale_type'] = $saleType ? $saleType : 'cash';
+        }
+        if (in_array('sale_online_id', $fields)) {
+            $onlineId = $this->input->post('online_sale_id');
+            $data['sale_online_id'] = $onlineId ? $onlineId : NULL;
+        }
+        if (in_array('sale_customer_phone', $fields)) {
+            $cusPhone = $this->input->post('customer_phone');
+            $data['sale_customer_phone'] = $cusPhone ? $cusPhone : NULL;
+        }
         $this->db->insert('ezy_pos_sale', $data);
         $sale_id = $this->db->insert_id();
         return $sale_id;
@@ -60,9 +66,12 @@ class Sales_model extends CI_Model {
             'saleitem_price' => $this->input->post('price'),
             'saleitem_quantity' => $this->input->post('quantity'),
             'saleitem_total' => $this->input->post('total'),
-            'saleitem_discount' => $this->input->post('itmDis'),
-            'saleitem_discount_type' => ($this->input->post('itmDisType') ? $this->input->post('itmDisType') : 'percentage')
+            'saleitem_discount' => $this->input->post('itmDis')
         );
+        $fields = $this->db->list_fields('ezy_pos_sale_item');
+        if (in_array('saleitem_discount_type', $fields)) {
+            $data['saleitem_discount_type'] = ($this->input->post('itmDisType') ? $this->input->post('itmDisType') : 'percentage');
+        }
         return $this->db->insert('ezy_pos_sale_item', $data);
     }
     //get sale items details for a spesific sale
@@ -196,11 +205,13 @@ class Sales_model extends CI_Model {
     // ===================== PAYMENT METHODS =====================
 
     public function getAllPaymentMethods() {
+        if (!$this->db->table_exists('ezy_pos_payment_methods')) return array();
         $this->db->order_by('pm_id');
         return $this->db->get('ezy_pos_payment_methods')->result();
     }
 
     public function getActivePaymentMethods() {
+        if (!$this->db->table_exists('ezy_pos_payment_methods')) return array();
         $this->db->where('pm_status', 1);
         $this->db->order_by('pm_name');
         return $this->db->get('ezy_pos_payment_methods')->result();
