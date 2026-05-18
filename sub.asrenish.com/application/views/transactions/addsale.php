@@ -27,23 +27,6 @@
                                 </div>
                                 <fieldset>
                                 <div class="form-group row">
-                                    <label class="col-4 col-form-label">Sale Type<span class="text-danger">*</span></label>
-                                    <div class="col-8">
-                                        <select class="form-control" id="sale_type">
-                                            <option value="cash">Cash Customer</option>
-                                            <option value="card">Card Customer</option>
-                                            <option value="credit">Credit Customer</option>
-                                            <option value="online">Online Sale</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-group row" id="online_sale_id_div" style="display:none;">
-                                    <label class="col-4 col-form-label">Online ID<span class="text-danger">*</span></label>
-                                    <div class="col-8">
-                                        <input class="form-control" type="text" id="online_sale_id" placeholder="Online order/sale reference ID">
-                                    </div>
-                                </div>
-                                <div class="form-group row">
                                     <label for="customer-auto" class="col-4 col-form-label">Customer<span class="text-danger">*</span></label>
                                     <div class="col-6">
                                         <input class="form-control"  id="customer-auto" placeholder="Select" >
@@ -68,6 +51,34 @@
                                         <input class="form-control datepic" value="" id="datepicker">
                                     </div>
                                 </div>
+                                <div class="form-group row">
+                                    <div class="col-4"></div>
+                                    <div class="col-8">
+                                        <div class="checkbox checkbox-primary">
+                                            <input id="online_delivery" type="checkbox">
+                                            <label for="online_delivery">Online Delivery</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="online_delivery_div" style="display:none;">
+                                    <div class="form-group row">
+                                        <label class="col-4 col-form-label">Delivery Co:</label>
+                                        <div class="col-8">
+                                            <select class="form-control form-control-sm" id="delivery_company">
+                                                <option value="">-- Select --</option>
+                                                <?php if(isset($deliveryCompanies)): foreach($deliveryCompanies as $dc): ?>
+                                                <option value="<?php echo $dc->dc_id; ?>"><?php echo $dc->dc_name; ?></option>
+                                                <?php endforeach; endif; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-4 col-form-label">Delivery Charge:</label>
+                                        <div class="col-8">
+                                            <input class="form-control DecimalFix" type="text" placeholder="0.00" id="delivery_charge_input">
+                                        </div>
+                                    </div>
+                                </div>
                                 </fieldset>
                                 <hr>
                                 <div style="background:#f8f9fa;border-radius:4px;padding:10px 5px;margin-bottom:10px;">
@@ -85,22 +96,9 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="form-group row mb-1">
+                                <div class="form-group row mb-1" id="delivery_charge_summary" style="display:none;">
                                     <label class="col-5 col-form-label"><i class="fa fa-truck"></i> Delivery:</label>
-                                    <div class="col-7">
-                                        <select class="form-control form-control-sm" id="delivery_company">
-                                            <option value="">No Delivery</option>
-                                            <?php if(isset($deliveryCompanies)): foreach($deliveryCompanies as $dc): ?>
-                                            <option value="<?php echo $dc->dc_id; ?>"><?php echo $dc->dc_name; ?></option>
-                                            <?php endforeach; endif; ?>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-group row mb-1" id="delivery_charge_div" style="display:none;">
-                                    <label class="col-5 col-form-label">Delivery Charge:</label>
-                                    <div class="col-7">
-                                        <input class="form-control DecimalFix" type="text" placeholder="0.00" id="delivery_charge_input">
-                                    </div>
+                                    <div class="col-7 col-form-label text-right">LKR <span id="delivery_charge_total_display">0.00</span></div>
                                 </div>
                                 <div class="form-group row mb-0">
                                     <label class="col-5 col-form-label" style="font-size:16px;"><strong>Grand Total:</strong></label>
@@ -115,15 +113,23 @@
                                         name="cashvalue" id="cashvalue" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$">
                                     </div>
                                 </div>
-                                <?php if(isset($paymentMethods) && count($paymentMethods) > 0){ foreach($paymentMethods as $pm){ ?>
-                                <div class="form-group row">
-                                    <label class="col-4 col-form-label"><?php echo $pm->pm_name; ?>:</label>
-                                    <div class="col-8">
-                                        <input class="form-control DecimalFix pm-amount-input" type="text" placeholder="0.00"
-                                        data-pmid="<?php echo $pm->pm_id; ?>" data-parsley-pattern="^[0-9]*\.?[0-9]*$">
+                                <div id="dynamic_pm_container"></div>
+                                <div class="form-group row" id="add_pm_row">
+                                    <div class="col-12 text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddPaymentMethod"><i class="fa fa-plus"></i> Add Payment Method</button>
                                     </div>
                                 </div>
-                                <?php }} ?>
+                                <div class="form-group row" id="pm_select_row" style="display:none;">
+                                    <div class="col-8">
+                                        <select class="form-control form-control-sm" id="pm_select">
+                                            <option value="">-- Select --</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-4">
+                                        <button type="button" class="btn btn-sm btn-success" id="btnConfirmAddPM"><i class="fa fa-check"></i></button>
+                                        <button type="button" class="btn btn-sm btn-secondary" id="btnCancelAddPM"><i class="fa fa-times"></i></button>
+                                    </div>
+                                </div>
                                 <div class="form-group row">
                                     <label class="col-5 col-form-label">Credit Limit:</label>
                                     <div class="col-7 col-form-label text-right">LKR <span id="credit_lmt_value">0.00</span></div>
@@ -372,33 +378,71 @@
     $( function() {
         document.getElementById("save").disabled = true;
 
-        // =========== SALE TYPE LOGIC ===========
-        function applySaleType() {
-            var st = $('#sale_type').val();
-            // Show/hide online sale ID
-            if (st == 'online') {
-                $('#online_sale_id_div').show();
-                $('#delivery_company').closest('.form-group').show();
+        // =========== ONLINE DELIVERY TOGGLE ===========
+        $('#online_delivery').change(function(){
+            if(this.checked){
+                $('#online_delivery_div').show();
             } else {
-                $('#online_sale_id_div').hide();
+                $('#online_delivery_div').hide();
+                $('#delivery_company').val('');
+                $('#delivery_charge_input').val('');
+                $('#delivery_charge_summary').hide();
+                $('#delivery_charge_total_display').text('0.00');
+                grandtotalCalculation();
             }
-            // Show/hide payment method inputs based on sale type
-            if (st == 'cash') {
-                $('#cashvalue').closest('.form-group').show();
-                $('.pm-amount-input').closest('.form-group').hide();
-            } else if (st == 'card') {
-                $('#cashvalue').closest('.form-group').show();
-                $('.pm-amount-input').closest('.form-group').show();
-            } else if (st == 'credit') {
-                $('#cashvalue').closest('.form-group').show();
-                $('.pm-amount-input').closest('.form-group').show();
-            } else if (st == 'online') {
-                $('#cashvalue').closest('.form-group').show();
-                $('.pm-amount-input').closest('.form-group').show();
+        });
+
+        // =========== DYNAMIC PAYMENT METHODS ===========
+        var availablePaymentMethods = [
+            <?php if(isset($paymentMethods) && count($paymentMethods) > 0): foreach($paymentMethods as $pm): ?>
+            {id: <?php echo $pm->pm_id; ?>, name: '<?php echo addslashes($pm->pm_name); ?>'},
+            <?php endforeach; endif; ?>
+        ];
+        var addedPmIds = [];
+
+        $('#btnAddPaymentMethod').click(function(){
+            var html = '<option value="">-- Select --</option>';
+            for(var i=0; i<availablePaymentMethods.length; i++){
+                if(addedPmIds.indexOf(availablePaymentMethods[i].id) === -1){
+                    html += '<option value="'+availablePaymentMethods[i].id+'">'+availablePaymentMethods[i].name+'</option>';
+                }
             }
-        }
-        $('#sale_type').on('change', function(){ applySaleType(); });
-        applySaleType();
+            $('#pm_select').html(html);
+            $('#pm_select_row').show();
+            $('#add_pm_row').hide();
+        });
+
+        $('#btnCancelAddPM').click(function(){
+            $('#pm_select_row').hide();
+            $('#add_pm_row').show();
+        });
+
+        $('#btnConfirmAddPM').click(function(){
+            var pmId = parseInt($('#pm_select').val());
+            if(!pmId) return;
+            var pmName = $('#pm_select option:selected').text();
+            addedPmIds.push(pmId);
+            var row = '<div class="form-group row pm-dynamic-row" data-pmid="'+pmId+'">'+
+                '<label class="col-4 col-form-label">'+pmName+':</label>'+
+                '<div class="col-6">'+
+                '<input class="form-control DecimalFix pm-amount-input" type="text" placeholder="0.00" data-pmid="'+pmId+'">'+
+                '</div>'+
+                '<div class="col-2">'+
+                '<button type="button" class="btn btn-sm btn-danger pm-remove-btn" style="margin-top:5px;"><i class="fa fa-times"></i></button>'+
+                '</div>'+
+                '</div>';
+            $('#dynamic_pm_container').append(row);
+            $('#pm_select_row').hide();
+            $('#add_pm_row').show();
+        });
+
+        $(document).on('click', '.pm-remove-btn', function(){
+            var pmId = parseInt($(this).closest('.pm-dynamic-row').data('pmid'));
+            var idx = addedPmIds.indexOf(pmId);
+            if(idx > -1) addedPmIds.splice(idx, 1);
+            $(this).closest('.pm-dynamic-row').remove();
+            calculateCredit();
+        });
 
         // =========== PHONE AUTO-POPULATE ON CUSTOMER SELECT ===========
         $(document).on('customerSelected', function(){
@@ -423,6 +467,7 @@
         var pendingCardRefs = [];
         var lastSavedSaleId = 0;
         var lastSavedPhone = '';
+        var lastSavedIsOnline = false;
 
         $('.hover').tooltip({
             borderWidth: 0,
@@ -801,18 +846,15 @@ var chequeHTML ='<div id="chequeDIV">'+
         $('#invoiceDisType').change(function(){
             grandtotalCalculation();
         });
-        // Delivery company toggle
-        $('#delivery_company').change(function(){
-            if($(this).val()){
-                $('#delivery_charge_div').show();
-            } else {
-                $('#delivery_charge_div').hide();
-                $('#delivery_charge_input').val('');
-            }
-            grandtotalCalculation();
-        });
-        // Delivery charge input
+        // Delivery charge input - update summary display + grand total
         $('#delivery_charge_input').keyup(function(){
+            var charge = parseFloat($(this).val());
+            if(!isNaN(charge) && charge > 0){
+                $('#delivery_charge_total_display').text(charge.toFixed(2));
+                $('#delivery_charge_summary').show();
+            } else {
+                $('#delivery_charge_summary').hide();
+            }
             grandtotalCalculation();
         });
 
@@ -834,23 +876,11 @@ var chequeHTML ='<div id="chequeDIV">'+
             var creditvalue= parseFloat($('#creditvalue').text());
             var custID= $('#customer-id').val();
             var rows = $("#datatable").find("tr").length;
-            var saleType = $('#sale_type').val();
             var customerPhone = $('#customer_phone').val().trim();
 
             // Validate phone
             if(!customerPhone){
                 swal({type:'error',title:'Phone Required',text:'Please enter customer phone number.'});
-                return;
-            }
-            // Validate online sale ID
-            if(saleType == 'online' && !$('#online_sale_id').val().trim()){
-                swal({type:'error',title:'Online ID Required',text:'Please enter the online sale reference ID.'});
-                return;
-            }
-            // Credit sale without customer: show new customer popup
-            if(saleType == 'credit' && (!custID || custID == '')){
-                $('#nc_phone').val(customerPhone);
-                $('#newCustomerModal').modal('show');
                 return;
             }
 
@@ -910,8 +940,9 @@ var chequeHTML ='<div id="chequeDIV">'+
                     var discountType = $('#invoiceDisType').val();
                     var deliveryCompanyId = $('#delivery_company').val();
                     var deliveryCharge = parseFloat($('#delivery_charge_input').val()) || 0;
-                    var saleType = $('#sale_type').val();
-                    var onlineSaleId = $('#online_sale_id').val();
+                    var saleType = $('#online_delivery').is(':checked') ? 'online' : 'cash';
+                    var onlineSaleId = '';
+                    lastSavedIsOnline = (saleType == 'online');
                     var customerPhone = $('#customer_phone').val().trim();
                     lastSavedPhone = customerPhone;
                     $.ajax({
@@ -1176,10 +1207,11 @@ var chequeHTML ='<div id="chequeDIV">'+
                     $("#delivery_charge_input").val("");
                     $("#delivery_charge_div").hide();
                     $("#customer_phone").val("");
-                    $("#online_sale_id").val("");
-                    $("#sale_type").val("cash");
-                    applySaleType();
-                    $(".pm-amount-input").val("");
+                    $("#online_delivery").prop('checked', false);
+                    $("#online_delivery_div").hide();
+                    $("#delivery_charge_summary").hide();
+                    $("#dynamic_pm_container").empty();
+                    addedPmIds = [];
                     $("#cashvalue").val("");
                     $("#amount").val("");
                     $("#bankname").val("");
@@ -1197,8 +1229,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                         console.log(rurl);
                         window.open(rurl, "_blank", "toolbar=yes,scrollbars=yes,resizable=yes,top=40,left="+left+",width=400,height=600");
                         // Show SMS option for online sales or if user wants
-                        var st = $('#sale_type').val();
-                        if(st == 'online' || lastSavedPhone){
+                        if(lastSavedIsOnline || lastSavedPhone){
                             $('#sms_phone_display').text(lastSavedPhone);
                             $('#smsModal').modal('show');
                             // Reload after modal closes
@@ -1563,8 +1594,8 @@ var chequeHTML ='<div id="chequeDIV">'+
         calculateCredit();
     });
 
-    // Adjust credit when third-party payment method amounts change
-    $(".pm-amount-input").keyup(function(){
+    // Adjust credit when third-party payment method amounts change (event delegation for dynamic elements)
+    $(document).on('keyup', '.pm-amount-input', function(){
         calculateCredit();
     });
 

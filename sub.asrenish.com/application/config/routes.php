@@ -74,6 +74,10 @@ $route['delivery-companies'] = 'DeliveryCompany/manage';
 $route['gift-vouchers'] = 'GiftVoucher/manage/gift-voucher-manage';
 $route['gift-voucher-reports'] = 'GiftVoucher/reports/gift-voucher-reports';
 
+// Returns & Exchanges
+$route['returns'] = 'Returns/index';
+$route['all-returns'] = 'Returns/listReturns';
+
 
 
 

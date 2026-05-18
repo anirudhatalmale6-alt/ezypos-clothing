@@ -271,6 +271,9 @@
                                     <li class="divider"></li>
                                     <li><a href="<?php echo base_url('gift-vouchers')?>"><i class="fa fa-gift"></i> Gift Vouchers</a></li>
                                     <li><a href="<?php echo base_url('gift-voucher-reports')?>"><i class="fa fa-bar-chart"></i> Voucher Reports</a></li>
+                                    <li class="divider"></li>
+                                    <li><a href="<?php echo base_url('returns')?>"><i class="fa fa-undo"></i> Returns & Exchanges</a></li>
+                                    <li><a href="<?php echo base_url('all-returns')?>"><i class="fa fa-list"></i> All Returns</a></li>
                                 </ul>
                             </li>
                             <?php ?>
