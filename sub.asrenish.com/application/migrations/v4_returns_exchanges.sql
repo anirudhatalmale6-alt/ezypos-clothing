@@ -38,8 +38,6 @@ CREATE TABLE IF NOT EXISTS ezy_pos_exchange_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Add return tracking columns to sale table
--- NOTE: Some MySQL versions (< 8.0.1) do not support IF NOT EXISTS on ALTER TABLE.
--- If you get a syntax error, run the ALTER statements individually and
--- ignore "Duplicate column name" errors if the columns already exist.
-ALTER TABLE ezy_pos_sale ADD COLUMN IF NOT EXISTS sale_return_status VARCHAR(20) DEFAULT NULL;
-ALTER TABLE ezy_pos_sale ADD COLUMN IF NOT EXISTS sale_last_modified DATETIME DEFAULT NULL;
+-- Run these individually. If you get "Duplicate column name" error, the column already exists - safe to ignore.
+ALTER TABLE ezy_pos_sale ADD COLUMN sale_return_status VARCHAR(20) DEFAULT NULL;
+ALTER TABLE ezy_pos_sale ADD COLUMN sale_last_modified DATETIME DEFAULT NULL;
