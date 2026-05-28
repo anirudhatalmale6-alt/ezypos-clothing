@@ -514,11 +514,127 @@ public function get_overall_expenses() {
                 echo json_encode($result);
         }
         public function getCustomerReturn(){
-                $result =$this->Stocks_model->getCustomerReturn();		 
+                $result =$this->Stocks_model->getCustomerReturn();
                 echo json_encode($result);
         }
 
 
 
-        
+    // ===================== CASH FLOW REPORT =====================
+
+    public function cash_flow_report($page = 'index')
+    {
+        if ( ! file_exists(APPPATH.'views/report/'.$page.'.php'))
+        {
+            show_404();
+        }
+        $data['title'] = ucfirst($page);
+        $data['config'] = $this->Configs_model->getConfigName();
+        // Pass payment methods for filter dropdown
+        $this->load->model('Sales_model');
+        $data['paymentMethods'] = $this->Sales_model->getAllPaymentMethods();
+        $this->load->view('templates/header', $data);
+        $this->load->view('report/'.$page, $data);
+        $this->load->view('templates/footer');
+        $this->load->view('templates/rightslidebar');
+        $this->load->view('templates/footerscripts');
+    }
+
+    public function getCashFlowReportData()
+    {
+        $from = $this->input->post('from');
+        $to = $this->input->post('to');
+        $method = $this->input->post('method');
+        if (!$method) $method = 'all';
+        $result = $this->Report_model->getCashFlowReport($from, $to, $method);
+        echo json_encode($result ? $result : array());
+    }
+
+    public function getCashFlowSummaryData()
+    {
+        $from = $this->input->post('from');
+        $to = $this->input->post('to');
+        $result = $this->Report_model->getCashFlowSummary($from, $to);
+        echo json_encode($result ? $result : array());
+    }
+
+    // ===================== ITEM SALES REPORT =====================
+
+    public function item_sales_report($page = 'index')
+    {
+        if ( ! file_exists(APPPATH.'views/report/'.$page.'.php'))
+        {
+            show_404();
+        }
+        $data['title'] = ucfirst($page);
+        $data['config'] = $this->Configs_model->getConfigName();
+        $this->load->view('templates/header', $data);
+        $this->load->view('report/'.$page);
+        $this->load->view('templates/footer');
+        $this->load->view('templates/rightslidebar');
+        $this->load->view('templates/footerscripts');
+    }
+
+    public function getItemSalesReportData()
+    {
+        $from = $this->input->post('from');
+        $to = $this->input->post('to');
+        $result = $this->Report_model->getItemSalesReport($from, $to);
+        echo json_encode($result ? $result : array());
+    }
+
+    // ===================== PRODUCTION & TAILORING REPORT =====================
+
+    public function production_report($page = 'index')
+    {
+        if ( ! file_exists(APPPATH.'views/report/'.$page.'.php'))
+        {
+            show_404();
+        }
+        $data['title'] = ucfirst($page);
+        $data['config'] = $this->Configs_model->getConfigName();
+        $this->load->view('templates/header', $data);
+        $this->load->view('report/'.$page);
+        $this->load->view('templates/footer');
+        $this->load->view('templates/rightslidebar');
+        $this->load->view('templates/footerscripts');
+    }
+
+    public function getProductionReportData()
+    {
+        $from = $this->input->post('from');
+        $to = $this->input->post('to');
+        $status = $this->input->post('status');
+        if (!$status) $status = 'all';
+        $result = $this->Report_model->getProductionReport($from, $to, $status);
+        echo json_encode($result ? $result : array());
+    }
+
+    public function getProductionSummaryData()
+    {
+        $from = $this->input->post('from');
+        $to = $this->input->post('to');
+        $result = $this->Report_model->getProductionSummary($from, $to);
+        echo json_encode($result ? $result : array());
+    }
+
+    public function getTailoringReportData()
+    {
+        $from = $this->input->post('from');
+        $to = $this->input->post('to');
+        $status = $this->input->post('status');
+        if (!$status) $status = 'all';
+        $result = $this->Report_model->getTailoringOrdersReport($from, $to, $status);
+        echo json_encode($result ? $result : array());
+    }
+
+    public function getTailoringSummaryData()
+    {
+        $from = $this->input->post('from');
+        $to = $this->input->post('to');
+        $result = $this->Report_model->getTailoringSummary($from, $to);
+        echo json_encode($result ? $result : array());
+    }
+
+
 }

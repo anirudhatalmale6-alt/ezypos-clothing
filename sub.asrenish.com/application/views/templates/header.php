@@ -347,8 +347,11 @@
                                     <li><a  href="<?php echo base_url('profit-loss-report')?>">Profit/Loss Report</a></li>
                                     <?php }}?>
                                     <li><a href="<?php echo base_url('payment-methods-report')?>">Commission Report</a></li>
+                                    <li><a href="<?php echo base_url('cash-flow-report')?>"><i class="fa fa-money"></i> Cash Flow Report</a></li>
+                                    <li><a href="<?php echo base_url('item-sales-report')?>"><i class="fa fa-cubes"></i> Item Sales Report</a></li>
+                                    <li><a href="<?php echo base_url('production-report')?>"><i class="fa fa-industry"></i> Production & Tailoring Report</a></li>
                                     <!--<li><a  href="<?php //echo base_url('backup')?>">Back Up </a></li>-->
-                                    <?php  ?>                                
+                                    <?php  ?>
                                 </ul>
                             </li>
                             <?php ?>

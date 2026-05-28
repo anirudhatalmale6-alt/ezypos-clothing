@@ -821,8 +821,351 @@ class Report_model extends CI_Model {
         {
             return array();
         }
-    }    
-    
+    }
+
+
+    // =========================================================================
+    // CASH FLOW REPORT METHODS
+    // =========================================================================
+
+    /**
+     * Get cash flow report - combines cash payments + third-party payment methods
+     * @param string $from  Start date (Y-m-d)
+     * @param string $to    End date (Y-m-d)
+     * @param string $method  'all', 'cash', or a specific pm_id
+     * @return array|false
+     */
+    public function getCashFlowReport($from, $to, $method = 'all'){
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilter('s.sale_location');
+        $results = array();
+
+        // Cash payments
+        if($method === 'all' || $method === 'cash'){
+            $str = "SELECT s.sale_id, s.sale_date, c.cus_name, cp.cus_pay_cash, cp.cus_pay_credit
+                    FROM ezy_pos_cus_payment cp
+                    INNER JOIN ezy_pos_sale s ON s.sale_id = cp.cus_pay_saleid
+                    LEFT JOIN ezy_pos_customers c ON c.cus_id = s.sale_cus_id
+                    WHERE s.sale_date BETWEEN ? AND ?
+                    AND cp.cus_pay_cash > 0"
+                    .$sf.
+                    " ORDER BY s.sale_id DESC";
+            $query = $this->db->query($str, array($start, $end));
+            if($query->num_rows() > 0){
+                foreach($query->result() as $row){
+                    $obj = new stdClass();
+                    $obj->sale_id       = $row->sale_id;
+                    $obj->sale_date     = $row->sale_date;
+                    $obj->customer_name = $row->cus_name;
+                    $obj->method_name   = 'Cash';
+                    $obj->amount        = $row->cus_pay_cash;
+                    $obj->type          = 'cash';
+                    $results[] = $obj;
+                }
+            }
+        }
+
+        // Third-party payment method payments
+        if($method !== 'cash' && $this->db->table_exists('ezy_pos_sale_payments') && $this->db->table_exists('ezy_pos_payment_methods')){
+            $str = "SELECT sp.sp_amount, sp.sp_commission, sp.sp_card_ref, pm.pm_name,
+                           s.sale_id, s.sale_date, c.cus_name
+                    FROM ezy_pos_sale_payments sp
+                    INNER JOIN ezy_pos_sale s ON s.sale_id = sp.sp_sale_id
+                    LEFT JOIN ezy_pos_payment_methods pm ON pm.pm_id = sp.sp_pm_id
+                    LEFT JOIN ezy_pos_customers c ON c.cus_id = s.sale_cus_id
+                    WHERE s.sale_date BETWEEN ? AND ?"
+                    .$sf;
+
+            $params = array($start, $end);
+
+            if($method !== 'all'){
+                $str .= " AND sp.sp_pm_id = ?";
+                $params[] = intval($method);
+            }
+
+            $str .= " ORDER BY s.sale_id DESC";
+
+            $query = $this->db->query($str, $params);
+            if($query->num_rows() > 0){
+                foreach($query->result() as $row){
+                    $obj = new stdClass();
+                    $obj->sale_id       = $row->sale_id;
+                    $obj->sale_date     = $row->sale_date;
+                    $obj->customer_name = $row->cus_name;
+                    $obj->method_name   = $row->pm_name;
+                    $obj->amount        = $row->sp_amount;
+                    $obj->type          = 'method';
+                    $results[] = $obj;
+                }
+            }
+        }
+
+        if(count($results) > 0){
+            return $results;
+        }
+        return false;
+    }
+
+    /**
+     * Get cash flow summary - totals per payment method
+     * @param string $from  Start date (Y-m-d)
+     * @param string $to    End date (Y-m-d)
+     * @return array|false
+     */
+    public function getCashFlowSummary($from, $to){
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilter('s.sale_location');
+        $results = array();
+
+        // Total cash payments
+        $str = "SELECT SUM(cp.cus_pay_cash) AS total_amount
+                FROM ezy_pos_cus_payment cp
+                INNER JOIN ezy_pos_sale s ON s.sale_id = cp.cus_pay_saleid
+                WHERE s.sale_date BETWEEN ? AND ?
+                AND cp.cus_pay_cash > 0"
+                .$sf;
+        $query = $this->db->query($str, array($start, $end));
+        if($query->num_rows() > 0 && $query->row()->total_amount > 0){
+            $obj = new stdClass();
+            $obj->method_name   = 'Cash';
+            $obj->total_amount  = $query->row()->total_amount;
+            $results[] = $obj;
+        }
+
+        // Total cheque payments
+        $str = "SELECT SUM(ch.cus_cheque_amount) AS total_amount
+                FROM ezy_pos_cus_cheque ch
+                INNER JOIN ezy_pos_sale s ON s.sale_id = ch.cus_cheque_saleid
+                WHERE s.sale_date BETWEEN ? AND ?"
+                .$sf;
+        $query = $this->db->query($str, array($start, $end));
+        if($query->num_rows() > 0 && $query->row()->total_amount > 0){
+            $obj = new stdClass();
+            $obj->method_name   = 'Cheque';
+            $obj->total_amount  = $query->row()->total_amount;
+            $results[] = $obj;
+        }
+
+        // Totals per third-party payment method
+        if($this->db->table_exists('ezy_pos_sale_payments') && $this->db->table_exists('ezy_pos_payment_methods')){
+            $str = "SELECT pm.pm_name, SUM(sp.sp_amount) AS total_amount
+                    FROM ezy_pos_sale_payments sp
+                    INNER JOIN ezy_pos_payment_methods pm ON pm.pm_id = sp.sp_pm_id
+                    INNER JOIN ezy_pos_sale s ON s.sale_id = sp.sp_sale_id
+                    WHERE s.sale_date BETWEEN ? AND ?"
+                    .$sf.
+                    " GROUP BY sp.sp_pm_id
+                    ORDER BY total_amount DESC";
+            $query = $this->db->query($str, array($start, $end));
+            if($query->num_rows() > 0){
+                foreach($query->result() as $row){
+                    $obj = new stdClass();
+                    $obj->method_name   = $row->pm_name;
+                    $obj->total_amount  = $row->total_amount;
+                    $results[] = $obj;
+                }
+            }
+        }
+
+        if(count($results) > 0){
+            return $results;
+        }
+        return false;
+    }
+
+
+    // =========================================================================
+    // ITEM SALES REPORT METHODS
+    // =========================================================================
+
+    /**
+     * Get item-wise sales report - aggregate sales by item
+     * @param string $from  Start date (Y-m-d)
+     * @param string $to    End date (Y-m-d)
+     * @return array|false
+     */
+    public function getItemSalesReport($from, $to){
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilter('s.sale_location');
+
+        $str = "SELECT i.itm_id, i.itm_code, i.itm_name, c.cat_name,
+                       COUNT(DISTINCT si.saleitem_sale_id) AS num_sales,
+                       SUM(si.saleitem_quantity) AS total_qty,
+                       SUM(si.saleitem_total) AS total_revenue
+                FROM ezy_pos_sale_item si
+                INNER JOIN ezy_pos_items i ON i.itm_id = si.saleitem_item_id
+                LEFT JOIN ezy_pos_categories c ON c.cat_id = i.itm_category
+                INNER JOIN ezy_pos_sale s ON s.sale_id = si.saleitem_sale_id
+                WHERE s.sale_date BETWEEN ? AND ?
+                AND s.sale_status = 1"
+                .$sf.
+                " GROUP BY i.itm_id
+                ORDER BY total_revenue DESC";
+
+        $query = $this->db->query($str, array($start, $end));
+        if($query->num_rows() > 0){
+            return $query->result();
+        }
+        return false;
+    }
+
+
+    // =========================================================================
+    // PRODUCTION & TAILORING REPORT METHODS
+    // =========================================================================
+
+    /**
+     * Get production orders report
+     * @param string $from    Start date (Y-m-d)
+     * @param string $to      End date (Y-m-d)
+     * @param string $status  'all' or status code (0=draft, 1=in_progress, 2=completed, 3=cancelled)
+     * @return array|false
+     */
+    public function getProductionReport($from, $to, $status = 'all'){
+        if(!$this->db->table_exists('ezy_pos_production')){
+            return false;
+        }
+
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilter('p.prod_store_id');
+
+        $str = "SELECT p.*, i.itm_name, i.itm_code,
+                       sup.sup_name AS tailor_name,
+                       u.user_name AS created_by
+                FROM ezy_pos_production p
+                LEFT JOIN ezy_pos_items i ON i.itm_id = p.prod_output_item_id
+                LEFT JOIN ezy_pos_suppliers sup ON sup.sup_id = p.prod_tailor_id
+                LEFT JOIN ezy_pos_users u ON u.user_id = p.prod_createdby
+                WHERE p.prod_date BETWEEN ? AND ?"
+                .$sf;
+
+        $params = array($start, $end);
+
+        if($status !== 'all'){
+            $str .= " AND p.prod_status = ?";
+            $params[] = $status;
+        }
+
+        $str .= " ORDER BY p.prod_date DESC";
+
+        $query = $this->db->query($str, $params);
+        if($query->num_rows() > 0){
+            return $query->result();
+        }
+        return false;
+    }
+
+    /**
+     * Get production summary - counts and totals by status
+     * @param string $from  Start date (Y-m-d)
+     * @param string $to    End date (Y-m-d)
+     * @return array|false
+     */
+    public function getProductionSummary($from, $to){
+        if(!$this->db->table_exists('ezy_pos_production')){
+            return false;
+        }
+
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilter('p.prod_store_id');
+
+        $str = "SELECT p.prod_status,
+                       COUNT(*) AS order_count,
+                       SUM(p.prod_output_qty) AS total_qty,
+                       SUM(p.prod_total_cost) AS total_cost
+                FROM ezy_pos_production p
+                WHERE p.prod_date BETWEEN ? AND ?"
+                .$sf.
+                " GROUP BY p.prod_status
+                ORDER BY p.prod_status ASC";
+
+        $query = $this->db->query($str, array($start, $end));
+        if($query->num_rows() > 0){
+            return $query->result();
+        }
+        return false;
+    }
+
+    /**
+     * Get tailoring orders report
+     * @param string $from    Start date (Y-m-d)
+     * @param string $to      End date (Y-m-d)
+     * @param string $status  'all' or status code
+     * @return array|false
+     */
+    public function getTailoringOrdersReport($from, $to, $status = 'all'){
+        if(!$this->db->table_exists('ezy_pos_production_sale')){
+            return false;
+        }
+
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilter('ps.prodsale_store_id');
+
+        $str = "SELECT ps.*,
+                       c.cus_name,
+                       st.store_name,
+                       u.user_name AS created_by
+                FROM ezy_pos_production_sale ps
+                LEFT JOIN ezy_pos_customers c ON c.cus_id = ps.prodsale_cus_id
+                LEFT JOIN ezy_pos_stores st ON st.store_id = ps.prodsale_store_id
+                LEFT JOIN ezy_pos_users u ON u.user_id = ps.prodsale_createdby
+                WHERE ps.prodsale_date BETWEEN ? AND ?"
+                .$sf;
+
+        $params = array($start, $end);
+
+        if($status !== 'all'){
+            $str .= " AND ps.prodsale_status = ?";
+            $params[] = $status;
+        }
+
+        $str .= " ORDER BY ps.prodsale_date DESC";
+
+        $query = $this->db->query($str, $params);
+        if($query->num_rows() > 0){
+            return $query->result();
+        }
+        return false;
+    }
+
+    /**
+     * Get tailoring summary - counts and totals by status
+     * @param string $from  Start date (Y-m-d)
+     * @param string $to    End date (Y-m-d)
+     * @return array|false
+     */
+    public function getTailoringSummary($from, $to){
+        if(!$this->db->table_exists('ezy_pos_production_sale')){
+            return false;
+        }
+
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilter('ps.prodsale_store_id');
+
+        $str = "SELECT ps.prodsale_status,
+                       COUNT(*) AS order_count,
+                       SUM(ps.prodsale_total) AS total_amount
+                FROM ezy_pos_production_sale ps
+                WHERE ps.prodsale_date BETWEEN ? AND ?"
+                .$sf.
+                " GROUP BY ps.prodsale_status
+                ORDER BY ps.prodsale_status ASC";
+
+        $query = $this->db->query($str, array($start, $end));
+        if($query->num_rows() > 0){
+            return $query->result();
+        }
+        return false;
+    }
+
+
 }
 
 
