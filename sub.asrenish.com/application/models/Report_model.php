@@ -1013,6 +1013,96 @@ class Report_model extends CI_Model {
     }
 
 
+    public function getItemFullReport($from, $to, $item_code = ''){
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilter('s.sale_location');
+
+        $results = array();
+
+        // Get all items (optionally filtered by code)
+        $itemWhere = "WHERE i.itm_status = 1";
+        $params = array();
+        if($item_code && $item_code !== ''){
+            $itemWhere .= " AND (i.itm_code LIKE ? OR i.itm_name LIKE ?)";
+            $params[] = '%'.$item_code.'%';
+            $params[] = '%'.$item_code.'%';
+        }
+
+        $str = "SELECT i.itm_id, i.itm_code, i.itm_name, c.cat_name, i.itm_sellingprice
+                FROM ezy_pos_items i
+                LEFT JOIN ezy_pos_categories c ON c.cat_id = i.itm_category
+                ".$itemWhere."
+                ORDER BY i.itm_name ASC";
+        $query = $this->db->query($str, $params);
+        if($query->num_rows() == 0) return false;
+
+        $items = array();
+        foreach($query->result() as $row){
+            $items[$row->itm_id] = (object)array(
+                'itm_id' => $row->itm_id,
+                'itm_code' => $row->itm_code,
+                'itm_name' => $row->itm_name,
+                'cat_name' => $row->cat_name,
+                'itm_sellingprice' => $row->itm_sellingprice,
+                'num_sales' => 0,
+                'sold_qty' => 0,
+                'sale_revenue' => 0,
+                'num_grns' => 0,
+                'grn_qty' => 0,
+                'grn_cost' => 0
+            );
+        }
+
+        // Sales data
+        $str = "SELECT si.saleitem_item_id AS itm_id,
+                       COUNT(DISTINCT si.saleitem_sale_id) AS num_sales,
+                       SUM(si.saleitem_quantity) AS sold_qty,
+                       SUM(si.saleitem_total) AS sale_revenue
+                FROM ezy_pos_sale_item si
+                INNER JOIN ezy_pos_sale s ON s.sale_id = si.saleitem_sale_id
+                WHERE s.sale_date BETWEEN ? AND ? AND s.sale_status = 1"
+                .$sf.
+                " GROUP BY si.saleitem_item_id";
+        $q = $this->db->query($str, array($start, $end));
+        foreach($q->result() as $row){
+            if(isset($items[$row->itm_id])){
+                $items[$row->itm_id]->num_sales = $row->num_sales;
+                $items[$row->itm_id]->sold_qty = $row->sold_qty;
+                $items[$row->itm_id]->sale_revenue = $row->sale_revenue;
+            }
+        }
+
+        // GRN data
+        $str = "SELECT gi.grnitem_itmid AS itm_id,
+                       COUNT(DISTINCT gi.grnitem_grnid) AS num_grns,
+                       SUM(gi.grnitem_quantity) AS grn_qty,
+                       SUM(gi.grnitem_total) AS grn_cost
+                FROM ezy_pos_grn_item gi
+                INNER JOIN ezy_pos_grns g ON g.grn_id = gi.grnitem_grnid
+                WHERE g.grn_date BETWEEN ? AND ?
+                GROUP BY gi.grnitem_itmid";
+        $q = $this->db->query($str, array($start, $end));
+        foreach($q->result() as $row){
+            if(isset($items[$row->itm_id])){
+                $items[$row->itm_id]->num_grns = $row->num_grns;
+                $items[$row->itm_id]->grn_qty = $row->grn_qty;
+                $items[$row->itm_id]->grn_cost = $row->grn_cost;
+            }
+        }
+
+        // Filter out items with no activity if no search term
+        if(!$item_code || $item_code === ''){
+            foreach($items as $id => $itm){
+                if($itm->num_sales == 0 && $itm->num_grns == 0){
+                    unset($items[$id]);
+                }
+            }
+        }
+
+        return array_values($items);
+    }
+
     // =========================================================================
     // PRODUCTION & TAILORING REPORT METHODS
     // =========================================================================

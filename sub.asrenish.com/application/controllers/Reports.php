@@ -593,6 +593,16 @@ public function get_overall_expenses() {
         echo json_encode($result ? $result : array());
     }
 
+    public function getItemFullReportData()
+    {
+        $from = $this->input->post('from');
+        $to = $this->input->post('to');
+        $item_code = $this->input->post('item_code');
+        if (!$item_code) $item_code = '';
+        $result = $this->Report_model->getItemFullReport($from, $to, $item_code);
+        echo json_encode($result ? $result : array());
+    }
+
     // ===================== PRODUCTION & TAILORING REPORT =====================
 
     public function production_report($page = 'index')

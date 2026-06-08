@@ -5,7 +5,10 @@
     <div class="container">
         <!-- Filters Row -->
         <div class="row">
-            <div class="col-lg-8 col-md-10 col-sm-12 col-xs-12">
+            <div class="col-3">
+                <input class="form-control" type="text" id="itemCodeSearch" placeholder="Search by item code or name...">
+            </div>
+            <div class="col-lg-6 col-md-8 col-sm-12 col-xs-12">
                 <div class="row">
                     <div class="col-6">
                         <div class="form-group row">
@@ -100,40 +103,50 @@ $(document).ready(function () {
     function loadReport(){
         var from = $('#datepicFrom').val();
         var to = $('#datepicTo').val();
+        var itemCode = $('#itemCodeSearch').val().trim();
 
         $.ajax({
             type: 'POST',
-            url: '<?php echo base_url()?>Reports/getItemSalesReportData',
-            data: { from: from, to: to },
+            url: '<?php echo base_url()?>Reports/getItemFullReportData',
+            data: { from: from, to: to, item_code: itemCode },
             dataType: 'json',
             success: function(data){
                 if(!data || data.length === 0){
                     try{ $('#datatable-buttons').DataTable().destroy(); }catch(e){}
-                    $('#datatable-buttons').html('<thead><tr><th>No item sales found for the selected period</th></tr></thead>');
+                    $('#datatable-buttons').html('<thead><tr><th>No item data found for the selected criteria</th></tr></thead>');
                     $('#totalRevenue').text("0.00");
                     $('#summaryCards').hide();
                     return;
                 }
 
-                var totalQty = 0;
+                var totalSoldQty = 0;
                 var totalRevenue = 0;
+                var totalGrnQty = 0;
+                var totalGrnCost = 0;
 
                 var tableHTML = '<thead><tr>' +
                     '<th>#</th>' +
                     '<th>Item Code</th>' +
                     '<th>Item Name</th>' +
                     '<th>Category</th>' +
-                    '<th style="text-align:right;">No. of Sales</th>' +
+                    '<th style="text-align:right;">Sales</th>' +
                     '<th style="text-align:right;">Qty Sold</th>' +
                     '<th style="text-align:right;">Revenue (LKR)</th>' +
+                    '<th style="text-align:right;">GRNs</th>' +
+                    '<th style="text-align:right;">Qty Purchased</th>' +
+                    '<th style="text-align:right;">GRN Cost (LKR)</th>' +
                     '</tr></thead><tbody>';
 
                 for(var i = 0; i < data.length; i++){
                     var row = data[i];
-                    var qty = parseFloat(row.total_qty) || 0;
-                    var rev = parseFloat(row.total_revenue) || 0;
-                    totalQty += qty;
+                    var soldQty = parseFloat(row.sold_qty) || 0;
+                    var rev = parseFloat(row.sale_revenue) || 0;
+                    var grnQty = parseFloat(row.grn_qty) || 0;
+                    var grnCost = parseFloat(row.grn_cost) || 0;
+                    totalSoldQty += soldQty;
                     totalRevenue += rev;
+                    totalGrnQty += grnQty;
+                    totalGrnCost += grnCost;
 
                     tableHTML += '<tr>' +
                         '<td>' + (i+1) + '</td>' +
@@ -141,8 +154,11 @@ $(document).ready(function () {
                         '<td>' + (row.itm_name || '') + '</td>' +
                         '<td>' + (row.cat_name || 'N/A') + '</td>' +
                         '<td style="text-align:right;">' + (row.num_sales || 0) + '</td>' +
-                        '<td style="text-align:right;">' + qty.toFixed(2) + '</td>' +
+                        '<td style="text-align:right;">' + soldQty.toFixed(2) + '</td>' +
                         '<td style="text-align:right;">' + rev.toFixed(2) + '</td>' +
+                        '<td style="text-align:right;">' + (row.num_grns || 0) + '</td>' +
+                        '<td style="text-align:right;">' + grnQty.toFixed(2) + '</td>' +
+                        '<td style="text-align:right;">' + grnCost.toFixed(2) + '</td>' +
                         '</tr>';
                 }
                 tableHTML += '</tbody>';
@@ -156,12 +172,12 @@ $(document).ready(function () {
 
                 $('#totalRevenue').text(totalRevenue.toFixed(2));
                 $('#summaryTotalItems').text(data.length);
-                $('#summaryTotalQty').text(totalQty.toFixed(2));
+                $('#summaryTotalQty').text(totalSoldQty.toFixed(2));
                 $('#summaryTotalRevenue').text('LKR ' + totalRevenue.toFixed(2));
                 $('#summaryCards').show();
             },
             error: function(){
-                alert('Failed to fetch item sales data.');
+                alert('Failed to fetch item report data.');
             }
         });
     }
@@ -177,6 +193,7 @@ $(document).ready(function () {
         $('#datatable-buttons').html('<thead><tr><th>Select date range and click Search to view report</th></tr></thead>');
         $('#datepicFrom').val('');
         $('#datepicTo').val('');
+        $('#itemCodeSearch').val('');
         $('#totalRevenue').text("0.00");
         $('#summaryCards').hide();
     });
@@ -213,7 +230,7 @@ document.getElementById('exportPDF').addEventListener('click', function () {
     }
 
     var pageWidth = doc.internal.pageSize.getWidth();
-    var title = 'Item Sales Report';
+    var title = 'Item Report (Sales & GRN)';
     var titleWidth = doc.getTextWidth(title);
     doc.setFontSize(14);
     doc.text(title, (pageWidth - titleWidth) / 2, 15);
@@ -237,7 +254,7 @@ document.getElementById('exportPDF').addEventListener('click', function () {
     doc.setFontSize(10);
     doc.text('Total Revenue: LKR ' + totalRev, 14, doc.lastAutoTable.finalY + 10);
 
-    doc.save('Item_Sales_Report.pdf');
+    doc.save('Item_Report.pdf');
 });
 
 document.getElementById('copyToClipboard').addEventListener('click', function () {
