@@ -251,12 +251,19 @@
                                 </ul>
                             </li>
                             <?php }} ?>
-                            <?php ?>
+                            <?php
+                            // Show Transactions menu if user has at least one transaction privilege
+                            $showTransactions = (
+                                (isset($_SESSION['privGrn']) && $_SESSION['privGrn'] == 1) ||
+                                (isset($_SESSION['privSales']) && $_SESSION['privSales'] == 1) ||
+                                (isset($_SESSION['privExpense']) && $_SESSION['privExpense'] == 1) ||
+                                (isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1)
+                            );
+                            if($showTransactions): ?>
                             <li class="has-submenu">
-                                
                                 <a href="#"><i class="zmdi zmdi-album"></i> <span>Transactions </span> </a>
                                 <ul class="submenu">
-                                    <?php if(isset($_SESSION['privGrn'])){if($_SESSION['privGrn'] == 1){?> 
+                                    <?php if(isset($_SESSION['privGrn'])){if($_SESSION['privGrn'] == 1){?>
                                     <li><a href="<?php echo base_url('add-grn')?>">GRN</a></li>
                                     <?php }} if(isset($_SESSION['privSales'])){if($_SESSION['privSales'] == 1){  ?>
                                     <li><a href="<?php echo base_url('add-sale')?>">Sales</a></li>
@@ -276,7 +283,7 @@
                                     <li><a href="<?php echo base_url('all-returns')?>"><i class="fa fa-list"></i> All Returns</a></li>
                                 </ul>
                             </li>
-                            <?php ?>
+                            <?php endif; ?>
                             <?php ?>
                             <li class="has-submenu">
                                  <?php if(isset($_SESSION['privL_allGrn'])){if($_SESSION['privL_allGrn'] == 1){?> 
