@@ -131,7 +131,7 @@ class ProductionSale_model extends CI_Model {
         $this->db->update('ezy_pos_prodsale', array('prodsale_status' => $status));
     }
 
-    public function addPayment($id, $amount)
+    public function addPayment($id, $amount, $method = 'Cash')
     {
         $q = $this->db->query("SELECT prodsale_paid, prodsale_total FROM ezy_pos_prodsale WHERE prodsale_id = '" . intval($id) . "'");
         $row = $q->row();
@@ -143,6 +143,17 @@ class ProductionSale_model extends CI_Model {
             'prodsale_paid' => $newPaid,
             'prodsale_balance' => $balance
         ));
+
+        // Log payment with method if payments table exists
+        if($this->db->table_exists('ezy_pos_prodsale_payments')){
+            $userid = isset($_SESSION['userid']) ? $_SESSION['userid'] : 0;
+            $this->db->insert('ezy_pos_prodsale_payments', array(
+                'psp_prodsale_id' => $id,
+                'psp_amount' => $amount,
+                'psp_method' => $method,
+                'psp_created_by' => $userid
+            ));
+        }
     }
 
     public function getAllOrders()

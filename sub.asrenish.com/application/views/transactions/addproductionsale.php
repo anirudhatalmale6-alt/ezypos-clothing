@@ -46,6 +46,17 @@
                         </div>
                     </div>
                     <div class="form-group row">
+                        <label class="col-5 col-form-label">Pickup Store</label>
+                        <div class="col-7">
+                            <select class="form-control" id="ps_pickup_store">
+                                <option value="">Same as Order Store</option>
+                                <?php if($storeLoc): foreach($storeLoc as $s): ?>
+                                <option value="<?php echo $s->store_id; ?>"><?php echo $s->store_name; ?></option>
+                                <?php endforeach; endif; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group row">
                         <label class="col-5 col-form-label">Tailoring Charge</label>
                         <div class="col-7">
                             <input type="number" class="form-control" id="ps_tailoring_charge" value="0.00" step="0.01" placeholder="0.00">
@@ -234,8 +245,21 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
+                    <label>Payment Method</label>
+                    <select class="form-control" id="ps_payment_method">
+                        <option value="Cash">Cash</option>
+                        <option value="Cheque">Cheque</option>
+                        <?php if(isset($paymentMethods)){ foreach($paymentMethods as $pm){ ?>
+                        <option value="<?php echo $pm->pm_name; ?>"><?php echo $pm->pm_name; ?></option>
+                        <?php }} ?>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>Payment Amount</label>
                     <input type="number" class="form-control" id="ps_payment_amount" step="0.01" placeholder="0.00">
+                </div>
+                <div id="ps_balance_info" style="background:#fff3e0;padding:8px;border-radius:4px;margin-top:10px;">
+                    <strong>Current Balance: LKR <span id="ps_modal_balance">0.00</span></strong>
                 </div>
             </div>
             <div class="modal-footer">
@@ -319,6 +343,7 @@ $(document).ready(function() {
                 code: $('#ps_code').val(),
                 cus_id: cusId,
                 store_id: storeId,
+                pickup_store_id: $('#ps_pickup_store').val() || '',
                 order_date: $('#ps_date').val(),
                 delivery_date: deliveryDate,
                 tailoring_charge: $('#ps_tailoring_charge').val() || 0,
@@ -329,7 +354,7 @@ $(document).ready(function() {
                 if(id > 0){
                     currentPsId = id;
                     currentPsStoreId = $('#ps_store').val();
-                    $('#ps_code, #ps_store, #ps_customer_search, #ps_date, #ps_delivery_date, #ps_tailoring_charge, #ps_notes').prop('disabled', true);
+                    $('#ps_code, #ps_store, #ps_pickup_store, #ps_customer_search, #ps_date, #ps_delivery_date, #ps_tailoring_charge, #ps_notes').prop('disabled', true);
                     $('#ps_create_btn').hide();
                     $('#ps_items_section, #ps_services_section, #ps_status_section, #ps_status_buttons').show();
                     refreshPsOrder();
@@ -412,18 +437,32 @@ $(document).ready(function() {
     $('#btn_ps_cutting').click(function(){ updatePsStatus('Cutting', 'warning', 'Cutting'); });
     $('#btn_ps_stitching').click(function(){ updatePsStatus('Stitching', 'info', 'Stitching'); });
     $('#btn_ps_ready').click(function(){ updatePsStatus('Ready', 'primary', 'Ready for Pickup'); });
-    $('#btn_ps_delivered').click(function(){ updatePsStatus('Delivered', 'success', 'Delivered'); });
+    $('#btn_ps_delivered').click(function(){
+        var balance = parseFloat($('#ps_balance_lbl').text()) || 0;
+        if(balance > 0){
+            swal({type:'error', title:'Cannot Deliver', text:'Outstanding balance of LKR ' + balance.toFixed(2) + '. Please settle the balance before delivering.'});
+            return;
+        }
+        updatePsStatus('Delivered', 'success', 'Delivered');
+    });
 
     // Payment
-    $('#btn_ps_payment').click(function(){ $('#paymentModal').modal('show'); });
+    $('#btn_ps_payment').click(function(){
+        var bal = $('#ps_balance_lbl').text();
+        $('#ps_modal_balance').text(bal);
+        $('#ps_payment_amount').val('');
+        $('#ps_payment_method').val('Cash');
+        $('#paymentModal').modal('show');
+    });
     $('#btn_confirm_payment').click(function(){
         var amt = parseFloat($('#ps_payment_amount').val());
-        if(!amt || amt <= 0){ alert('Enter valid amount'); return; }
-        $.post(BASE_URL + 'ProductionSale/addPayment', { prodsale_id: currentPsId, amount: amt }, function(){
+        if(!amt || amt <= 0){ swal({type:'error', title:'Error', text:'Enter valid amount'}); return; }
+        var method = $('#ps_payment_method').val();
+        $.post(BASE_URL + 'ProductionSale/addPayment', { prodsale_id: currentPsId, amount: amt, method: method }, function(){
             refreshPsOrder();
             $('#paymentModal').modal('hide');
             $('#ps_payment_amount').val('');
-            swal({type:'success', title:'Payment Added'});
+            swal({type:'success', title:'Payment Added', text: method + ' - LKR ' + amt.toFixed(2)});
         });
     });
 });

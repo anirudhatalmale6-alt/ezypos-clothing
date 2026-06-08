@@ -11,6 +11,7 @@ class ProductionSale extends CI_Controller {
         $this->load->model('Stores_model');
         $this->load->model('Customers_model');
         $this->load->model('Items_model');
+        $this->load->model('Sales_model');
     }
 
     public function addProductionSale($page = 'index')
@@ -31,6 +32,7 @@ class ProductionSale extends CI_Controller {
         $data['customers'] = $this->Customers_model->getAllCustomers();
         $data['items'] = $this->ProductionSale_model->getAllActiveItems();
         $data['nextCode'] = $this->ProductionSale_model->getNextCode();
+        $data['paymentMethods'] = $this->Sales_model->getActivePaymentMethods();
 
         $this->load->view('templates/header', $data);
         $this->load->view('transactions/' . $page, $data);
@@ -52,6 +54,14 @@ class ProductionSale extends CI_Controller {
             'prodsale_status' => 'Pending',
             'prodsale_createdby' => $this->session->userdata('userid')
         );
+        // Add pickup store if column exists and value provided
+        $pickup = $this->input->post('pickup_store_id');
+        if($pickup){
+            $fields = $this->db->list_fields('ezy_pos_prodsale');
+            if(in_array('prodsale_pickup_store_id', $fields)){
+                $data['prodsale_pickup_store_id'] = $pickup;
+            }
+        }
         $id = $this->ProductionSale_model->createOrder($data);
         echo json_encode($id);
     }
@@ -145,7 +155,9 @@ class ProductionSale extends CI_Controller {
     {
         $id = $this->input->post('prodsale_id');
         $amount = $this->input->post('amount');
-        $this->ProductionSale_model->addPayment($id, $amount);
+        $method = $this->input->post('method');
+        if(!$method) $method = 'Cash';
+        $this->ProductionSale_model->addPayment($id, $amount, $method);
         echo json_encode(true);
     }
 
