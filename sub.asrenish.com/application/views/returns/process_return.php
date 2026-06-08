@@ -59,6 +59,17 @@
                                             </select>
                                         </div>
                                     </div>
+                                    <!-- Return Location -->
+                                    <div class="form-group row">
+                                        <label class="col-4 col-form-label">Return At<span class="text-danger">*</span></label>
+                                        <div class="col-8">
+                                            <select class="form-control" id="return_store_id">
+                                                <?php if(isset($stores)){ foreach($stores as $st){ ?>
+                                                <option value="<?php echo $st->store_id; ?>"><?php echo $st->store_name; ?></option>
+                                                <?php }} ?>
+                                            </select>
+                                        </div>
+                                    </div>
                                     <!-- Reason -->
                                     <div class="form-group row">
                                         <label class="col-4 col-form-label">Reason</label>
@@ -526,6 +537,7 @@ $( function() {
             sale_id: loadedSale.sale_id,
             return_type: $('#return_type').val(),
             reason: $('#return_reason').val(),
+            return_store_id: $('#return_store_id').val(),
             refund_amount: parseFloat($('#lbl_return_total').text()),
             exchange_amount: parseFloat($('#lbl_exchange_total').text()),
             net_amount: parseFloat($('#lbl_net_amount').text()),

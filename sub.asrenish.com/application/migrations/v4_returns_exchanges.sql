@@ -41,3 +41,7 @@ CREATE TABLE IF NOT EXISTS ezy_pos_exchange_items (
 -- Run these individually. If you get "Duplicate column name" error, the column already exists - safe to ignore.
 ALTER TABLE ezy_pos_sale ADD COLUMN sale_return_status VARCHAR(20) DEFAULT NULL;
 ALTER TABLE ezy_pos_sale ADD COLUMN sale_last_modified DATETIME DEFAULT NULL;
+
+-- Cross-store return support: track which store processed the return
+-- Run this if you already created the returns table earlier:
+ALTER TABLE ezy_pos_returns ADD COLUMN ret_store_id INT DEFAULT 0;

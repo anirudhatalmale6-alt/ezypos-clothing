@@ -207,15 +207,25 @@ class Reports extends CI_Controller {
                
                 $data['payment_result_cash'] = $this->Report_model->get_payment_Report_for_today_summary_cash();
                 $data['payment_result_cheque'] = $this->Report_model->get_payment_Report_for_today_summary_cheque();
-               
-                 
-        
-                
+
+                $data['returns_result'] = $this->Report_model->getReturnsTotalForToday();
+
                 $this->load->view('templates/header',$data);
                 $this->load->view('report/'.$page);
                 $this->load->view('templates/footer');
                 $this->load->view('templates/rightslidebar');
                 $this->load->view('templates/footerscripts');
+        }
+
+        public function getTodaySummaryByDates(){
+                $from = $this->input->post('from');
+                $to = $this->input->post('to');
+                if(!$from || !$to){
+                    echo json_encode(array('status' => 'error'));
+                    return;
+                }
+                $result = $this->Report_model->getTodaySummaryByDates($from, $to);
+                echo json_encode($result);
         }
         
        public function expense_report($page = 'index')

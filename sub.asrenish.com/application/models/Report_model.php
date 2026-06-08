@@ -1166,6 +1166,110 @@ class Report_model extends CI_Model {
     }
 
 
+    // =========================================================================
+    // RETURNS SUMMARY FOR TODAY / DATE RANGE
+    // =========================================================================
+
+    public function getReturnsTotalForToday(){
+        if(!$this->db->table_exists('ezy_pos_returns')){
+            $obj = new stdClass();
+            $obj->total_returns = 0;
+            $obj->return_count = 0;
+            return $obj;
+        }
+        $str = "SELECT COALESCE(SUM(ret_net_amount),0) AS total_returns, COUNT(*) AS return_count
+                FROM ezy_pos_returns
+                WHERE DATE(ret_created_at) = CURDATE() AND ret_status = 1";
+        $query = $this->db->query($str);
+        return $query->row();
+    }
+
+    public function getReturnsTotalByDates($from, $to){
+        if(!$this->db->table_exists('ezy_pos_returns')){
+            $obj = new stdClass();
+            $obj->total_returns = 0;
+            $obj->return_count = 0;
+            return $obj;
+        }
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $str = "SELECT COALESCE(SUM(ret_net_amount),0) AS total_returns, COUNT(*) AS return_count
+                FROM ezy_pos_returns
+                WHERE ret_created_at BETWEEN ? AND ? AND ret_status = 1";
+        $query = $this->db->query($str, array($start, $end));
+        return $query->row();
+    }
+
+    public function getTodaySummaryByDates($from, $to){
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilter('sale_location');
+
+        $result = array();
+
+        // Sales total
+        $str = "SELECT COALESCE(SUM(sale_grandtotal),0) AS total FROM ezy_pos_sale WHERE sale_date BETWEEN ? AND ? AND sale_status='1'".$sf;
+        $q = $this->db->query($str, array($start, $end));
+        $result['sale_total'] = $q->row()->total;
+
+        // Sales cash
+        $str = "SELECT COALESCE(SUM(l.pymntlog_amount),0) AS total FROM ezy_pos_sale s, ezy_pos_cus_paymnt_log l WHERE s.sale_id=l.pymntlog_saleid AND l.pymntlog_date BETWEEN ? AND ? AND s.sale_status='1'".$sf;
+        $q = $this->db->query($str, array($from, $to));
+        $result['sale_cash'] = $q->row()->total;
+
+        // Sales cheque
+        $str = "SELECT COALESCE(SUM(c.cus_cheque_amount),0) AS total FROM ezy_pos_sale s, ezy_pos_cus_cheque c WHERE s.sale_id=c.cus_cheque_saleid AND c.cus_cheque_givendate BETWEEN ? AND ? AND s.sale_status='1'".$sf;
+        $q = $this->db->query($str, array($from, $to));
+        $result['sale_cheque'] = $q->row()->total;
+
+        // Purchase total
+        $str = "SELECT COALESCE(SUM(grn_grandtotal),0) AS total FROM ezy_pos_grns WHERE grn_date BETWEEN ? AND ?";
+        $q = $this->db->query($str, array($start, $end));
+        $result['purchase_total'] = $q->row()->total;
+
+        // Purchase cash
+        $str = "SELECT COALESCE(SUM(supcash_amount),0) AS total FROM ezy_pos_sup_cash_payment WHERE supcash_date BETWEEN ? AND ?";
+        $q = $this->db->query($str, array($from, $to));
+        $result['purchase_cash'] = $q->row()->total;
+
+        // Purchase cheque
+        $str = "SELECT COALESCE(SUM(sup_cheque_amount),0) AS total FROM ezy_pos_sup_cheque WHERE sup_cheque_givendate BETWEEN ? AND ?";
+        $q = $this->db->query($str, array($from, $to));
+        $result['purchase_cheque'] = $q->row()->total;
+
+        // Purchase credit
+        $str = "SELECT COALESCE(SUM(sp.sup_pay_credit),0) AS total FROM ezy_pos_grns g INNER JOIN ezy_pos_sup_payment sp ON g.grn_id=sp.sup_pay_grnid WHERE g.grn_date BETWEEN ? AND ?";
+        $q = $this->db->query($str, array($start, $end));
+        $result['purchase_credit'] = $q->row()->total;
+
+        // Expense total & cash
+        $str = "SELECT COALESCE(SUM(expen_amount),0) AS total FROM ezy_pos_expense WHERE expen_date BETWEEN ? AND ?";
+        $q = $this->db->query($str, array($start, $end));
+        $result['expense_total'] = $q->row()->total;
+
+        // Expense cheque
+        $str = "SELECT COALESCE(SUM(e.expen_amount),0) AS total FROM ezy_pos_expense e INNER JOIN ezy_pos_expen_cheque ec ON e.expen_id=ec.expen_chq_expntblid WHERE e.expen_date BETWEEN ? AND ?";
+        $q = $this->db->query($str, array($start, $end));
+        $result['expense_cheque'] = $q->row()->total;
+
+        // Payments received cash
+        $str = "SELECT COALESCE(SUM(pymntlog_amount),0) AS total FROM ezy_pos_cus_paymnt_log WHERE pymntlog_date BETWEEN ? AND ?";
+        $q = $this->db->query($str, array($from, $to));
+        $result['payment_cash'] = $q->row()->total;
+
+        // Payments received cheque
+        $str = "SELECT COALESCE(SUM(cus_cheque_amount),0) AS total FROM ezy_pos_cus_cheque WHERE cus_cheque_givendate BETWEEN ? AND ?";
+        $q = $this->db->query($str, array($from, $to));
+        $result['payment_cheque'] = $q->row()->total;
+
+        // Returns
+        $retData = $this->getReturnsTotalByDates($from, $to);
+        $result['returns_total'] = $retData->total_returns;
+        $result['returns_count'] = $retData->return_count;
+
+        return $result;
+    }
+
 }
 
 

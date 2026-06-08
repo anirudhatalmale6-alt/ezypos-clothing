@@ -23,8 +23,15 @@ class Returns extends CI_Controller {
     {
         $data1['title'] = 'Returns & Exchanges';
         $data1['config'] = $this->Configs_model->getConfigName();
+        // Load stores for return location dropdown
+        if($_SESSION['userrole'] == 1){
+            $stores = $this->Stores_model->getStoresOnly();
+        } else {
+            $stores = $this->Stores_model->getStoresOnlyForUser($_SESSION['userid']);
+        }
         $data = array(
-            'items' => $this->Items_model->getItems()
+            'items' => $this->Items_model->getItems(),
+            'stores' => $stores ? $stores : array()
         );
         $this->load->view('templates/header', $data1);
         $this->load->view('returns/process_return', $data);
@@ -103,7 +110,11 @@ class Returns extends CI_Controller {
             return;
         }
 
-        $store_id = isset($sale->store_id) ? $sale->store_id : 0;
+        $sale_store_id = isset($sale->store_id) ? $sale->store_id : 0;
+        // Return store: where the return is being processed (may differ from sale store for cross-store returns)
+        $return_store_id = $this->input->post('return_store_id');
+        if(!$return_store_id) $return_store_id = $sale_store_id;
+        $store_id = $return_store_id;
 
         // 1. Calculate totals
         $return_total = 0;
@@ -128,7 +139,8 @@ class Returns extends CI_Controller {
             'refund_amount'   => $return_total,
             'exchange_amount' => $exchange_total,
             'net_amount'      => $net_amount,
-            'reason'          => $reason ? $reason : ''
+            'reason'          => $reason ? $reason : '',
+            'return_store_id' => $return_store_id
         );
         $ret_id = $this->Returns_model->createReturn($ret_data);
         if (!$ret_id) {

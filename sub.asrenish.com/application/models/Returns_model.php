@@ -109,6 +109,11 @@ class Returns_model extends CI_Model {
             'ret_created_by'     => $userid,
             'ret_status'         => 1
         );
+        // Add return store location if column exists
+        $fields = $this->db->list_fields('ezy_pos_returns');
+        if(in_array('ret_store_id', $fields) && isset($data['return_store_id'])){
+            $insert['ret_store_id'] = $data['return_store_id'];
+        }
         $this->db->insert('ezy_pos_returns', $insert);
         $insert_id = $this->db->insert_id();
         return $insert_id;
