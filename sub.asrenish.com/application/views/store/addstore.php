@@ -4,10 +4,11 @@
         <div class="wrapper">
             <div class="container">
 
-                <!-- Add Store Form -->
-                <div class="row">
+                <!-- Add Store Form (hidden - stores are pre-configured, edit only) -->
+                <!--
+                <div class="row" id="addStoreForm" style="display:none;">
                     <div class="col-lg-3 col-md-3 col-sm-2">
-                    </div>      
+                    </div>
                     <div class="col-lg-6 col-md-6 col-sm-8 col-xs-12 ">
                         <div class="card-box">
                             <h4 class="header-title m-t-0 m-b-30">Store Details</h4>
@@ -15,65 +16,66 @@
                                 <div class="form-group row">
                                     <label for="storeid" class="col-3 col-form-label">Store Name<span class="text-danger">*</span></label>
                                     <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Name" 
+                                        <input class="form-control" type="text" placeholder="Enter Name"
                                         name="storename" id="storeid" required>
                                     </div>
                                 </div>
                                 <div class="form-group row">
                                     <label for="addressid" class="col-3 col-form-label">Address Line 1<span class="text-danger">*</span></label>
                                     <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Address Line 1" 
+                                        <input class="form-control" type="text" placeholder="Enter Address Line 1"
                                         name="address" id="addressid" required>
                                     </div>
-                                </div>    
+                                </div>
                                 <div class="form-group row">
                                     <label for="address2" class="col-3 col-form-label">Address Line 2<span class="text-danger">*</span></label>
                                     <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Address Line 2" 
+                                        <input class="form-control" type="text" placeholder="Enter Address Line 2"
                                         name="address2" id="address2" required>
                                     </div>
                                 </div>
                                 <div class="form-group row">
                                     <label for="tel" class="col-3 col-form-label">Telephone<span class="text-danger">*</span></label>
                                     <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Telephone No" 
+                                        <input class="form-control" type="text" placeholder="Enter Telephone No"
                                         name="tel" id="tel" required>
                                     </div>
                                 </div>
                                 <div class="form-group row">
                                     <label for="mobile" class="col-3 col-form-label">Mobile<span class="text-danger">*</span></label>
                                     <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Mobile No" 
+                                        <input class="form-control" type="text" placeholder="Enter Mobile No"
                                         name="mobile" id="mobile" required>
                                     </div>
                                 </div>
                                 <div class="form-group row">
                                     <label for="mobile2" class="col-3 col-form-label">Mobile 2</label>
                                     <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Mobile No" 
+                                        <input class="form-control" type="text" placeholder="Enter Mobile No"
                                         name="mobile2" id="mobile2">
                                     </div>
                                 </div>
                                 <div class="form-group row">
                                     <label for="fax" class="col-3 col-form-label">Fax</label>
                                     <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Fax" 
+                                        <input class="form-control" type="text" placeholder="Enter Fax"
                                         name="fax" id="fax">
                                     </div>
                                 </div>
                                 <div class="form-group row">
                                     <label for="email" class="col-3 col-form-label">Email</label>
                                     <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Email" 
+                                        <input class="form-control" type="text" placeholder="Enter Email"
                                         name="email" id="email">
                                     </div>
                                 </div>
                                 <button type="submit" id="add" class="btn btn-primary waves-effect">Add</button>
                                 <button type="reset" class="btn btn-secondary waves-effect">Reset</button>
-                            </form>                     
+                            </form>
                         </div>
                     </div>
                 </div>
+                -->
                 <!--End of Add Store Form -->
 
                  <!--Start Table & row -->
@@ -84,13 +86,11 @@
                                 <thead>
                                 <tr>
                                     <th>Store Name</th>
+                                    <th>Type</th>
                                     <th>Address Line 1</th>
-                                    <th>Actions Line 2</th>
+                                    <th>Address Line 2</th>
                                     <th>Telephone</th>
                                     <th>Mobile</th>
-                                    <th>Mobile 2</th>
-                                    <th>Fax</th>
-                                    <th>Email</th>
                                     <th>Actions</th>
                                 </tr>
                                 </thead>
@@ -223,23 +223,22 @@
 						var rows = '';
 						var i;
 						for(i=0; i<data.length; i++){
+                        var isWH = (data[i].store_is_warehouse == 1 || data[i].store_is_warehouse == '1');
+                        var typeLabel = isWH ? '<span class="badge badge-info">Warehouse</span>' : '<span class="badge badge-success">Store</span>';
                         rows+= '<tr>'+
                                     '<td>'+data[i].store_name+'</td>'+
-                                    '<td>'+data[i].store_address+'</td>'+
-                                    '<td>'+data[i].store_address2+'</td>'+
-                                    '<td>'+data[i].store_tel+'</td>'+
-                                    '<td>'+data[i].store_mobile+'</td>'+
-                                    '<td>'+data[i].store_mobile2+'</td>'+
-                                    '<td>'+data[i].store_fax+'</td>'+
-                                    '<td>'+data[i].store_email+'</td>'+
+                                    '<td>'+typeLabel+'</td>'+
+                                    '<td>'+(data[i].store_address || '')+'</td>'+
+                                    '<td>'+(data[i].store_address2 || '')+'</td>'+
+                                    '<td>'+(data[i].store_tel || '')+'</td>'+
+                                    '<td>'+(data[i].store_mobile || '')+'</td>'+
                                     '<td>'+
-                                    '<a href="javascript:;" style="margin-right:5px;" class="btn btn-sm btn-info cls-edit" data="'+data[i].store_id+'"><i class="fa fa-edit"></i></a>'+
-                                    '<a href="javascript:;" class="btn btn-sm btn-danger cls-delete" data="'+data[i].store_id+'"><i class="fa fa-times-rectangle-o"></i></a>'+
+                                    '<a href="javascript:;" style="margin-right:5px;" class="btn btn-sm btn-info cls-edit" data="'+data[i].store_id+'"><i class="fa fa-edit"></i> Edit</a>'+
                                     '</td>'+
                                 '</tr>';
 						}
 							$('#tbodyID').html(rows);
-						
+
 					},
 					error: function(){
 						alert('error data collection');

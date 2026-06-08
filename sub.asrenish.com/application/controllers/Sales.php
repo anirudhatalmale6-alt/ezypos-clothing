@@ -30,9 +30,9 @@ class Sales extends CI_Controller {
                 }
                 $storeLoc="";
                 if($_SESSION['userrole']==1)
-                    {$storeLoc=$this->Stores_model->getAllStores();}
+                    {$storeLoc=$this->Stores_model->getStoresOnly();}
                 else{
-                     $storeLoc=$this->Stores_model->getAllStoresfornonadmin($_SESSION['userid']);
+                     $storeLoc=$this->Stores_model->getStoresOnlyForUser($_SESSION['userid']);
                 }
                 $data1['title'] = ucfirst($page);
                 $data1['config'] = $this->Configs_model->getConfigName();

@@ -644,7 +644,10 @@ var chequeHTML ='<div id="chequeDIV">'+
             var k =0;
         $("#formid").submit(function(e) {
             e.preventDefault();
-            
+
+            // Ensure itemid is current (barcode scan sets #saleitem-id directly)
+            itemid = $('#saleitem-id').val();
+
             cusID = $('#customer-id').val();
             var quantity = parseFloat($('#itemquantity').val());
             store= $('#storeLoctn').val();
@@ -676,7 +679,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                 date= $('#datepicker').val();               
 
                 var rows = $("#datatable").find("tr").length;
-                var checkNewItem=0;
+                var checkNewItem=1;
                 for (var j = 1;j<rows; j++) {
                     enteredItemId=$("#datatable").find("tr").eq(j).find("td").eq(1).text();
                     if(itemid==enteredItemId){
@@ -692,9 +695,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                     $("#saleitem-auto").val("");
                     $("#itemquantity").val("");
                     $("#itemprice").val("");
-                    }
-                    else{
-                        checkNewItem=1;
+                    break;
                     }
                 }      
                 if(checkNewItem==1 || rows==1){

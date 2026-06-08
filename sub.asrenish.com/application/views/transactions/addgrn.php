@@ -560,7 +560,7 @@
                                         '<td class="editable priceField" id="price_'+k+'" style="Text-align: right;">'+(price).toFixed(2)+'</td>'+
                                         '<td class="editable qtyField" id="quantity_'+k+'"  style="Text-align: right;">'+(quantity).toFixed(2)+'</td>'+
                                         '<td class="totalField" id="priceINTOqty1_'+k+'"  style="Text-align: right;">'+priceINTOqty1+'</td>'+
-                                        '<td class="discount"><div class="input-group input-group-sm"><input type="text" id="discount_'+k+'" style="Text-align: right;" class="form-control itm_discnt dcmlFixDynmc validationDynmic" size="4"/><select class="form-control itm_dis_type" style="max-width:55px;"><option value="percentage">%</option><option value="flat">LKR</option></select></div></td>'+
+                                        '<td class="discount"><div class="input-group input-group-sm"><input type="text" id="discount_'+k+'" style="Text-align: right; min-width:80px;" class="form-control itm_discnt dcmlFixDynmc validationDynmic" size="6"/><select class="form-control itm_dis_type" style="max-width:60px;"><option value="percentage">%</option><option value="flat">LKR</option></select></div></td>'+
                                         '<td>'+
                                             '<a href="javascript:;" class="btn btn-sm btn-danger deleteBtn"><i class="fa fa-times-rectangle-o"></i></a>'+
                                         '</td>'+

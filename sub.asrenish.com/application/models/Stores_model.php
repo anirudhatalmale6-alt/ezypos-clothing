@@ -85,6 +85,41 @@ class Stores_model extends CI_Model {
             return false;
         }
     }
-  
+
+
+    public function getStoresOnly(){
+        $fields = $this->db->list_fields('ezy_pos_stores');
+        $this->db->where('store_status', 1);
+        if(in_array('store_is_warehouse', $fields)){
+            $this->db->where('store_is_warehouse', 0);
+        }
+        $this->db->order_by('store_id', 'asc');
+        $query = $this->db->get('ezy_pos_stores');
+        return ($query->num_rows() > 0) ? $query->result() : false;
+    }
+
+    public function getWarehouse(){
+        $fields = $this->db->list_fields('ezy_pos_stores');
+        if(!in_array('store_is_warehouse', $fields)){
+            return false;
+        }
+        $this->db->where('store_status', 1);
+        $this->db->where('store_is_warehouse', 1);
+        $query = $this->db->get('ezy_pos_stores');
+        return ($query->num_rows() > 0) ? $query->row() : false;
+    }
+
+    public function getStoresOnlyForUser($user_id){
+        $fields = $this->db->list_fields('ezy_pos_stores');
+        $warehouseFilter = '';
+        if(in_array('store_is_warehouse', $fields)){
+            $warehouseFilter = " AND s.store_is_warehouse = 0";
+        }
+        $str = "SELECT * FROM ezy_pos_stores s, ezy_pos_user_store us
+                WHERE s.store_status = '1' AND us.user_store_status = '1'
+                AND us.user_id = ? AND us.store_id = s.store_id" . $warehouseFilter;
+        $query = $this->db->query($str, array($user_id));
+        return ($query->num_rows() > 0) ? $query->result() : false;
+    }
 
 }

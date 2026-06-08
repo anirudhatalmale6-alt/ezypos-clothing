@@ -27,11 +27,17 @@ class Grns extends CI_Controller {
                 }
                 $data1['title'] = ucfirst($page);
                 $data1['config'] = $this->Configs_model->getConfigName();
-                $storeLoc = "";
-                if($_SESSION['userrole'] == 1){
-                    $storeLoc = $this->Stores_model->getAllStores();
+                // GRN goes to warehouse only
+                $warehouse = $this->Stores_model->getWarehouse();
+                if($warehouse){
+                    $storeLoc = array($warehouse);
                 } else {
-                    $storeLoc = $this->Stores_model->getAllStoresfornonadmin($_SESSION['userid']);
+                    // Fallback if warehouse column not yet added
+                    if($_SESSION['userrole'] == 1){
+                        $storeLoc = $this->Stores_model->getAllStores();
+                    } else {
+                        $storeLoc = $this->Stores_model->getAllStoresfornonadmin($_SESSION['userid']);
+                    }
                 }
                 $data = array(
                         'suppliers' => $this->Suppliers_model->getSuppliers(),
