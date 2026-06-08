@@ -77,10 +77,14 @@ class Returns extends CI_Controller {
     public function saveReturn()
     {
         $sale_id        = $this->input->post('sale_id');
-        $type           = $this->input->post('type');
-        $return_items   = $this->input->post('return_items');
-        $exchange_items = $this->input->post('exchange_items');
+        $type           = $this->input->post('return_type');
+        $return_items_raw   = $this->input->post('return_items');
+        $exchange_items_raw = $this->input->post('exchange_items');
         $reason         = $this->input->post('reason');
+
+        // Decode JSON strings from JS
+        $return_items = is_string($return_items_raw) ? json_decode($return_items_raw, true) : $return_items_raw;
+        $exchange_items = is_string($exchange_items_raw) ? json_decode($exchange_items_raw, true) : $exchange_items_raw;
 
         // Validate required fields
         if (!$sale_id || !$type) {
@@ -134,35 +138,58 @@ class Returns extends CI_Controller {
 
         // 3. Add return items + increase stock for each
         foreach ($return_items as $ri) {
+            $item_id = $ri['item_id'];
+            $qty = isset($ri['return_qty']) ? $ri['return_qty'] : (isset($ri['qty']) ? $ri['qty'] : 0);
+            $price = isset($ri['original_price']) ? $ri['original_price'] : (isset($ri['price']) ? $ri['price'] : 0);
+            $total = isset($ri['return_amount']) ? $ri['return_amount'] : (isset($ri['total']) ? $ri['total'] : 0);
+            $discount = isset($ri['discount']) ? $ri['discount'] : 0;
+
+            // Look up item name from DB
+            $item_name = '';
+            $item_row = $this->db->get_where('ezy_pos_items', array('itm_id' => $item_id))->row();
+            if ($item_row) {
+                $item_name = $item_row->itm_name;
+            }
+
             $ri_data = array(
                 'ret_id'    => $ret_id,
-                'item_id'   => $ri['item_id'],
-                'item_name' => $ri['item_name'],
-                'qty'       => $ri['qty'],
-                'price'     => $ri['price'],
-                'discount'  => isset($ri['discount']) ? $ri['discount'] : 0,
-                'total'     => $ri['total']
+                'item_id'   => $item_id,
+                'item_name' => $item_name,
+                'qty'       => $qty,
+                'price'     => $price,
+                'discount'  => $discount,
+                'total'     => $total
             );
             $this->Returns_model->addReturnItem($ri_data);
-            // Increase stock (returned item goes back to inventory)
-            $this->Returns_model->increaseStock($ri['item_id'], $ri['qty'], $store_id);
+            $this->Returns_model->increaseStock($item_id, $qty, $store_id);
         }
 
         // 4. If exchange: add exchange items + decrease stock for each
         if ($type == 'exchange' && $exchange_items && is_array($exchange_items)) {
             foreach ($exchange_items as $ei) {
+                $item_id = $ei['item_id'];
+                $qty = $ei['qty'];
+                $price = $ei['price'];
+                $total = $ei['total'];
+
+                // Look up item name from DB
+                $item_name = '';
+                $item_row = $this->db->get_where('ezy_pos_items', array('itm_id' => $item_id))->row();
+                if ($item_row) {
+                    $item_name = $item_row->itm_name;
+                }
+
                 $ei_data = array(
                     'ret_id'    => $ret_id,
-                    'item_id'   => $ei['item_id'],
-                    'item_name' => $ei['item_name'],
-                    'qty'       => $ei['qty'],
-                    'price'     => $ei['price'],
-                    'discount'  => isset($ei['discount']) ? $ei['discount'] : 0,
-                    'total'     => $ei['total']
+                    'item_id'   => $item_id,
+                    'item_name' => $item_name,
+                    'qty'       => $qty,
+                    'price'     => $price,
+                    'discount'  => 0,
+                    'total'     => $total
                 );
                 $this->Returns_model->addExchangeItem($ei_data);
-                // Decrease stock (exchange item leaves inventory)
-                $this->Returns_model->decreaseStock($ei['item_id'], $ei['qty'], $store_id);
+                $this->Returns_model->decreaseStock($item_id, $qty, $store_id);
             }
         }
 
@@ -185,7 +212,7 @@ class Returns extends CI_Controller {
 
         echo json_encode(array(
             'status'         => 'success',
-            'ret_id'         => $ret_id,
+            'return_id'      => $ret_id,
             'return_total'   => $return_total,
             'exchange_total' => $exchange_total,
             'net_amount'     => $net_amount,
@@ -236,10 +263,23 @@ class Returns extends CI_Controller {
 
         echo json_encode(array(
             'status'         => 'success',
-            'return'         => $ret,
+            'return_info'    => $ret,
             'return_items'   => $return_items ? $return_items : array(),
             'exchange_items' => $exchange_items ? $exchange_items : array()
         ));
+    }
+
+    // ===================== AJAX: RETURN HISTORY =====================
+
+    public function getReturnHistory()
+    {
+        $sale_id = $this->input->post('sale_id');
+        if (!$sale_id) {
+            echo json_encode(array());
+            return;
+        }
+        $history = $this->Returns_model->getReturnHistory($sale_id);
+        echo json_encode($history ? $history : array());
     }
 
     // ===================== PRINT RETURN BILL =====================
@@ -247,7 +287,7 @@ class Returns extends CI_Controller {
     /**
      * Print return bill / invoice
      */
-    public function printReturnBill($ret_id)
+    public function print_invoice($ret_id)
     {
         $userid = isset($_SESSION['userid']) ? $_SESSION['userid'] : 0;
 

@@ -257,6 +257,8 @@ $( function() {
 
     function loadSale(){
         var saleId = $('#sale_id_input').val().trim();
+        // Strip common prefixes like AS00, AS, #
+        saleId = saleId.replace(/^(AS00|AS0|AS|#)/i, '');
         if(!saleId){
             swal({type:'error', title:'Error', text:'Please enter an invoice number.'});
             return;
