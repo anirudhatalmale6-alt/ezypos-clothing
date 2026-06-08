@@ -78,6 +78,9 @@ $route['gift-voucher-reports'] = 'GiftVoucher/reports/gift-voucher-reports';
 $route['returns'] = 'Returns/index';
 $route['all-returns'] = 'Returns/listReturns';
 
+// Stock Transfers
+$route['stock-transfers'] = 'StockTransfer/index';
+
 // New Reports
 $route['cash-flow-report'] = 'reports/cash_flow_report/cash-flow-report';
 $route['item-sales-report'] = 'reports/item_sales_report/item-sales-report';
