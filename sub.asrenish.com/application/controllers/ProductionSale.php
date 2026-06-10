@@ -147,8 +147,16 @@ class ProductionSale extends CI_Controller {
     {
         $id = $this->input->post('prodsale_id');
         $status = $this->input->post('status');
+        // Block delivery if balance > 0
+        if($status == 'Delivered'){
+            $order = $this->ProductionSale_model->getOrderDetails($id);
+            if($order && floatval($order->prodsale_balance) > 0){
+                echo json_encode(array('status' => 'error', 'message' => 'Cannot deliver. Outstanding balance: LKR ' . number_format($order->prodsale_balance, 2), 'balance' => $order->prodsale_balance));
+                return;
+            }
+        }
         $this->ProductionSale_model->updateStatus($id, $status);
-        echo json_encode(true);
+        echo json_encode(array('status' => 'success'));
     }
 
     public function addPayment()
@@ -156,8 +164,9 @@ class ProductionSale extends CI_Controller {
         $id = $this->input->post('prodsale_id');
         $amount = $this->input->post('amount');
         $method = $this->input->post('method');
+        $card_ref = $this->input->post('card_ref');
         if(!$method) $method = 'Cash';
-        $this->ProductionSale_model->addPayment($id, $amount, $method);
+        $this->ProductionSale_model->addPayment($id, $amount, $method, $card_ref);
         echo json_encode(true);
     }
 

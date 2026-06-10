@@ -249,10 +249,15 @@
                     <select class="form-control" id="ps_payment_method">
                         <option value="Cash">Cash</option>
                         <option value="Cheque">Cheque</option>
+                        <option value="Credit Card">Credit Card</option>
                         <?php if(isset($paymentMethods)){ foreach($paymentMethods as $pm){ ?>
                         <option value="<?php echo $pm->pm_name; ?>"><?php echo $pm->pm_name; ?></option>
                         <?php }} ?>
                     </select>
+                </div>
+                <div class="form-group" id="ps_card_ref_group" style="display:none;">
+                    <label>Card Number / Reference</label>
+                    <input type="text" class="form-control" id="ps_card_ref" placeholder="Enter card number">
                 </div>
                 <div class="form-group">
                     <label>Payment Amount</label>
@@ -440,29 +445,70 @@ $(document).ready(function() {
     $('#btn_ps_delivered').click(function(){
         var balance = parseFloat($('#ps_balance_lbl').text()) || 0;
         if(balance > 0){
-            swal({type:'error', title:'Cannot Deliver', text:'Outstanding balance of LKR ' + balance.toFixed(2) + '. Please settle the balance before delivering.'});
+            $('#ps_modal_balance').text(balance.toFixed(2));
+            $('#ps_payment_amount').val(balance.toFixed(2));
+            $('#ps_payment_method').val('Cash');
+            $('#ps_card_ref_group').hide();
+            $('#paymentModal').find('.modal-title').text('Settle Balance to Deliver');
+            $('#btn_confirm_payment').data('deliver-after', true);
+            $('#paymentModal').modal('show');
             return;
         }
         updatePsStatus('Delivered', 'success', 'Delivered');
     });
 
     // Payment
+    // Show/hide card reference field based on payment method
+    $('#ps_payment_method').change(function(){
+        if($(this).val() === 'Credit Card'){
+            $('#ps_card_ref_group').show();
+        } else {
+            $('#ps_card_ref_group').hide();
+        }
+    });
+
     $('#btn_ps_payment').click(function(){
         var bal = $('#ps_balance_lbl').text();
         $('#ps_modal_balance').text(bal);
         $('#ps_payment_amount').val('');
         $('#ps_payment_method').val('Cash');
+        $('#ps_card_ref').val('');
+        $('#ps_card_ref_group').hide();
+        $('#paymentModal').find('.modal-title').text('Add Payment');
+        $('#btn_confirm_payment').data('deliver-after', false);
         $('#paymentModal').modal('show');
     });
     $('#btn_confirm_payment').click(function(){
         var amt = parseFloat($('#ps_payment_amount').val());
         if(!amt || amt <= 0){ swal({type:'error', title:'Error', text:'Enter valid amount'}); return; }
         var method = $('#ps_payment_method').val();
-        $.post(BASE_URL + 'ProductionSale/addPayment', { prodsale_id: currentPsId, amount: amt, method: method }, function(){
+        var cardRef = $('#ps_card_ref').val().trim();
+        var deliverAfter = $(this).data('deliver-after');
+
+        if(method === 'Credit Card' && !cardRef){
+            swal({type:'error', title:'Error', text:'Please enter the card number'}); return;
+        }
+
+        $.post(BASE_URL + 'ProductionSale/addPayment', { prodsale_id: currentPsId, amount: amt, method: method, card_ref: cardRef }, function(){
             refreshPsOrder();
             $('#paymentModal').modal('hide');
             $('#ps_payment_amount').val('');
-            swal({type:'success', title:'Payment Added', text: method + ' - LKR ' + amt.toFixed(2)});
+            $('#ps_card_ref').val('');
+
+            if(deliverAfter){
+                // Check if balance is now 0 after payment
+                setTimeout(function(){
+                    var newBal = parseFloat($('#ps_balance_lbl').text()) || 0;
+                    if(newBal <= 0){
+                        updatePsStatus('Delivered', 'success', 'Delivered');
+                        swal({type:'success', title:'Delivered!', text:'Payment settled and order delivered.'});
+                    } else {
+                        swal({type:'warning', title:'Partial Payment', text:'Balance remaining: LKR ' + newBal.toFixed(2) + '. Order cannot be delivered until fully paid.'});
+                    }
+                }, 500);
+            } else {
+                swal({type:'success', title:'Payment Added', text: method + ' - LKR ' + amt.toFixed(2)});
+            }
         });
     });
 });

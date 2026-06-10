@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS ezy_pos_prodsale_payments (
     psp_prodsale_id INT NOT NULL,
     psp_amount DECIMAL(12,2) NOT NULL,
     psp_method VARCHAR(50) DEFAULT 'Cash',
+    psp_card_ref VARCHAR(100) DEFAULT NULL,
     psp_created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     psp_created_by INT DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

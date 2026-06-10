@@ -131,7 +131,7 @@ class ProductionSale_model extends CI_Model {
         $this->db->update('ezy_pos_prodsale', array('prodsale_status' => $status));
     }
 
-    public function addPayment($id, $amount, $method = 'Cash')
+    public function addPayment($id, $amount, $method = 'Cash', $card_ref = '')
     {
         $q = $this->db->query("SELECT prodsale_paid, prodsale_total FROM ezy_pos_prodsale WHERE prodsale_id = '" . intval($id) . "'");
         $row = $q->row();
@@ -147,12 +147,18 @@ class ProductionSale_model extends CI_Model {
         // Log payment with method if payments table exists
         if($this->db->table_exists('ezy_pos_prodsale_payments')){
             $userid = isset($_SESSION['userid']) ? $_SESSION['userid'] : 0;
-            $this->db->insert('ezy_pos_prodsale_payments', array(
+            $insert = array(
                 'psp_prodsale_id' => $id,
                 'psp_amount' => $amount,
                 'psp_method' => $method,
                 'psp_created_by' => $userid
-            ));
+            );
+            // Save card reference if provided
+            $fields = $this->db->list_fields('ezy_pos_prodsale_payments');
+            if(in_array('psp_card_ref', $fields) && $card_ref){
+                $insert['psp_card_ref'] = $card_ref;
+            }
+            $this->db->insert('ezy_pos_prodsale_payments', $insert);
         }
     }
 

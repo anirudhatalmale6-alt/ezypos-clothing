@@ -103,6 +103,48 @@ class GiftVoucher extends CI_Controller {
         echo json_encode(array('success' => true));
     }
 
+    // Process voucher sales: check sale items for voucher codes and mark cards as sold
+    public function processSaleVouchers() {
+        $sale_id = $this->input->post('sale_id');
+        if (!$sale_id) {
+            echo json_encode(array('count' => 0));
+            return;
+        }
+        // Get sale items with item codes
+        $str = "SELECT si.saleitem_item_id, si.saleitem_quantity, i.itm_code
+                FROM ezy_pos_sale_item si
+                INNER JOIN ezy_pos_items i ON i.itm_id = si.saleitem_item_id
+                WHERE si.saleitem_sale_id = ?";
+        $items = $this->db->query($str, array($sale_id))->result();
+
+        $count = 0;
+        if ($items && $this->db->table_exists('ezy_pos_gift_cards')) {
+            foreach ($items as $item) {
+                // Check if item code starts with GV (voucher item)
+                if (strtoupper(substr($item->itm_code, 0, 2)) === 'GV') {
+                    // Find the voucher category that matches this prefix
+                    $cats = $this->db->get('ezy_pos_voucher_categories')->result();
+                    foreach ($cats as $cat) {
+                        $prefix = 'GV' . str_pad($cat->vcat_id, 2, '0', STR_PAD_LEFT);
+                        if (strtoupper(substr($item->itm_code, 0, strlen($prefix))) === $prefix) {
+                            // Mark available cards as sold (one per qty sold)
+                            $qty = intval($item->saleitem_quantity);
+                            for ($q = 0; $q < $qty; $q++) {
+                                $card = $this->GiftVoucher_model->getNextAvailableCard($cat->vcat_id);
+                                if ($card) {
+                                    $this->GiftVoucher_model->markCardSold($card->gc_id, $sale_id);
+                                    $count++;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        echo json_encode(array('count' => $count));
+    }
+
     // =========== POS INTEGRATION (Redemption) ===========
 
     // Validate a card number for redemption

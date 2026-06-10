@@ -156,12 +156,21 @@ class Items_model extends CI_Model {
 
 
 
-    public function getItems(){ //get name& id only
-        $this->db->select('i.itm_id,i.itm_code,i.itm_name,i.itm_sellingprice,s.stock_qty');
-        $this->db->from('ezy_pos_items i');
-        $this->db->join('ezy_pos_stock s','i.itm_id=s.stock_itm_id','left');
-        $this->db->where('itm_status', 1);
-        $query = $this->db->get();
+    public function getItems($store_id = null){ //get name& id only
+        if($store_id && $store_id > 0){
+            $str = "SELECT i.itm_id, i.itm_code, i.itm_name, i.itm_sellingprice, COALESCE(s.stock_qty, 0) AS stock_qty
+                    FROM ezy_pos_items i
+                    LEFT JOIN ezy_pos_stock s ON i.itm_id = s.stock_itm_id AND s.stock_store_id = ?
+                    WHERE i.itm_status = 1";
+            $query = $this->db->query($str, array($store_id));
+        } else {
+            $this->db->select('i.itm_id,i.itm_code,i.itm_name,i.itm_sellingprice, COALESCE(SUM(s.stock_qty),0) AS stock_qty');
+            $this->db->from('ezy_pos_items i');
+            $this->db->join('ezy_pos_stock s','i.itm_id=s.stock_itm_id','left');
+            $this->db->where('itm_status', 1);
+            $this->db->group_by('i.itm_id');
+            $query = $this->db->get();
+        }
         if($query->num_rows()>0){
             return $query->result();
         }

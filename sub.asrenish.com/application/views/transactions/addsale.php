@@ -1196,6 +1196,11 @@ var chequeHTML ='<div id="chequeDIV">'+
                         recalcVoucherTotal();
                     }
 
+                    // Process voucher sales (mark cards as sold if voucher items were sold)
+                    if(sale_ID > 0){
+                        processVoucherSales(sale_ID);
+                    }
+
                     //
                     $("#tbodyID").empty();
                     $("#subtotal").html("0.00");
@@ -1804,12 +1809,32 @@ var chequeHTML ='<div id="chequeDIV">'+
         });
     });
 
-    // =========== VOUCHER ITEM SELLING (auto-popup for card number) ===========
-    var pendingVoucherSales = []; // Cards to mark as sold after sale is saved
-
-    // Hook into the item add flow to detect voucher items
-    // Voucher items have item codes starting with 'GV' (matching voucher category barcodes)
-    // We'll check on save if any items in cart are voucher items
+    // =========== VOUCHER ITEM SELLING ===========
+    // After sale is saved, check if any sold items are voucher items (code starts with 'GV')
+    // and mark the corresponding gift card as sold
+    function processVoucherSales(saleId){
+        if(!saleId || saleId <= 0) return;
+        // Check each item in the sold items against the item code map
+        for(var code in itemByCode){
+            if(code.substring(0,2) === 'GV'){
+                // This is a voucher item - check if it was in the sale
+                // We need to check the sale items via AJAX
+            }
+        }
+        // Simpler approach: let the backend handle it
+        $.ajax({
+            type: 'POST',
+            url: BASE_URL + 'GiftVoucher/processSaleVouchers',
+            data: { sale_id: saleId },
+            async: false,
+            dataType: 'json',
+            success: function(res){
+                if(res && res.count > 0){
+                    console.log('Vouchers sold: ' + res.count);
+                }
+            }
+        });
+    }
 
   });
   </script>

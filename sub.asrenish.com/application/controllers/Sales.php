@@ -36,9 +36,15 @@ class Sales extends CI_Controller {
                 }
                 $data1['title'] = ucfirst($page);
                 $data1['config'] = $this->Configs_model->getConfigName();
+                // For non-admin users, load items filtered by their assigned store
+                $userStoreId = null;
+                if($_SESSION['userrole'] != 1 && $storeLoc && count($storeLoc) > 0){
+                    $userStoreId = $storeLoc[0]->store_id;
+                }
+
                 $data = array(
                         'customers'=>$this->Customers_model->getCustomers(),
-                        'items'=>$this->Items_model->getItems(),
+                        'items'=>$this->Items_model->getItems($userStoreId),
                         'storeLoc'=> $storeLoc,
                         'paymentMethods'=>$this->Sales_model->getActivePaymentMethods(),
                         'deliveryCompanies'=>$this->DeliveryCompany_model->getActive()
