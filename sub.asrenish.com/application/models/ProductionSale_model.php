@@ -164,11 +164,19 @@ class ProductionSale_model extends CI_Model {
 
     public function getAllOrders()
     {
-        $str = "SELECT p.*, c.cus_name, st.store_name
+        $pickup_col = '';
+        $pickup_join = '';
+        $fields = $this->db->list_fields('ezy_pos_prodsale');
+        if(in_array('prodsale_pickup_store_id', $fields)){
+            $pickup_col = ', ps.store_name AS pickup_store_name';
+            $pickup_join = ' LEFT JOIN ezy_pos_stores ps ON ps.store_id = p.prodsale_pickup_store_id';
+        }
+        $str = "SELECT p.*, c.cus_name, st.store_name".$pickup_col."
                 FROM ezy_pos_prodsale p
                 LEFT JOIN ezy_pos_customers c ON c.cus_id = p.prodsale_cus_id
-                LEFT JOIN ezy_pos_stores st ON st.store_id = p.prodsale_store_id
-                ORDER BY p.prodsale_id DESC";
+                LEFT JOIN ezy_pos_stores st ON st.store_id = p.prodsale_store_id"
+                .$pickup_join.
+                " ORDER BY p.prodsale_id DESC";
         $q = $this->db->query($str);
         return $q->result();
     }

@@ -1465,6 +1465,36 @@ var chequeHTML ='<div id="chequeDIV">'+
 
     });
 
+    function refreshItemsByStore(storeId){
+        $.ajax({
+            type: 'POST',
+            url: '<?php echo base_url(); ?>Sales/getItemsByStore',
+            data: { store_id: storeId },
+            dataType: 'json',
+            success: function(data){
+                availableItems = [];
+                itemByCode = {};
+                if(data && data.length > 0){
+                    for(var i=0; i<data.length; i++){
+                        var it = data[i];
+                        var sp = it.itm_sellingprice || '0';
+                        var sq = it.stock_qty || '0';
+                        var obj = { label: it.itm_name + ' - ' + it.itm_code + ' /stock =  ' + sq, value: it.itm_id, code: it.itm_code, price: sp };
+                        availableItems.push(obj);
+                        if(it.itm_code){
+                            itemByCode[it.itm_code.toUpperCase()] = obj;
+                        }
+                    }
+                }
+                $("#saleitem-auto").autocomplete("option", "source", availableItems);
+            }
+        });
+    }
+
+    $('#storeLoctn').change(function(){
+        refreshItemsByStore($(this).val());
+    });
+
     // Barcode scanner handler — scanners type fast then press Enter
     var scanBuffer = '';
     var scanTimeout = null;

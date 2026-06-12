@@ -1014,8 +1014,9 @@ class Report_model extends CI_Model {
 
 
     public function getItemFullReport($from, $to, $item_code = ''){
-        $start = $from . " 00:00:00";
-        $end   = $to   . " 23:59:59";
+        $hasDateRange = ($from && $to && $from !== '' && $to !== '');
+        $start = $hasDateRange ? $from . " 00:00:00" : '';
+        $end   = $hasDateRange ? $to   . " 23:59:59" : '';
         $sf    = $this->_storeFilter('s.sale_location');
 
         $results = array();
@@ -1055,16 +1056,23 @@ class Report_model extends CI_Model {
         }
 
         // Sales data
+        $saleParams = array();
+        $saleDateFilter = '';
+        if($hasDateRange){
+            $saleDateFilter = ' AND s.sale_date BETWEEN ? AND ?';
+            $saleParams[] = $start;
+            $saleParams[] = $end;
+        }
         $str = "SELECT si.saleitem_item_id AS itm_id,
                        COUNT(DISTINCT si.saleitem_sale_id) AS num_sales,
                        SUM(si.saleitem_quantity) AS sold_qty,
                        SUM(si.saleitem_total) AS sale_revenue
                 FROM ezy_pos_sale_item si
                 INNER JOIN ezy_pos_sale s ON s.sale_id = si.saleitem_sale_id
-                WHERE s.sale_date BETWEEN ? AND ? AND s.sale_status = 1"
-                .$sf.
+                WHERE s.sale_status = 1"
+                .$saleDateFilter.$sf.
                 " GROUP BY si.saleitem_item_id";
-        $q = $this->db->query($str, array($start, $end));
+        $q = $this->db->query($str, $saleParams);
         foreach($q->result() as $row){
             if(isset($items[$row->itm_id])){
                 $items[$row->itm_id]->num_sales = $row->num_sales;
@@ -1074,15 +1082,23 @@ class Report_model extends CI_Model {
         }
 
         // GRN data
+        $grnParams = array();
+        $grnDateFilter = '';
+        if($hasDateRange){
+            $grnDateFilter = ' AND g.grn_date BETWEEN ? AND ?';
+            $grnParams[] = $start;
+            $grnParams[] = $end;
+        }
         $str = "SELECT gi.grnitem_itmid AS itm_id,
                        COUNT(DISTINCT gi.grnitem_grnid) AS num_grns,
                        SUM(gi.grnitem_quantity) AS grn_qty,
                        SUM(gi.grnitem_total) AS grn_cost
                 FROM ezy_pos_grn_item gi
                 INNER JOIN ezy_pos_grns g ON g.grn_id = gi.grnitem_grnid
-                WHERE g.grn_date BETWEEN ? AND ?
-                GROUP BY gi.grnitem_itmid";
-        $q = $this->db->query($str, array($start, $end));
+                WHERE 1=1"
+                .$grnDateFilter.
+                " GROUP BY gi.grnitem_itmid";
+        $q = $this->db->query($str, $grnParams);
         foreach($q->result() as $row){
             if(isset($items[$row->itm_id])){
                 $items[$row->itm_id]->num_grns = $row->num_grns;

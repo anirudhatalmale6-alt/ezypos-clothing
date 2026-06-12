@@ -42,9 +42,33 @@ class Sales extends CI_Controller {
                     $userStoreId = $storeLoc[0]->store_id;
                 }
 
+                $allItems = $this->Items_model->getItems($userStoreId);
+                if(!$allItems) $allItems = array();
+                // Ensure voucher categories have matching items in ezy_pos_items
+                $this->load->model('GiftVoucher_model');
+                if($this->db->table_exists('ezy_pos_voucher_categories')){
+                    $cats = $this->GiftVoucher_model->getActiveCategories();
+                    if($cats){
+                        foreach($cats as $cat){
+                            $vcode = 'GV' . str_pad($cat->vcat_id, 2, '0', STR_PAD_LEFT);
+                            $code = $cat->vcat_barcode ? $cat->vcat_barcode : $vcode;
+                            $exists = $this->db->get_where('ezy_pos_items', array('itm_code' => $code))->row();
+                            if(!$exists){
+                                $this->db->insert('ezy_pos_items', array(
+                                    'itm_code' => $code,
+                                    'itm_name' => 'Gift Voucher - ' . $cat->vcat_name,
+                                    'itm_sellingprice' => $cat->vcat_value,
+                                    'itm_quantity' => 0,
+                                    'itm_status' => 1
+                                ));
+                            }
+                        }
+                    }
+                }
+
                 $data = array(
                         'customers'=>$this->Customers_model->getCustomers(),
-                        'items'=>$this->Items_model->getItems($userStoreId),
+                        'items'=>$allItems,
                         'storeLoc'=> $storeLoc,
                         'paymentMethods'=>$this->Sales_model->getActivePaymentMethods(),
                         'deliveryCompanies'=>$this->DeliveryCompany_model->getActive()
@@ -213,6 +237,16 @@ class Sales extends CI_Controller {
         ));
 
         echo json_encode($result);
+    }
+
+    public function getItemsByStore() {
+        $store_id = $this->input->post('store_id');
+        if(!$store_id || $store_id == '0'){
+            $items = $this->Items_model->getItems(null);
+        } else {
+            $items = $this->Items_model->getItems($store_id);
+        }
+        echo json_encode($items ? $items : array());
     }
 
     // Payment Methods Master Page

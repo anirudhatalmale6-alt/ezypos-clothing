@@ -16,6 +16,7 @@
                             <th>Code</th>
                             <th>Customer</th>
                             <th>Store</th>
+                            <th>Pickup Store</th>
                             <th>Date</th>
                             <th>Delivery</th>
                             <th style="text-align:right;">Total</th>
@@ -176,6 +177,7 @@ function loadAllProdSales(){
                         '<td>'+d.prodsale_code+'</td>'+
                         '<td>'+(d.cus_name || '-')+'</td>'+
                         '<td>'+(d.store_name || '-')+'</td>'+
+                        '<td>'+(d.pickup_store_name || d.store_name || '-')+'</td>'+
                         '<td>'+d.prodsale_date+'</td>'+
                         '<td>'+(d.prodsale_delivery_date || '-')+'</td>'+
                         '<td style="text-align:right">'+parseFloat(d.prodsale_total).toFixed(2)+'</td>'+

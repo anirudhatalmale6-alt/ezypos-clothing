@@ -22,12 +22,8 @@ class ProductionSale extends CI_Controller {
         $data['title'] = ucfirst($page);
         $data['config'] = $this->Configs_model->getConfigName();
 
-        // Load stores based on role
-        if ($this->session->userdata('userrole') == 1) {
-            $data['storeLoc'] = $this->Stores_model->getAllStores();
-        } else {
-            $data['storeLoc'] = $this->Stores_model->getAllStoresfornonadmin($_SESSION['userid']);
-        }
+        // All stores visible for tailoring orders (cross-store pickup)
+        $data['storeLoc'] = $this->Stores_model->getStoresOnly();
 
         $data['customers'] = $this->Customers_model->getAllCustomers();
         $data['items'] = $this->ProductionSale_model->getAllActiveItems();
