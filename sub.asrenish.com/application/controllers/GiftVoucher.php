@@ -145,6 +145,49 @@ class GiftVoucher extends CI_Controller {
         echo json_encode(array('count' => $count));
     }
 
+    // Validate a card number for selling (must be Available)
+    public function validateCardForSale() {
+        $card_number = $this->input->post('card_number');
+        $card = $this->GiftVoucher_model->getCardByNumber($card_number);
+        if (!$card) {
+            echo json_encode(array('valid' => false, 'msg' => 'Card not found'));
+            return;
+        }
+        if ($card->gc_status !== 'Available') {
+            echo json_encode(array('valid' => false, 'msg' => 'This card is already ' . $card->gc_status));
+            return;
+        }
+        echo json_encode(array(
+            'valid' => true,
+            'gc_id' => $card->gc_id,
+            'card_number' => $card->gc_card_number,
+            'category' => $card->vcat_name,
+            'value' => $card->vcat_value
+        ));
+    }
+
+    // Batch mark specific card numbers as Sold for a sale
+    public function markCardsSoldBatch() {
+        $sale_id = $this->input->post('sale_id');
+        $card_numbers = $this->input->post('card_numbers');
+        if (!$sale_id || !$card_numbers) {
+            echo json_encode(array('success' => false, 'count' => 0));
+            return;
+        }
+        if (is_string($card_numbers)) {
+            $card_numbers = json_decode($card_numbers, true);
+        }
+        $count = 0;
+        foreach ($card_numbers as $cn) {
+            $card = $this->GiftVoucher_model->getCardByNumber($cn);
+            if ($card && $card->gc_status === 'Available') {
+                $this->GiftVoucher_model->markCardSold($card->gc_id, $sale_id);
+                $count++;
+            }
+        }
+        echo json_encode(array('success' => true, 'count' => $count));
+    }
+
     // =========== POS INTEGRATION (Redemption) ===========
 
     // Validate a card number for redemption

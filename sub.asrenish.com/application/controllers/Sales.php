@@ -44,27 +44,7 @@ class Sales extends CI_Controller {
 
                 $allItems = $this->Items_model->getItems($userStoreId);
                 if(!$allItems) $allItems = array();
-                // Ensure voucher categories have matching items in ezy_pos_items
-                $this->load->model('GiftVoucher_model');
-                if($this->db->table_exists('ezy_pos_voucher_categories')){
-                    $cats = $this->GiftVoucher_model->getActiveCategories();
-                    if($cats){
-                        foreach($cats as $cat){
-                            $vcode = 'GV' . str_pad($cat->vcat_id, 2, '0', STR_PAD_LEFT);
-                            $code = $cat->vcat_barcode ? $cat->vcat_barcode : $vcode;
-                            $exists = $this->db->get_where('ezy_pos_items', array('itm_code' => $code))->row();
-                            if(!$exists){
-                                $this->db->insert('ezy_pos_items', array(
-                                    'itm_code' => $code,
-                                    'itm_name' => 'Gift Voucher - ' . $cat->vcat_name,
-                                    'itm_sellingprice' => $cat->vcat_value,
-                                    'itm_quantity' => 0,
-                                    'itm_status' => 1
-                                ));
-                            }
-                        }
-                    }
-                }
+                // Voucher items loaded via JS in the gift voucher sales flow
 
                 $data = array(
                         'customers'=>$this->Customers_model->getCustomers(),

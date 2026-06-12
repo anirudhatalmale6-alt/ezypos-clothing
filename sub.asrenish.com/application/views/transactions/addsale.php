@@ -295,10 +295,37 @@
                         </div>                 
                     </div>
                 </div> <!--End of  Table & row -->
+
+                    <!-- Gift Voucher Selling Section -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card-box clearfix" style="border-left:3px solid #e65100;">
+                                <h5 class="header-title m-t-0 m-b-10"><i class="fa fa-gift" style="color:#e65100;"></i> Sell Gift Vouchers</h5>
+                                <div class="row">
+                                    <div class="col-5">
+                                        <select class="form-control" id="gv_category">
+                                            <option value="">Select Voucher Type</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="number" class="form-control" id="gv_qty" min="1" value="1" placeholder="Qty">
+                                    </div>
+                                    <div class="col-4">
+                                        <button type="button" class="btn btn-warning" id="btn_add_vouchers"><i class="fa fa-plus"></i> Add Vouchers</button>
+                                    </div>
+                                </div>
+                                <div id="gv_sell_rows" class="m-t-10"></div>
+                                <div id="gv_sell_total_row" style="display:none;padding:8px;background:#fff3e0;border-radius:4px;margin-top:8px;">
+                                    <strong>Voucher Total: LKR <span id="gv_sell_total">0.00</span></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
             </div>
-          </div> 
+          </div>
         </div> <!-- container-fluid -->
-                
+
 <!-- Card Reference Modal -->
 <div class="modal" id="cardRefModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -814,8 +841,12 @@ var chequeHTML ='<div id="chequeDIV">'+
             for(var i=1; i<=rows; i++){
                 var rowTotal=$("#datatable").find("tr").eq(i).find("td").eq(5).text();
                 subtotal= +(1*subtotal+1*rowTotal).toFixed(2);
-                $("#subtotal").html(subtotal);                
             }
+            // Add gift voucher selling total
+            if(typeof getGvSellTotal === 'function'){
+                subtotal = +(subtotal + getGvSellTotal()).toFixed(2);
+            }
+            $("#subtotal").html(subtotal);
             grandtotalCalculation();
         }
         //Grand total calculation
@@ -885,7 +916,13 @@ var chequeHTML ='<div id="chequeDIV">'+
                 return;
             }
 
-            if(rows>1&&custID>0&&cashvalue>=0){
+            // Validate voucher card numbers if any
+            var hasGvRows = (typeof gvSellRows !== 'undefined' && gvSellRows.length > 0);
+            if(hasGvRows && typeof validateGvSellRows === 'function' && !validateGvSellRows()){
+                return;
+            }
+
+            if((rows>1 || hasGvRows)&&custID>0&&cashvalue>=0){
                 // Check if card payments were used — if so, show card ref popup
                 var pmPaymentsForRef = [];
                 $('.pm-amount-input').each(function(){
@@ -1839,31 +1876,186 @@ var chequeHTML ='<div id="chequeDIV">'+
         });
     });
 
-    // =========== VOUCHER ITEM SELLING ===========
-    // After sale is saved, check if any sold items are voucher items (code starts with 'GV')
-    // and mark the corresponding gift card as sold
-    function processVoucherSales(saleId){
-        if(!saleId || saleId <= 0) return;
-        // Check each item in the sold items against the item code map
-        for(var code in itemByCode){
-            if(code.substring(0,2) === 'GV'){
-                // This is a voucher item - check if it was in the sale
-                // We need to check the sale items via AJAX
+    // =========== GIFT VOUCHER SELLING ===========
+    var GV_BASE = '<?php echo base_url(); ?>';
+    var gvSellRows = []; // {vcat_id, vcat_name, value, card_number, validated, gc_id}
+
+    // Load voucher categories into dropdown
+    $.ajax({
+        type: 'GET',
+        url: GV_BASE + 'GiftVoucher/getActiveCategories',
+        dataType: 'json',
+        success: function(cats){
+            if(cats && cats.length > 0){
+                for(var i=0; i<cats.length; i++){
+                    $('#gv_category').append('<option value="'+cats[i].vcat_id+'" data-name="'+cats[i].vcat_name+'" data-value="'+cats[i].vcat_value+'">Gift Voucher - '+cats[i].vcat_name+' (LKR '+parseFloat(cats[i].vcat_value).toFixed(2)+')</option>');
+                }
             }
         }
-        // Simpler approach: let the backend handle it
+    });
+
+    $('#btn_add_vouchers').click(function(){
+        var vcatId = $('#gv_category').val();
+        if(!vcatId){ swal({type:'error',title:'Error',text:'Please select a voucher type'}); return; }
+        var qty = parseInt($('#gv_qty').val()) || 0;
+        if(qty < 1){ swal({type:'error',title:'Error',text:'Enter at least 1'}); return; }
+        var opt = $('#gv_category option:selected');
+        var vcatName = opt.data('name');
+        var vcatValue = parseFloat(opt.data('value'));
+        for(var i=0; i<qty; i++){
+            gvSellRows.push({
+                vcat_id: vcatId,
+                vcat_name: vcatName,
+                value: vcatValue,
+                card_number: '',
+                validated: false,
+                gc_id: 0
+            });
+        }
+        renderGvSellRows();
+        $('#gv_qty').val('1');
+    });
+
+    function renderGvSellRows(){
+        if(gvSellRows.length === 0){
+            $('#gv_sell_rows').html('');
+            $('#gv_sell_total_row').hide();
+            gvRecalcTotal();
+            return;
+        }
+        var html = '<table class="table table-sm table-bordered" style="margin-bottom:0;"><thead><tr style="background:#fff3e0;"><th style="width:30px;">#</th><th>Voucher</th><th style="text-align:right;width:90px;">Value</th><th style="width:200px;">Card Number</th><th style="width:50px;">Status</th><th style="width:40px;"></th></tr></thead><tbody>';
+        for(var i=0; i<gvSellRows.length; i++){
+            var r = gvSellRows[i];
+            var statusIcon = r.validated ? '<i class="fa fa-check-circle" style="color:green;font-size:18px;"></i>' : '<i class="fa fa-exclamation-circle" style="color:#e65100;font-size:18px;"></i>';
+            var borderStyle = r.validated ? 'border:2px solid green;' : '';
+            html += '<tr>';
+            html += '<td>'+(i+1)+'</td>';
+            html += '<td>Gift Voucher - '+r.vcat_name+'</td>';
+            html += '<td style="text-align:right;">'+r.value.toFixed(2)+'</td>';
+            html += '<td><input type="text" class="form-control form-control-sm gv-card-input" data-idx="'+i+'" value="'+r.card_number+'" placeholder="Enter card number" style="'+borderStyle+'"></td>';
+            html += '<td style="text-align:center;">'+statusIcon+'</td>';
+            html += '<td><a href="javascript:;" class="btn btn-sm btn-danger gv-remove-row" data-idx="'+i+'"><i class="fa fa-times"></i></a></td>';
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        $('#gv_sell_rows').html(html);
+        $('#gv_sell_total_row').show();
+        gvRecalcTotal();
+
+        // Bind card number validation on blur
+        $('.gv-card-input').off('blur').on('blur', function(){
+            var idx = $(this).data('idx');
+            var cn = $(this).val().trim();
+            if(!cn){ gvSellRows[idx].validated = false; gvSellRows[idx].card_number = ''; renderGvSellRows(); return; }
+
+            // Check duplicate within this transaction
+            for(var d=0; d<gvSellRows.length; d++){
+                if(d !== idx && gvSellRows[d].card_number === cn){
+                    swal({type:'error',title:'Duplicate',text:'Card number '+cn+' is already entered in row '+(d+1)});
+                    gvSellRows[idx].validated = false;
+                    gvSellRows[idx].card_number = '';
+                    renderGvSellRows();
+                    return;
+                }
+            }
+
+            var $inp = $(this);
+            $.ajax({
+                type: 'POST',
+                url: GV_BASE + 'GiftVoucher/validateCardForSale',
+                data: { card_number: cn },
+                dataType: 'json',
+                success: function(res){
+                    if(res.valid){
+                        gvSellRows[idx].card_number = cn;
+                        gvSellRows[idx].validated = true;
+                        gvSellRows[idx].gc_id = res.gc_id;
+                        renderGvSellRows();
+                    } else {
+                        swal({type:'error',title:'Invalid Card',text:res.msg});
+                        gvSellRows[idx].validated = false;
+                        gvSellRows[idx].card_number = '';
+                        renderGvSellRows();
+                    }
+                }
+            });
+        });
+
+        // Bind enter key to move to next input
+        $('.gv-card-input').off('keypress').on('keypress', function(e){
+            if(e.which === 13){
+                e.preventDefault();
+                $(this).blur();
+                var nextIdx = $(this).data('idx') + 1;
+                setTimeout(function(){
+                    $('.gv-card-input[data-idx="'+nextIdx+'"]').focus();
+                }, 300);
+            }
+        });
+
+        // Bind remove
+        $('.gv-remove-row').off('click').on('click', function(){
+            var idx = $(this).data('idx');
+            gvSellRows.splice(idx, 1);
+            renderGvSellRows();
+        });
+    }
+
+    function gvRecalcTotal(){
+        var total = 0;
+        for(var i=0; i<gvSellRows.length; i++){
+            total += gvSellRows[i].value;
+        }
+        $('#gv_sell_total').text(total.toFixed(2));
+        calSubtotal();
+    }
+
+    // Get voucher selling total for grand total calculation
+    function getGvSellTotal(){
+        var total = 0;
+        for(var i=0; i<gvSellRows.length; i++){
+            total += gvSellRows[i].value;
+        }
+        return total;
+    }
+
+    // Validate all voucher card numbers before sale save
+    function validateGvSellRows(){
+        if(gvSellRows.length === 0) return true;
+        for(var i=0; i<gvSellRows.length; i++){
+            if(!gvSellRows[i].card_number || !gvSellRows[i].validated){
+                swal({type:'error',title:'Voucher Card Required',text:'Please enter and validate the card number for voucher row '+(i+1)});
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Process voucher card sales after sale is saved
+    function processVoucherSales(saleId){
+        if(!saleId || saleId <= 0 || gvSellRows.length === 0) return;
+        var cardNumbers = [];
+        for(var i=0; i<gvSellRows.length; i++){
+            if(gvSellRows[i].validated && gvSellRows[i].card_number){
+                cardNumbers.push(gvSellRows[i].card_number);
+            }
+        }
+        if(cardNumbers.length === 0) return;
         $.ajax({
             type: 'POST',
-            url: BASE_URL + 'GiftVoucher/processSaleVouchers',
-            data: { sale_id: saleId },
+            url: GV_BASE + 'GiftVoucher/markCardsSoldBatch',
+            data: { sale_id: saleId, card_numbers: JSON.stringify(cardNumbers) },
             async: false,
             dataType: 'json',
             success: function(res){
                 if(res && res.count > 0){
-                    console.log('Vouchers sold: ' + res.count);
+                    console.log('Voucher cards sold: ' + res.count);
                 }
             }
         });
+        // Clear voucher sell rows
+        gvSellRows = [];
+        renderGvSellRows();
     }
 
   });
