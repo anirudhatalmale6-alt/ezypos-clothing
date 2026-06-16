@@ -1234,9 +1234,9 @@ var chequeHTML ='<div id="chequeDIV">'+
                     }
 
                     // Process voucher sales (mark cards as sold if voucher items were sold)
-                    if(sale_ID > 0){
-                        processVoucherSales(sale_ID);
-                    }
+                    try {
+                        if(sale_ID > 0){ processVoucherSales(sale_ID); }
+                    } catch(e){ console.log('Voucher processing error:', e); }
 
                     //
                     $("#tbodyID").empty();
@@ -2033,27 +2033,31 @@ var chequeHTML ='<div id="chequeDIV">'+
 
     // Process voucher card sales after sale is saved
     function processVoucherSales(saleId){
-        if(!saleId || saleId <= 0 || gvSellRows.length === 0) return;
+        if(!saleId || saleId <= 0 || typeof gvSellRows === 'undefined' || !gvSellRows || gvSellRows.length === 0) return;
         var cardNumbers = [];
         for(var i=0; i<gvSellRows.length; i++){
             if(gvSellRows[i].validated && gvSellRows[i].card_number){
                 cardNumbers.push(gvSellRows[i].card_number);
             }
         }
-        if(cardNumbers.length === 0) return;
-        $.ajax({
-            type: 'POST',
-            url: GV_BASE + 'GiftVoucher/markCardsSoldBatch',
-            data: { sale_id: saleId, card_numbers: JSON.stringify(cardNumbers) },
-            async: false,
-            dataType: 'json',
-            success: function(res){
-                if(res && res.count > 0){
-                    console.log('Voucher cards sold: ' + res.count);
+        if(cardNumbers.length === 0){ gvSellRows = []; return; }
+        try {
+            $.ajax({
+                type: 'POST',
+                url: GV_BASE + 'GiftVoucher/markCardsSoldBatch',
+                data: { sale_id: saleId, card_numbers: JSON.stringify(cardNumbers) },
+                async: false,
+                dataType: 'json',
+                success: function(res){
+                    if(res && res.count > 0){
+                        console.log('Voucher cards sold: ' + res.count);
+                    }
+                },
+                error: function(xhr){
+                    console.log('Voucher batch mark error:', xhr.statusText);
                 }
-            }
-        });
-        // Clear voucher sell rows
+            });
+        } catch(e){ console.log('Voucher AJAX error:', e); }
         gvSellRows = [];
         renderGvSellRows();
     }

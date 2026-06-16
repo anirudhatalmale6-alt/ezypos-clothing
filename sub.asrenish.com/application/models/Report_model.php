@@ -1089,15 +1089,15 @@ class Report_model extends CI_Model {
             $grnParams[] = $start;
             $grnParams[] = $end;
         }
-        $str = "SELECT gi.grnitem_itmid AS itm_id,
-                       COUNT(DISTINCT gi.grnitem_grnid) AS num_grns,
-                       SUM(gi.grnitem_quantity) AS grn_qty,
-                       SUM(gi.grnitem_total) AS grn_cost
+        $str = "SELECT gi.grnitm_itemid AS itm_id,
+                       COUNT(DISTINCT gi.grnitm_grn_id) AS num_grns,
+                       SUM(gi.grnitm_quantity) AS grn_qty,
+                       SUM(gi.grnitm_total) AS grn_cost
                 FROM ezy_pos_grn_item gi
-                INNER JOIN ezy_pos_grns g ON g.grn_id = gi.grnitem_grnid
+                INNER JOIN ezy_pos_grns g ON g.grn_id = gi.grnitm_grn_id
                 WHERE 1=1"
                 .$grnDateFilter.
-                " GROUP BY gi.grnitem_itmid";
+                " GROUP BY gi.grnitm_itemid";
         $q = $this->db->query($str, $grnParams);
         foreach($q->result() as $row){
             if(isset($items[$row->itm_id])){
