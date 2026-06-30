@@ -270,11 +270,14 @@
                                     <?php }} if(isset($_SESSION['privExpense'])){if($_SESSION['privExpense'] == 1){  ?>
                                     <li><a href="<?php echo base_url('add-expense')?>">Expense</a></li>
                                     <?php }} ?>
+                                    <?php if(!isset($_SESSION['privProduction']) || $_SESSION['privProduction'] == 1){ ?>
                                     <li><a href="<?php echo base_url('add-production')?>"><i class="fa fa-industry"></i> Production</a></li>
                                     <li><a href="<?php echo base_url('show-all-productions')?>"><i class="fa fa-list"></i> All Productions</a></li>
                                     <li class="divider"></li>
+                                    <?php } if(!isset($_SESSION['privTailoring']) || $_SESSION['privTailoring'] == 1){ ?>
                                     <li><a href="<?php echo base_url('add-production-sale')?>"><i class="fa fa-scissors"></i> Tailoring Order</a></li>
                                     <li><a href="<?php echo base_url('all-production-sales')?>"><i class="fa fa-list"></i> All Tailoring Orders</a></li>
+                                    <?php } ?>
                                     <li class="divider"></li>
                                     <li><a href="<?php echo base_url('gift-vouchers')?>"><i class="fa fa-gift"></i> Gift Vouchers</a></li>
                                     <li><a href="<?php echo base_url('gift-voucher-reports')?>"><i class="fa fa-bar-chart"></i> Voucher Reports</a></li>

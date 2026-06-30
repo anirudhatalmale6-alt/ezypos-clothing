@@ -102,6 +102,9 @@ class Userauthentication extends CI_Controller {
                 $py_supplierPayment=$user_info[0]['priv_py_supplierPayment'];
 
 
+                $production = isset($user_info[0]['priv_production']) ? $user_info[0]['priv_production'] : 1;
+                $tailoring = isset($user_info[0]['priv_tailoring']) ? $user_info[0]['priv_tailoring'] : 1;
+
                 $Master=$itm+$cat+$cus+$sup+$store+$staff+$tax+$expense_cat;
                 $User=$register;
 
@@ -138,7 +141,9 @@ class Userauthentication extends CI_Controller {
                     'privRe_profitLossReport'=>$re_profitLossReport,
                     'privPy_customerPayment'=>$py_customerPayment,
                     'privPy_supplierPayment'=>$py_supplierPayment,
-                    'priv_bank'=>$bank       
+                    'priv_bank'=>$bank,
+                    'privProduction'=>$production,
+                    'privTailoring'=>$tailoring
                 );
                         
                 $this->session->set_userdata($session_data);

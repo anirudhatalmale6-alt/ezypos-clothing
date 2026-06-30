@@ -6,6 +6,9 @@ class ProductionSale extends CI_Controller {
         if (!$this->session->userdata('username')) {
             redirect('login');
         }
+        if ($this->session->userdata('userrole') != 1 && !$this->session->userdata('privTailoring')) {
+            show_404();
+        }
         $this->load->model('ProductionSale_model');
         $this->load->model('Configs_model');
         $this->load->model('Stores_model');

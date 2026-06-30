@@ -50,12 +50,10 @@ class User_model extends CI_Model {
     
     public function read_user_information($username) //should edited for added pages session
 	{
-        $str ="SELECT user_name,user_id,user_role,priv_item,priv_category,priv_customer,priv_supplier,priv_store,priv_staff,priv_tax,priv_register,priv_expense_cat,priv_grn,priv_sales,priv_expense,
-        priv_l_allGrn,priv_l_stock,priv_l_stockSupplierWise,priv_l_stockLog,priv_l_cheque,priv_re_stock,priv_re_stockLog,priv_re_salesReport,priv_re_monthlySalesReport,
-        priv_re_purchaseReport,priv_re_expenseReport,priv_re_todaySummary,priv_re_profitLossReport,priv_py_customerPayment,priv_py_supplierPayment,priv_bank
-                FROM ezy_pos_users
-                INNER JOIN ezy_pos_privileges ON ezy_pos_users.user_id = ezy_pos_privileges.priv_userid
-                where user_username = '".$username."'";
+        $str ="SELECT u.user_name, u.user_id, u.user_role, p.*
+                FROM ezy_pos_users u
+                INNER JOIN ezy_pos_privileges p ON u.user_id = p.priv_userid
+                WHERE u.user_username = '".$username."'";
 
 		$query = $this->db->query($str);
 		if($query->num_rows() == 1)
@@ -127,7 +125,9 @@ class User_model extends CI_Model {
         if(isset($_POST['sales'])){ $sales = $this->input->post('sales');} 
         if(isset($_POST['expense'])){ $expense = $this->input->post('expense');}
         if(isset($_POST['bank'])){ $bank = $this->input->post('bank');}
-
+        $production = 0; $tailoring = 0;
+        if(isset($_POST['production'])){ $production = $this->input->post('production');}
+        if(isset($_POST['tailoring'])){ $tailoring = $this->input->post('tailoring');}
 
         if(isset($_POST['l_allGrn'])){ $l_allGrn = $this->input->post('l_allGrn');}
         if(isset($_POST['l_stock'])){ $l_stock = $this->input->post('l_stock');}
@@ -174,8 +174,10 @@ class User_model extends CI_Model {
             'priv_py_supplierPayment' => $py_supplierPayment,
             'priv_bank' => $bank
              );
+        $fields = $this->db->list_fields('ezy_pos_privileges');
+        if(in_array('priv_production', $fields)) $data['priv_production'] = $production;
+        if(in_array('priv_tailoring', $fields)) $data['priv_tailoring'] = $tailoring;
 
-        
         return $this->db->insert('ezy_pos_privileges', $data);
         
     }
@@ -327,7 +329,10 @@ class User_model extends CI_Model {
 
         if(isset($_POST['E_grn'])){ $grn = $this->input->post('E_grn');} 
         if(isset($_POST['E_sales'])){ $sales = $this->input->post('E_sales');} 
-        if(isset($_POST['E_expense'])){ $expense = $this->input->post('E_expense');} 
+        if(isset($_POST['E_expense'])){ $expense = $this->input->post('E_expense');}
+        $production = 0; $tailoring = 0;
+        if(isset($_POST['E_production'])){ $production = $this->input->post('E_production');}
+        if(isset($_POST['E_tailoring'])){ $tailoring = $this->input->post('E_tailoring');}
 
         if(isset($_POST['E_l_allGrn'])){ $l_allGrn = $this->input->post('E_l_allGrn');}
         if(isset($_POST['E_l_stock'])){ $l_stock = $this->input->post('E_l_stock');}
@@ -374,6 +379,9 @@ class User_model extends CI_Model {
             'priv_py_supplierPayment' => $py_supplierPayment,
             'priv_bank'=>$bank
         );
+        $fields = $this->db->list_fields('ezy_pos_privileges');
+        if(in_array('priv_production', $fields)) $updateData['priv_production'] = $production;
+        if(in_array('priv_tailoring', $fields)) $updateData['priv_tailoring'] = $tailoring;
         // $updateData = array(            
         //     'priv_item' => $item,
         //     'priv_category' => $category,            

@@ -204,8 +204,25 @@
                                                     </label>
                                                     </div>
                                                 </td>
-                                                <td>                                                    
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="production" name="production" type="checkbox" value=1>
+                                                    <label for="production">
+                                                        Production
+                                                    </label>
+                                                    </div>
                                                 </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="tailoring" name="tailoring" type="checkbox" value=1>
+                                                    <label for="tailoring">
+                                                        Tailoring
+                                                    </label>
+                                                    </div>
+                                                </td>
+                                                <td></td><td></td><td></td>
                                             </tr>
 											<tr>
                                                 <th><b><u> Listing </u></b></th>
@@ -572,7 +589,27 @@
                                                     </label>
                                                     </div>
                                                 </td>
-
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_production" name="E_production" type="checkbox"
+                                                    <?php echo (isset($user['priv_production']) && $user['priv_production']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_production">
+                                                        Production
+                                                    </label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_tailoring" name="E_tailoring" type="checkbox"
+                                                    <?php echo (isset($user['priv_tailoring']) && $user['priv_tailoring']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_tailoring">
+                                                        Tailoring
+                                                    </label>
+                                                    </div>
+                                                </td>
+                                                <td></td><td></td>
                                             </tr>
                                             <tr>
                                                 <th><b><u> Listing </u></b></th>

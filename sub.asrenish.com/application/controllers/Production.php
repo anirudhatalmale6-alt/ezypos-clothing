@@ -6,6 +6,9 @@ class Production extends CI_Controller {
         if (!$this->session->userdata('username')) {
             redirect('login');
         }
+        if ($this->session->userdata('userrole') != 1 && !$this->session->userdata('privProduction')) {
+            show_404();
+        }
         $this->load->model('Production_model');
         $this->load->model('Stocks_model');
         $this->load->model('Items_model');
