@@ -33,6 +33,7 @@ $route['add-expense'] = 'expenses/addExpense/addexpense';
 $route['add-sale'] = 'sales/addSaleGET/addsale';
 $route['add-grn'] = 'grns/addGrnGET/addgrn';
 $route['add-production'] = 'production/addProductionGET/addproduction';
+$route['edit-production/(:num)'] = 'production/editProductionGET/$1';
 $route['show-all-productions'] = 'production/showAllProductions/All-Productions';
 
 $route['subcat-view'] = 'categories/editSubCat/showsubcategories';
@@ -65,6 +66,7 @@ $route['payment-methods-report'] = 'reports/payment_methods_report/payment-metho
 
 // Production Sale (Tailoring Orders)
 $route['add-production-sale'] = 'ProductionSale/addProductionSale/addproductionsale';
+$route['edit-production-sale/(:num)'] = 'ProductionSale/editProductionSale/$1';
 $route['all-production-sales'] = 'ProductionSale/allProductionSales/allproductionsales';
 
 // Delivery Companies

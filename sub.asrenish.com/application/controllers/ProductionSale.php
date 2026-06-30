@@ -37,6 +37,51 @@ class ProductionSale extends CI_Controller {
         $this->load->view('templates/footerscripts');
     }
 
+    // Edit existing tailoring order
+    public function editProductionSale($prodsale_id)
+    {
+        $data['title'] = 'Edit Tailoring Order';
+        $data['config'] = $this->Configs_model->getConfigName();
+        $data['storeLoc'] = $this->Stores_model->getStoresOnly();
+        $data['customers'] = $this->Customers_model->getAllCustomers();
+        $data['items'] = $this->ProductionSale_model->getAllActiveItems();
+        $data['nextCode'] = '';
+        $data['paymentMethods'] = $this->Sales_model->getActivePaymentMethods();
+        $data['editPsId'] = intval($prodsale_id);
+
+        $this->load->view('templates/header', $data);
+        $this->load->view('transactions/addproductionsale', $data);
+        $this->load->view('templates/footer');
+        $this->load->view('templates/rightslidebar');
+        $this->load->view('templates/footerscripts');
+    }
+
+    // Update order header fields
+    public function updateOrderHeader()
+    {
+        $id = $this->input->post('prodsale_id');
+        $order = $this->ProductionSale_model->getOrderDetails($id);
+        if (!$order || $order->prodsale_status == 'Delivered') {
+            echo json_encode(array('success' => false, 'msg' => 'Cannot edit delivered order'));
+            return;
+        }
+        $data = array(
+            'prodsale_date' => $this->input->post('order_date'),
+            'prodsale_delivery_date' => $this->input->post('delivery_date'),
+            'prodsale_tailoring_charge' => $this->input->post('tailoring_charge'),
+            'prodsale_notes' => $this->input->post('notes')
+        );
+        $pickup = $this->input->post('pickup_store_id');
+        $fields = $this->db->list_fields('ezy_pos_prodsale');
+        if(in_array('prodsale_pickup_store_id', $fields)){
+            $data['prodsale_pickup_store_id'] = $pickup ?: 0;
+        }
+        $this->db->where('prodsale_id', $id);
+        $this->db->update('ezy_pos_prodsale', $data);
+        $this->ProductionSale_model->recalculateTotals($id);
+        echo json_encode(array('success' => true));
+    }
+
     public function createOrder()
     {
         $data = array(

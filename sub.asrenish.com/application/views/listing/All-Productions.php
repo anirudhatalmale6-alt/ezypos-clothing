@@ -87,7 +87,11 @@ function loadProductions() {
                 html += '<td>LKR ' + parseFloat(p.prod_unit_cost).toFixed(2) + '</td>';
                 html += '<td>' + statusCell + '</td>';
                 html += '<td>' + grnInfo + '</td>';
-                html += '<td><a href="' + BASE_URL + 'add-production" class="btn btn-xs btn-info"><i class="fa fa-eye"></i></a></td>';
+                var actionBtns = '<a href="' + BASE_URL + 'edit-production/' + p.prod_id + '" class="btn btn-xs btn-info" title="View/Edit"><i class="fa fa-eye"></i></a>';
+                if(p.prod_status !== 'Completed' && p.prod_status !== 'Cancelled'){
+                    actionBtns += ' <a href="' + BASE_URL + 'edit-production/' + p.prod_id + '" class="btn btn-xs btn-primary" title="Edit"><i class="fa fa-pencil"></i></a>';
+                }
+                html += '<td>' + actionBtns + '</td>';
                 html += '</tr>';
             });
             $('#productionsTable tbody').html(html);

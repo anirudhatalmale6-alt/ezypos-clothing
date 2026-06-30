@@ -4,7 +4,7 @@
         <!-- Left Panel: Production Details -->
         <div class="col-lg-4 col-md-5 col-sm-12">
             <div class="card-box clearfix">
-                <h4 class="header-title m-t-0 m-b-20"><i class="fa fa-industry"></i> New Production Order</h4>
+                <h4 class="header-title m-t-0 m-b-20"><i class="fa fa-industry"></i> <?php echo (isset($editProdId) && $editProdId) ? 'Edit Production Order' : 'New Production Order'; ?></h4>
                 <fieldset>
                     <div class="form-group row">
                         <label class="col-5 col-form-label">Production Code</label>
@@ -135,8 +135,11 @@
                 </div>
                 <div class="form-group row" id="action_buttons">
                     <div class="col-12">
-                        <button class="btn btn-success btn-block" id="btn_create_production">
+                        <button class="btn btn-success btn-block" id="btn_create_production" <?php echo (isset($editProdId) && $editProdId) ? 'style="display:none;"' : ''; ?>>
                             <i class="fa fa-plus"></i> Create Production Order
+                        </button>
+                        <button class="btn btn-primary btn-block" id="btn_update_production" style="display:none;">
+                            <i class="fa fa-save"></i> Update Production Header
                         </button>
                     </div>
                 </div>
@@ -258,7 +261,8 @@
 
 <script>
 var BASE_URL = '<?php echo base_url(); ?>';
-var currentProdId = null;
+var currentProdId = <?php echo isset($editProdId) && $editProdId ? $editProdId : 'null'; ?>;
+var isEditMode = <?php echo isset($editProdId) && $editProdId ? 'true' : 'false'; ?>;
 
 $(document).ready(function() {
     // Output Item autocomplete search
@@ -479,6 +483,79 @@ $(document).ready(function() {
             Swal.fire('Updated', 'Production marked as In-Progress', 'info');
         });
     });
+
+    // Update Production Header (edit mode)
+    $('#btn_update_production').click(function(){
+        var outputItem = $('#output_item').val();
+        var outputQty = $('#output_qty').val();
+        if(!outputItem){ alert('Please select an output item'); return; }
+        if(!outputQty || outputQty < 1){ alert('Please enter output quantity'); return; }
+        $.ajax({
+            type: 'POST',
+            url: BASE_URL + 'production/updateProductionHeader',
+            data: {
+                prod_id: currentProdId,
+                prod_date: $('#prod_date').val(),
+                output_item: outputItem,
+                output_qty: outputQty,
+                prod_type: $('#prod_type').val(),
+                tailor_id: $('#tailor_id').val(),
+                prod_notes: $('#prod_notes').val(),
+                store_id: $('#prod_store').val() || 0,
+                output_store_id: $('#prod_output_store').val() || 0
+            },
+            dataType: 'json',
+            success: function(res){
+                if(res.success){
+                    swal({type:'success',title:'Updated',text:'Production header updated.'});
+                    refreshCosts();
+                } else {
+                    swal({type:'error',title:'Error',text:res.msg || 'Update failed'});
+                }
+            }
+        });
+    });
+
+    // Edit mode: auto-load existing production
+    if(isEditMode && currentProdId){
+        $.post(BASE_URL + 'production/getProductionDetails', { prod_id: currentProdId }, function(res){
+            var prod = JSON.parse(res);
+            if(!prod){ swal({type:'error',title:'Not Found',text:'Production not found'}); return; }
+            $('#prod_code').val(prod.prod_code);
+            $('#prod_date').val(prod.prod_date);
+            $('#prod_store').val(prod.prod_store_id);
+            $('#prod_output_store').val(prod.prod_output_store_id || 0);
+            if(prod.output_item_name){
+                $('#output_item_search').val(prod.output_item_code + ' - ' + prod.output_item_name);
+                $('#output_item').val(prod.prod_output_item_id);
+            }
+            $('#output_qty').val(parseFloat(prod.prod_output_qty).toFixed(0));
+            $('#prod_type').val(prod.prod_type);
+            if(prod.prod_type === 'outsource'){ $('#tailor_div').show(); }
+            if(prod.prod_tailor_id){ $('#tailor_id').val(prod.prod_tailor_id); }
+            $('#prod_notes').val(prod.prod_notes || '');
+            var st = prod.prod_status;
+            var stClass = 'info';
+            if(st === 'In-Progress') stClass = 'warning';
+            else if(st === 'Completed') stClass = 'success';
+            else if(st === 'Cancelled') stClass = 'danger';
+            $('#status_badge').text(st).removeClass().addClass('badge badge-'+stClass).css('font-size','14px');
+            $('#material_section, #cost_section, #status_section').show();
+            if(st === 'Completed' || st === 'Cancelled'){
+                $('#prod_code, #prod_date, #output_item, #output_item_search, #output_qty, #prod_type, #tailor_id, #prod_store, #prod_output_store, #prod_notes').prop('disabled', true);
+                $('#btn_update_production, #status_buttons').hide();
+                $('#btn_add_material, #btn_add_cost').prop('disabled', true);
+            } else {
+                $('#status_buttons').show();
+                $('#btn_update_production').show();
+                if(st === 'In-Progress') $('#btn_in_progress').hide();
+            }
+            loadRawMaterialsByStore(prod.prod_store_id);
+            loadMaterials();
+            loadCosts();
+            refreshCosts();
+        });
+    }
 
     // Complete Production
     $('#btn_complete').click(function() {

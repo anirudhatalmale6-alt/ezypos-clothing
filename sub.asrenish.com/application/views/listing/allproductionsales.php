@@ -24,6 +24,7 @@
                             <th style="text-align:right;">Balance</th>
                             <th>Status</th>
                             <th>Payment</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="ps_tbody"></tbody>
@@ -185,6 +186,9 @@ function loadAllProdSales(){
                         '<td style="text-align:right;'+balStyle+'">'+bal.toFixed(2)+'</td>'+
                         '<td>'+statusCell+'</td>'+
                         '<td>'+payCell+'</td>'+
+                        '<td><a href="'+BASE_URL+'edit-production-sale/'+d.prodsale_id+'" class="btn btn-xs btn-info" title="View/Edit"><i class="fa fa-eye"></i></a>'+
+                        (d.prodsale_status !== 'Delivered' ? ' <a href="'+BASE_URL+'edit-production-sale/'+d.prodsale_id+'" class="btn btn-xs btn-primary" title="Edit"><i class="fa fa-pencil"></i></a>' : '')+
+                        '</td>'+
                         '</tr>';
                 }
             }

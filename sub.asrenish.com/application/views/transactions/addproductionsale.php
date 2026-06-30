@@ -4,7 +4,7 @@
         <!-- Left Panel: Order Details -->
         <div class="col-lg-4 col-md-5 col-sm-12">
             <div class="card-box clearfix">
-                <h4 class="header-title m-t-0 m-b-20"><i class="fa fa-scissors"></i> Production Sale (Tailoring Order)</h4>
+                <h4 class="header-title m-t-0 m-b-20"><i class="fa fa-scissors"></i> <?php echo (isset($editPsId) && $editPsId) ? 'Edit Tailoring Order' : 'Production Sale (Tailoring Order)'; ?></h4>
                 <fieldset>
                     <div class="form-group row">
                         <label class="col-5 col-form-label">Order Code</label>
@@ -108,8 +108,11 @@
                 </div>
                 <!-- Action Buttons -->
                 <div id="ps_create_btn">
-                    <button class="btn btn-success btn-block" id="btn_create_ps">
+                    <button class="btn btn-success btn-block" id="btn_create_ps" <?php echo (isset($editPsId) && $editPsId) ? 'style="display:none;"' : ''; ?>>
                         <i class="fa fa-plus"></i> Create Tailoring Order
+                    </button>
+                    <button class="btn btn-primary btn-block" id="btn_update_ps" style="display:none;">
+                        <i class="fa fa-save"></i> Update Order
                     </button>
                 </div>
                 <div id="ps_status_buttons" style="display:none;">
@@ -277,7 +280,8 @@
 
 <script>
 var BASE_URL = '<?php echo base_url(); ?>';
-var currentPsId = null;
+var currentPsId = <?php echo isset($editPsId) && $editPsId ? $editPsId : 'null'; ?>;
+var isEditMode = <?php echo isset($editPsId) && $editPsId ? 'true' : 'false'; ?>;
 var currentPsStoreId = 0;
 
 $(document).ready(function() {
@@ -478,6 +482,74 @@ $(document).ready(function() {
         $('#btn_confirm_payment').data('deliver-after', false);
         $('#paymentModal').modal('show');
     });
+    // Update order header (edit mode)
+    $('#btn_update_ps').click(function(){
+        $.ajax({
+            type: 'POST',
+            url: BASE_URL + 'ProductionSale/updateOrderHeader',
+            data: {
+                prodsale_id: currentPsId,
+                order_date: $('#ps_date').val(),
+                delivery_date: $('#ps_delivery_date').val(),
+                pickup_store_id: $('#ps_pickup_store').val() || '',
+                tailoring_charge: $('#ps_tailoring_charge').val() || 0,
+                notes: $('#ps_notes').val()
+            },
+            dataType: 'json',
+            success: function(res){
+                if(res.success){
+                    swal({type:'success',title:'Updated',text:'Order updated.'});
+                    refreshPsOrder();
+                } else {
+                    swal({type:'error',title:'Error',text:res.msg || 'Update failed'});
+                }
+            }
+        });
+    });
+
+    // Edit mode: auto-load existing order
+    if(isEditMode && currentPsId){
+        $.post(BASE_URL + 'ProductionSale/getOrderDetails', { prodsale_id: currentPsId }, function(res){
+            var o = JSON.parse(res);
+            if(!o){ swal({type:'error',title:'Not Found',text:'Order not found'}); return; }
+            $('#ps_code').val(o.prodsale_code);
+            $('#ps_store').val(o.prodsale_store_id);
+            currentPsStoreId = o.prodsale_store_id;
+            if(o.prodsale_pickup_store_id) $('#ps_pickup_store').val(o.prodsale_pickup_store_id);
+            $('#ps_date').val(o.prodsale_date);
+            $('#ps_delivery_date').val(o.prodsale_delivery_date || '');
+            $('#ps_tailoring_charge').val(parseFloat(o.prodsale_tailoring_charge || 0).toFixed(2));
+            $('#ps_notes').val(o.prodsale_notes || '');
+            // Set customer
+            if(o.cus_name){
+                $('#ps_customer_search').val(o.cus_name);
+                $('#ps_customer_id').val(o.prodsale_cus_id);
+                $('#ps_cus_name').text(o.cus_name);
+            }
+            // Disable customer and store (can't change after creation)
+            $('#ps_code, #ps_store, #ps_customer_search').prop('disabled', true);
+            var st = o.prodsale_status;
+            var stClass = 'info';
+            if(st === 'Cutting') stClass = 'warning';
+            else if(st === 'Stitching') stClass = 'info';
+            else if(st === 'Ready') stClass = 'primary';
+            else if(st === 'Delivered') stClass = 'success';
+            $('#ps_status_badge').text(st).removeClass().addClass('badge badge-'+stClass).css('font-size','14px');
+            $('#ps_items_section, #ps_services_section, #ps_status_section').show();
+            if(st === 'Delivered'){
+                $('#ps_date, #ps_delivery_date, #ps_pickup_store, #ps_tailoring_charge, #ps_notes').prop('disabled', true);
+                $('#ps_status_buttons, #btn_update_ps').hide();
+                $('#btn_add_ps_item, #btn_add_ps_svc').prop('disabled', true);
+            } else {
+                $('#ps_status_buttons').show();
+                $('#btn_update_ps').show();
+            }
+            loadPsItems();
+            loadPsServices();
+            refreshPsOrder();
+        });
+    }
+
     $('#btn_confirm_payment').click(function(){
         var amt = parseFloat($('#ps_payment_amount').val());
         if(!amt || amt <= 0){ swal({type:'error', title:'Error', text:'Enter valid amount'}); return; }

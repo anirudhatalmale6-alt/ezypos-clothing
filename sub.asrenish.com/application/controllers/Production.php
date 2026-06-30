@@ -37,6 +37,50 @@ class Production extends CI_Controller {
         $this->load->view('templates/footerscripts');
     }
 
+    // Edit existing production
+    public function editProductionGET($prod_id) {
+        $data['title'] = 'Edit Production';
+        $data['config'] = $this->Configs_model->getConfigName();
+        $data['rawMaterials'] = $this->Production_model->getRawMaterialItems();
+        $data['finishedItems'] = $this->Production_model->getFinishedItems();
+        $data['suppliers'] = $this->Production_model->getTailors();
+        $data['nextCode'] = '';
+        if ($this->session->userdata('userrole') == 1) {
+            $data['storeLoc'] = $this->Stores_model->getAllStores();
+        } else {
+            $data['storeLoc'] = $this->Stores_model->getAllStoresfornonadmin($_SESSION['userid']);
+        }
+        $data['editProdId'] = intval($prod_id);
+        $this->load->view('templates/header', $data);
+        $this->load->view('transactions/addproduction', $data);
+        $this->load->view('templates/footer');
+        $this->load->view('templates/footerscripts');
+    }
+
+    // Update production header fields
+    public function updateProductionHeader() {
+        $prod_id = $this->input->post('prod_id');
+        $prod = $this->Production_model->getProduction($prod_id);
+        if (!$prod || $prod->prod_status == 'Completed' || $prod->prod_status == 'Cancelled') {
+            echo json_encode(array('success' => false, 'msg' => 'Cannot edit completed/cancelled production'));
+            return;
+        }
+        $data = array(
+            'prod_date' => $this->input->post('prod_date'),
+            'prod_output_item_id' => $this->input->post('output_item'),
+            'prod_output_qty' => $this->input->post('output_qty'),
+            'prod_tailor_id' => $this->input->post('tailor_id') ?: NULL,
+            'prod_type' => $this->input->post('prod_type'),
+            'prod_notes' => $this->input->post('prod_notes'),
+            'prod_store_id' => $this->input->post('store_id') ?: 0,
+            'prod_output_store_id' => $this->input->post('output_store_id') ?: 0
+        );
+        $this->db->where('prod_id', $prod_id);
+        $this->db->update('ezy_pos_production', $data);
+        $this->Production_model->recalculateCosts($prod_id);
+        echo json_encode(array('success' => true));
+    }
+
     // Save production order header
     public function addProductionPOST() {
         $data = array(
