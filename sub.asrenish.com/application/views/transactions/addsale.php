@@ -492,6 +492,7 @@
 
         // =========== CARD REF + SMS FLOW GLOBALS ===========
         var pendingCardRefs = [];
+        var cardRefsConfirmed = false;
         var lastSavedSaleId = 0;
         var lastSavedPhone = '';
         var lastSavedIsOnline = false;
@@ -934,7 +935,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                     }
                 });
 
-                if(pmPaymentsForRef.length > 0){
+                if(pmPaymentsForRef.length > 0 && !cardRefsConfirmed){
                     // Show card reference popup
                     var html = '';
                     for(var r=0; r<pmPaymentsForRef.length; r++){
@@ -948,6 +949,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                     $('#cardRefModal').modal({backdrop:'static',keyboard:false});
                     return;
                 }
+                cardRefsConfirmed = false;
 
                 if($("#cheque").is(':checked')) {
                     if(ChqFormsubmittd==true){
@@ -1810,13 +1812,8 @@ var chequeHTML ='<div id="chequeDIV">'+
             return;
         }
         $('#cardRefModal').modal('hide');
-        // Now proceed with save
-        if($("#cheque").is(':checked')){
-            if(ChqFormsubmittd==true){ saveSale(); ChqFormsubmittd=false; }
-            else { alert("cheques fields not completed"); }
-        } else {
-            saveSale();
-        }
+        cardRefsConfirmed = true;
+        $('#save').click();
     });
 
     // =========== NEW CUSTOMER SAVE (Credit Sales) ===========
