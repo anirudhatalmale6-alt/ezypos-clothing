@@ -57,9 +57,27 @@
                         </div>
                     </div>
                     <div class="form-group row">
-                        <label class="col-5 col-form-label">Tailoring Charge</label>
+                        <label class="col-5 col-form-label">Estimated Cost</label>
                         <div class="col-7">
-                            <input type="number" class="form-control" id="ps_tailoring_charge" value="0.00" step="0.01" placeholder="0.00">
+                            <input type="number" class="form-control" id="ps_tailoring_charge" value="0.00" step="0.01" placeholder="Estimated total (optional)">
+                            <small class="text-muted">Can be updated after tailor confirms actual cost</small>
+                        </div>
+                    </div>
+                    <div class="form-group row" id="advance_payment_row" <?php echo (isset($editPsId) && $editPsId) ? 'style="display:none;"' : ''; ?>>
+                        <label class="col-5 col-form-label">Advance Payment</label>
+                        <div class="col-7">
+                            <input type="number" class="form-control" id="ps_advance_payment" value="0.00" step="0.01" placeholder="Advance amount (optional)">
+                        </div>
+                    </div>
+                    <div class="form-group row" id="advance_pm_row" style="display:none;">
+                        <label class="col-5 col-form-label">Payment Method</label>
+                        <div class="col-7">
+                            <select class="form-control" id="ps_advance_method">
+                                <option value="Cash">Cash</option>
+                                <?php if(isset($paymentMethods)){ foreach($paymentMethods as $pm){ ?>
+                                <option value="<?php echo $pm->pm_name; ?>"><?php echo $pm->pm_name; ?></option>
+                                <?php }} ?>
+                            </select>
                         </div>
                     </div>
                     <div class="form-group row">
@@ -301,6 +319,13 @@ $(document).ready(function() {
         }
     });
 
+    // Show advance payment method when amount > 0
+    $('#ps_advance_payment').on('input change', function(){
+        var amt = parseFloat($(this).val()) || 0;
+        if(amt > 0) $('#advance_pm_row').show();
+        else $('#advance_pm_row').hide();
+    });
+
     // Item autocomplete
     var psItems = [
         <?php if($items): foreach($items as $it): ?>
@@ -363,11 +388,22 @@ $(document).ready(function() {
                 if(id > 0){
                     currentPsId = id;
                     currentPsStoreId = $('#ps_store').val();
-                    $('#ps_code, #ps_store, #ps_pickup_store, #ps_customer_search, #ps_date, #ps_delivery_date, #ps_tailoring_charge, #ps_notes').prop('disabled', true);
-                    $('#ps_create_btn').hide();
+                    // Process advance payment if any
+                    var advAmt = parseFloat($('#ps_advance_payment').val()) || 0;
+                    if(advAmt > 0){
+                        var advMethod = $('#ps_advance_method').val() || 'Cash';
+                        $.ajax({
+                            type: 'POST', url: BASE_URL + 'ProductionSale/addPayment',
+                            data: { prodsale_id: id, amount: advAmt, method: advMethod, card_ref: '' },
+                            async: false, dataType: 'json'
+                        });
+                    }
+                    $('#ps_code, #ps_store, #ps_pickup_store, #ps_customer_search, #ps_date, #ps_delivery_date, #ps_tailoring_charge, #ps_notes, #ps_advance_payment, #ps_advance_method').prop('disabled', true);
+                    $('#ps_create_btn, #advance_payment_row, #advance_pm_row').hide();
                     $('#ps_items_section, #ps_services_section, #ps_status_section, #ps_status_buttons').show();
                     refreshPsOrder();
-                    swal({type:'success', title:'Order Created!', text:'Now add materials and services.'});
+                    var msg = advAmt > 0 ? 'Order created with advance payment of LKR ' + advAmt.toFixed(2) + '. Now add materials and services.' : 'Now add materials and services.';
+                    swal({type:'success', title:'Order Created!', text: msg});
                 }
             }
         });
