@@ -238,6 +238,10 @@
                                     <?php  }}?>
                                     <li><a href="<?php echo base_url('payment-methods')?>"><i class="fa fa-credit-card"></i> Payment Methods</a></li>
                                     <li><a href="<?php echo base_url('delivery-companies')?>"><i class="fa fa-truck"></i> Delivery Companies</a></li>
+                                    <?php if(isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1){ ?>
+                                    <li class="divider"></li>
+                                    <li><a href="<?php echo base_url('barcode-api/settings')?>"><i class="fa fa-barcode"></i> LabelJoy API</a></li>
+                                    <?php } ?>
                                 </ul>
                             </li>
                             <?php }} ?>

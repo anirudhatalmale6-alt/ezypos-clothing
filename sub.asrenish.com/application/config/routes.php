@@ -88,6 +88,18 @@ $route['cash-flow-report'] = 'reports/cash_flow_report/cash-flow-report';
 $route['item-sales-report'] = 'reports/item_sales_report/item-sales-report';
 $route['production-report'] = 'reports/production_report/production-report';
 
+// Barcode API for LabelJoy
+$route['barcode-api/items'] = 'BarcodeApi/items';
+$route['barcode-api/item/(:num)'] = 'BarcodeApi/item/$1';
+$route['barcode-api/batch'] = 'BarcodeApi/batch';
+$route['barcode-api/batch-flat'] = 'BarcodeApi/batch_flat';
+$route['barcode-api/categories'] = 'BarcodeApi/categories';
+$route['barcode-api/stores'] = 'BarcodeApi/stores';
+$route['barcode-api/info'] = 'BarcodeApi/info';
+$route['barcode-api/generate-key'] = 'BarcodeApi/generate_key';
+$route['barcode-api/get-key'] = 'BarcodeApi/get_key';
+$route['barcode-api/settings'] = 'BarcodeApi/settings_page';
+
 
 
 
