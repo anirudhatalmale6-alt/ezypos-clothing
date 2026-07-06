@@ -395,4 +395,249 @@ class Production extends CI_Controller {
         $items = $this->Production_model->getRawMaterialItemsByStore($store_id);
         echo json_encode($items);
     }
+
+    // ==================== GATE PASS ====================
+
+    // Create gate pass with multiple materials
+    public function createGatePass() {
+        $this->load->model('GatePass_model');
+
+        $prod_id = intval($this->input->post('prod_id'));
+        $store_id = intval($this->input->post('store_id'));
+        $notes = $this->input->post('notes') ?: '';
+        $items_json = $this->input->post('items');
+        $items = json_decode($items_json, true);
+
+        if (!$prod_id || !$store_id || !$items || empty($items)) {
+            echo json_encode(array('success' => false, 'msg' => 'Missing required data'));
+            return;
+        }
+
+        $prod = $this->Production_model->getProduction($prod_id);
+        if (!$prod || in_array($prod->prod_status, array('Completed', 'Cancelled'))) {
+            echo json_encode(array('success' => false, 'msg' => 'Cannot issue gate pass for completed/cancelled production'));
+            return;
+        }
+
+        // Verify stock availability before proceeding
+        foreach ($items as $item) {
+            $item_id = intval($item['item_id']);
+            $qty = floatval($item['qty']);
+            $sq = $this->db->select('stock_qty')->where('stock_itm_id', $item_id)->where('stock_store_id', $store_id)->get('ezy_pos_stock')->row();
+            $available = $sq ? floatval($sq->stock_qty) : 0;
+            if ($qty > $available) {
+                $iname = $this->db->select('itm_name')->where('itm_id', $item_id)->get('ezy_pos_items')->row();
+                echo json_encode(array('success' => false, 'msg' => 'Insufficient stock for ' . ($iname ? $iname->itm_name : 'Item #' . $item_id) . '. Available: ' . $available));
+                return;
+            }
+        }
+
+        $gp_code = $this->GatePass_model->getNextCode();
+        $gp_data = array(
+            'gp_code' => $gp_code,
+            'gp_prod_id' => $prod_id,
+            'gp_date' => date('Y-m-d'),
+            'gp_store_id' => $store_id,
+            'gp_issued_by' => $this->session->userdata('userid'),
+            'gp_notes' => $notes,
+            'gp_status' => 'Issued',
+            'gp_total' => 0
+        );
+
+        $gp_id = $this->GatePass_model->createGatePass($gp_data);
+        if (!$gp_id) {
+            echo json_encode(array('success' => false, 'msg' => 'Failed to create gate pass'));
+            return;
+        }
+
+        $gp_total = 0;
+        $has_gp_col = in_array('prodmat_gp_id', $this->db->list_fields('ezy_pos_production_materials'));
+
+        foreach ($items as $item) {
+            $item_id = intval($item['item_id']);
+            $qty = floatval($item['qty']);
+            $price = floatval($item['price']);
+            $uom = isset($item['uom']) ? $item['uom'] : '';
+            $item_total = $qty * $price;
+
+            // Gate pass item
+            $this->GatePass_model->addItem(array(
+                'gpitem_gp_id' => $gp_id,
+                'gpitem_item_id' => $item_id,
+                'gpitem_qty' => $qty,
+                'gpitem_returned_qty' => 0,
+                'gpitem_unit_price' => $price,
+                'gpitem_total' => $item_total,
+                'gpitem_uom' => $uom
+            ));
+
+            // Production material (existing cost calculation)
+            $mat_data = array(
+                'prodmat_prod_id' => $prod_id,
+                'prodmat_item_id' => $item_id,
+                'prodmat_qty' => $qty,
+                'prodmat_unit_price' => $price,
+                'prodmat_total' => $item_total
+            );
+            if ($has_gp_col) {
+                $mat_data['prodmat_gp_id'] = $gp_id;
+            }
+            $this->Production_model->addMaterial($mat_data);
+
+            // Deduct stock
+            $this->db->query("UPDATE ezy_pos_stock SET stock_qty = stock_qty - ? WHERE stock_itm_id = ? AND stock_store_id = ?", array($qty, $item_id, $store_id));
+            $this->_deductFromFifo($item_id, $qty, $store_id);
+
+            // Stock log
+            $this->db->insert('ezy_pos_stock_log', array(
+                'stocklog_itmid' => $item_id,
+                'stocklog_store_id' => $store_id,
+                'stocklog_qty' => $qty,
+                'stocklog_grnID' => 0,
+                'stocklog_saleID' => 0,
+                'stocklog_return_sup_retrnID' => 0,
+                'stocklog_return_supID' => 0,
+                'stocklog_return_cus_retrnID' => 0,
+                'stocklog_return_cusID' => 0,
+                'stocklog_status' => 1
+            ));
+
+            $gp_total += $item_total;
+        }
+
+        // Update gate pass total
+        $this->db->where('gp_id', $gp_id);
+        $this->db->update('ezy_pos_gate_pass', array('gp_total' => $gp_total));
+
+        $this->Production_model->recalculateCosts($prod_id);
+
+        echo json_encode(array('success' => true, 'gp_id' => $gp_id, 'gp_code' => $gp_code));
+    }
+
+    // Get gate passes for a production
+    public function getGatePasses() {
+        $this->load->model('GatePass_model');
+        $prod_id = $this->input->post('prod_id');
+        $passes = $this->GatePass_model->getGatePassesByProduction($prod_id);
+        echo json_encode($passes);
+    }
+
+    // Get gate pass items
+    public function getGatePassItems() {
+        $this->load->model('GatePass_model');
+        $gp_id = $this->input->post('gp_id');
+        $items = $this->GatePass_model->getItems($gp_id);
+        echo json_encode($items);
+    }
+
+    // Return material from gate pass
+    public function returnGatePassItem() {
+        $this->load->model('GatePass_model');
+
+        $gpitem_id = intval($this->input->post('gpitem_id'));
+        $return_qty = floatval($this->input->post('return_qty'));
+        $gp_id = intval($this->input->post('gp_id'));
+
+        if (!$gpitem_id || $return_qty <= 0) {
+            echo json_encode(array('success' => false, 'msg' => 'Invalid return data'));
+            return;
+        }
+
+        $gpitem = $this->GatePass_model->getItemById($gpitem_id);
+        if (!$gpitem) {
+            echo json_encode(array('success' => false, 'msg' => 'Gate pass item not found'));
+            return;
+        }
+
+        $gp = $this->GatePass_model->getGatePass($gp_id);
+        if (!$gp) {
+            echo json_encode(array('success' => false, 'msg' => 'Gate pass not found'));
+            return;
+        }
+
+        // Check production not completed
+        $prod = $this->Production_model->getProduction($gp->gp_prod_id);
+        if ($prod && in_array($prod->prod_status, array('Completed', 'Cancelled'))) {
+            echo json_encode(array('success' => false, 'msg' => 'Cannot return materials for completed/cancelled production'));
+            return;
+        }
+
+        $max_returnable = floatval($gpitem->gpitem_qty) - floatval($gpitem->gpitem_returned_qty);
+        if ($return_qty > $max_returnable) {
+            echo json_encode(array('success' => false, 'msg' => 'Return qty exceeds maximum returnable (' . $max_returnable . ')'));
+            return;
+        }
+
+        // Update gate pass item
+        $this->GatePass_model->returnItem($gpitem_id, $return_qty);
+        $this->GatePass_model->recalculateTotal($gp_id);
+
+        // Restore stock to the gate pass store
+        $store_id = intval($gp->gp_store_id);
+        $item_id = intval($gpitem->gpitem_item_id);
+        $this->db->query("UPDATE ezy_pos_stock SET stock_qty = stock_qty + ? WHERE stock_itm_id = ? AND stock_store_id = ?", array($return_qty, $item_id, $store_id));
+
+        // Stock log for return
+        $this->db->insert('ezy_pos_stock_log', array(
+            'stocklog_itmid' => $item_id,
+            'stocklog_store_id' => $store_id,
+            'stocklog_qty' => $return_qty,
+            'stocklog_grnID' => 0,
+            'stocklog_saleID' => 0,
+            'stocklog_return_sup_retrnID' => 0,
+            'stocklog_return_supID' => 0,
+            'stocklog_return_cus_retrnID' => 0,
+            'stocklog_return_cusID' => 0,
+            'stocklog_status' => 1
+        ));
+
+        // Reduce production material qty (find matching material row)
+        $has_gp_col = in_array('prodmat_gp_id', $this->db->list_fields('ezy_pos_production_materials'));
+        if ($has_gp_col) {
+            $mat = $this->db->select('prodmat_id, prodmat_qty, prodmat_unit_price')
+                ->where('prodmat_prod_id', $gp->gp_prod_id)
+                ->where('prodmat_item_id', $item_id)
+                ->where('prodmat_gp_id', $gp_id)
+                ->order_by('prodmat_id', 'DESC')
+                ->get('ezy_pos_production_materials')->row();
+        } else {
+            $mat = $this->db->select('prodmat_id, prodmat_qty, prodmat_unit_price')
+                ->where('prodmat_prod_id', $gp->gp_prod_id)
+                ->where('prodmat_item_id', $item_id)
+                ->order_by('prodmat_id', 'DESC')
+                ->get('ezy_pos_production_materials')->row();
+        }
+
+        if ($mat) {
+            $new_qty = floatval($mat->prodmat_qty) - $return_qty;
+            if ($new_qty <= 0) {
+                $this->db->delete('ezy_pos_production_materials', array('prodmat_id' => $mat->prodmat_id));
+            } else {
+                $this->db->where('prodmat_id', $mat->prodmat_id);
+                $this->db->update('ezy_pos_production_materials', array(
+                    'prodmat_qty' => $new_qty,
+                    'prodmat_total' => $new_qty * floatval($mat->prodmat_unit_price)
+                ));
+            }
+        }
+
+        $this->Production_model->recalculateCosts($gp->gp_prod_id);
+
+        echo json_encode(array('success' => true));
+    }
+
+    // Print gate pass
+    public function printGatePass($gp_id = 0) {
+        $this->load->model('GatePass_model');
+        if ($gp_id == 0) $gp_id = $this->uri->segment(3);
+
+        $data['gatepass'] = $this->GatePass_model->getGatePass($gp_id);
+        $data['items'] = $this->GatePass_model->getItems($gp_id);
+        $data['config'] = $this->Configs_model->getConfigName();
+
+        $prod = $this->Production_model->getProduction($data['gatepass']->gp_prod_id);
+        $data['production'] = $prod;
+
+        $this->load->view('transactions/gate_pass_print', $data);
+    }
 }

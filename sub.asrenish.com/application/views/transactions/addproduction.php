@@ -211,6 +211,136 @@
                 </div>
             </div>
 
+            <!-- Gate Pass Section -->
+            <div class="card-box clearfix" id="gatepass_section" style="display:none;">
+                <div class="row">
+                    <div class="col-6">
+                        <h5 class="header-title m-t-0 m-b-15"><i class="fa fa-ticket"></i> Gate Passes</h5>
+                    </div>
+                    <div class="col-6 text-right">
+                        <button class="btn btn-primary btn-sm" id="btn_new_gatepass">
+                            <i class="fa fa-plus"></i> Issue New Gate Pass
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Gate Passes List -->
+                <div id="gatepass_list"></div>
+            </div>
+
+            <!-- Gate Pass Modal -->
+            <div class="modal fade" id="gatePassModal" tabindex="-1" role="dialog" data-backdrop="static">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="fa fa-ticket"></i> Issue Gate Pass</h5>
+                            <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row m-b-10">
+                                <div class="col-md-6">
+                                    <label>Source Store</label>
+                                    <input type="text" class="form-control" id="gp_store_name" readonly style="background:#f5f5f5;">
+                                    <input type="hidden" id="gp_store_id">
+                                </div>
+                                <div class="col-md-6">
+                                    <label>Notes</label>
+                                    <input type="text" class="form-control" id="gp_notes" placeholder="Optional notes...">
+                                </div>
+                            </div>
+                            <hr>
+                            <h6>Add Materials to Gate Pass</h6>
+                            <div class="row m-b-10">
+                                <div class="col-md-4">
+                                    <label>Material</label>
+                                    <input class="form-control" id="gp_mat_search" placeholder="Search material..." autocomplete="off">
+                                    <input type="hidden" id="gp_mat_item">
+                                    <small id="gp_mat_stock" class="text-muted"></small>
+                                </div>
+                                <div class="col-md-2">
+                                    <label>Qty</label>
+                                    <input type="number" class="form-control" id="gp_mat_qty" step="0.01" min="0.01">
+                                    <small id="gp_mat_uom_label" class="text-muted"></small>
+                                </div>
+                                <div class="col-md-2">
+                                    <label>Unit Price</label>
+                                    <input type="number" class="form-control" id="gp_mat_price" step="0.01">
+                                </div>
+                                <div class="col-md-2">
+                                    <label>Total</label>
+                                    <input type="text" class="form-control" id="gp_mat_total" readonly style="background:#f5f5f5;">
+                                </div>
+                                <div class="col-md-2">
+                                    <label>&nbsp;</label>
+                                    <button class="btn btn-success btn-block btn-sm" id="btn_gp_add_item">
+                                        <i class="fa fa-plus"></i> Add
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Gate Pass Items Table -->
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm" id="gp_items_table">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Material</th>
+                                            <th>UOM</th>
+                                            <th>Qty</th>
+                                            <th>Unit Price</th>
+                                            <th>Total</th>
+                                            <th>Remove</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="gp_items_body"></tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="5" class="text-right"><strong>Grand Total:</strong></td>
+                                            <td><strong id="gp_grand_total">0.00</strong></td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                            <button class="btn btn-primary" id="btn_issue_gatepass">
+                                <i class="fa fa-check"></i> Issue Gate Pass
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Return Material Modal -->
+            <div class="modal fade" id="returnModal" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-sm" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="fa fa-undo"></i> Return Material</h5>
+                            <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                        </div>
+                        <div class="modal-body">
+                            <p id="return_info"></p>
+                            <div class="form-group">
+                                <label>Return Quantity</label>
+                                <input type="number" class="form-control" id="return_qty" step="0.01" min="0.01">
+                                <small class="text-muted" id="return_max_label"></small>
+                            </div>
+                            <input type="hidden" id="return_gpitem_id">
+                            <input type="hidden" id="return_gp_id">
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                            <button class="btn btn-warning btn-sm" id="btn_confirm_return">
+                                <i class="fa fa-undo"></i> Confirm Return
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Add Cost Section -->
             <div class="card-box clearfix" id="cost_section" style="display:none;">
                 <h5 class="header-title m-t-0 m-b-15"><i class="fa fa-money"></i> Additional Costs</h5>
@@ -394,8 +524,8 @@ $(document).ready(function() {
                     // Disable header fields
                     $('#prod_code, #prod_date, #output_item, #output_item_search, #output_qty, #prod_type, #tailor_id, #prod_store, #prod_output_store').prop('disabled', true);
                     $('#btn_create_production').hide();
-                    // Show material & cost sections
-                    $('#material_section, #cost_section, #status_section, #status_buttons').show();
+                    // Show material & cost & gatepass sections
+                    $('#material_section, #cost_section, #gatepass_section, #status_section, #status_buttons').show();
                     // Load raw materials for the selected source store
                     loadRawMaterialsByStore(storeId);
                     Swal.fire('Success', 'Production order created! Now add materials and costs.', 'success');
@@ -540,11 +670,11 @@ $(document).ready(function() {
             else if(st === 'Completed') stClass = 'success';
             else if(st === 'Cancelled') stClass = 'danger';
             $('#status_badge').text(st).removeClass().addClass('badge badge-'+stClass).css('font-size','14px');
-            $('#material_section, #cost_section, #status_section').show();
+            $('#material_section, #cost_section, #gatepass_section, #status_section').show();
             if(st === 'Completed' || st === 'Cancelled'){
                 $('#prod_code, #prod_date, #output_item, #output_item_search, #output_qty, #prod_type, #tailor_id, #prod_store, #prod_output_store, #prod_notes').prop('disabled', true);
                 $('#btn_update_production, #status_buttons').hide();
-                $('#btn_add_material, #btn_add_cost').prop('disabled', true);
+                $('#btn_add_material, #btn_add_cost, #btn_new_gatepass').prop('disabled', true);
             } else {
                 $('#status_buttons').show();
                 $('#btn_update_production').show();
@@ -554,6 +684,7 @@ $(document).ready(function() {
             loadMaterials();
             loadCosts();
             refreshCosts();
+            loadGatePasses();
         });
     }
 
@@ -682,4 +813,298 @@ function saveProdDiscount() {
         discount_type: $('#prod_discount_type').val()
     });
 }
+
+// ==================== GATE PASS ====================
+
+var gpTempItems = [];
+var gpSelectedStock = 0;
+var gpSelectedUom = '';
+
+// Open gate pass modal
+$('#btn_new_gatepass').click(function(){
+    gpTempItems = [];
+    renderGpTempItems();
+    var storeName = $('#prod_store option:selected').text();
+    var storeId = $('#prod_store').val() || 0;
+    $('#gp_store_name').val(storeName);
+    $('#gp_store_id').val(storeId);
+    $('#gp_notes').val('');
+    $('#gp_mat_search, #gp_mat_item, #gp_mat_qty, #gp_mat_price, #gp_mat_total').val('');
+    $('#gp_mat_stock, #gp_mat_uom_label').text('');
+    // Init autocomplete with same raw materials
+    $('#gp_mat_search').autocomplete({
+        source: rawMaterials,
+        minLength: 0,
+        select: function(event, ui){
+            event.preventDefault();
+            $('#gp_mat_search').val(ui.item.code + ' - ' + ui.item.name);
+            $('#gp_mat_item').val(ui.item.value);
+            gpSelectedStock = ui.item.stock;
+            gpSelectedUom = ui.item.uom;
+            $('#gp_mat_stock').text('Stock: ' + ui.item.stock + ' ' + ui.item.uom);
+            $('#gp_mat_uom_label').text(ui.item.uom);
+            $.post(BASE_URL + 'production/getMaterialPrice', {item_id: ui.item.value, store_id: storeId}, function(res){
+                var price = JSON.parse(res);
+                $('#gp_mat_price').val(parseFloat(price).toFixed(2));
+                $('#gp_mat_qty').trigger('input');
+            });
+        }
+    }).on('focus', function(){ $(this).autocomplete('search',''); });
+    $('#gatePassModal').modal('show');
+});
+
+// Calculate GP item total
+$('#gp_mat_qty, #gp_mat_price').on('input', function(){
+    var q = parseFloat($('#gp_mat_qty').val()) || 0;
+    var p = parseFloat($('#gp_mat_price').val()) || 0;
+    $('#gp_mat_total').val((q * p).toFixed(2));
+});
+
+// Add item to gate pass temp list
+$('#btn_gp_add_item').click(function(){
+    var itemId = $('#gp_mat_item').val();
+    var itemName = $('#gp_mat_search').val();
+    var qty = parseFloat($('#gp_mat_qty').val());
+    var price = parseFloat($('#gp_mat_price').val());
+    if(!itemId){ alert('Select a material'); return; }
+    if(!qty || qty <= 0){ alert('Enter valid quantity'); return; }
+    if(!price || price < 0){ alert('Enter valid price'); return; }
+
+    // Check stock (account for already added items of same type)
+    var alreadyAdded = 0;
+    for(var i=0; i<gpTempItems.length; i++){
+        if(gpTempItems[i].item_id == itemId) alreadyAdded += gpTempItems[i].qty;
+    }
+    if((qty + alreadyAdded) > gpSelectedStock){
+        swal({type:'warning', title:'Insufficient Stock', text:'Only ' + (gpSelectedStock - alreadyAdded).toFixed(2) + ' ' + gpSelectedUom + ' available!'});
+        return;
+    }
+
+    gpTempItems.push({
+        item_id: itemId,
+        name: itemName,
+        qty: qty,
+        price: price,
+        total: qty * price,
+        uom: gpSelectedUom
+    });
+    renderGpTempItems();
+    // Clear inputs
+    $('#gp_mat_search, #gp_mat_item, #gp_mat_qty, #gp_mat_price, #gp_mat_total').val('');
+    $('#gp_mat_stock, #gp_mat_uom_label').text('');
+});
+
+function renderGpTempItems(){
+    var html = '';
+    var grandTotal = 0;
+    for(var i=0; i<gpTempItems.length; i++){
+        var it = gpTempItems[i];
+        grandTotal += it.total;
+        html += '<tr>';
+        html += '<td>'+(i+1)+'</td>';
+        html += '<td>'+it.name+'</td>';
+        html += '<td>'+it.uom+'</td>';
+        html += '<td>'+it.qty.toFixed(2)+'</td>';
+        html += '<td>'+it.price.toFixed(2)+'</td>';
+        html += '<td>'+it.total.toFixed(2)+'</td>';
+        html += '<td><button class="btn btn-danger btn-xs btn-gp-remove" data-idx="'+i+'"><i class="fa fa-times"></i></button></td>';
+        html += '</tr>';
+    }
+    $('#gp_items_body').html(html);
+    $('#gp_grand_total').text(grandTotal.toFixed(2));
+    // Bind remove
+    $('.btn-gp-remove').click(function(){
+        var idx = $(this).data('idx');
+        gpTempItems.splice(idx, 1);
+        renderGpTempItems();
+    });
+}
+
+// Issue Gate Pass
+$('#btn_issue_gatepass').click(function(){
+    if(gpTempItems.length === 0){
+        swal({type:'warning', title:'No Items', text:'Add at least one material to the gate pass.'});
+        return;
+    }
+    var btn = $(this);
+    btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Issuing...');
+
+    $.ajax({
+        type: 'POST',
+        url: BASE_URL + 'production/createGatePass',
+        data: {
+            prod_id: currentProdId,
+            store_id: $('#gp_store_id').val(),
+            notes: $('#gp_notes').val(),
+            items: JSON.stringify(gpTempItems)
+        },
+        dataType: 'json',
+        success: function(res){
+            btn.prop('disabled', false).html('<i class="fa fa-check"></i> Issue Gate Pass');
+            if(res.success){
+                $('#gatePassModal').modal('hide');
+                swal({type:'success', title:'Gate Pass Issued', text:'Gate Pass ' + res.gp_code + ' has been created.'});
+                loadGatePasses();
+                loadMaterials();
+                refreshCosts();
+                loadRawMaterialsByStore($('#prod_store').val());
+            } else {
+                swal({type:'error', title:'Error', text: res.msg || 'Failed to create gate pass'});
+            }
+        },
+        error: function(){
+            btn.prop('disabled', false).html('<i class="fa fa-check"></i> Issue Gate Pass');
+            swal({type:'error', title:'Error', text:'Server error. Please try again.'});
+        }
+    });
+});
+
+// Load gate passes for current production
+function loadGatePasses(){
+    if(!currentProdId) return;
+    $.ajax({
+        type: 'POST',
+        url: BASE_URL + 'production/getGatePasses',
+        data: { prod_id: currentProdId },
+        dataType: 'json',
+        success: function(passes){
+            if(!passes || passes.length === 0){
+                $('#gatepass_list').html('<p class="text-muted text-center m-t-10">No gate passes issued yet. Click "Issue New Gate Pass" to create one.</p>');
+                return;
+            }
+            var html = '';
+            for(var p=0; p<passes.length; p++){
+                var gp = passes[p];
+                var statusClass = 'info';
+                if(gp.gp_status === 'Partially Returned') statusClass = 'warning';
+                else if(gp.gp_status === 'Fully Returned') statusClass = 'success';
+                else if(gp.gp_status === 'Cancelled') statusClass = 'danger';
+                html += '<div class="card m-b-10" style="border:1px solid #ddd;">';
+                html += '<div class="card-header" style="padding:8px 15px; background:#f8f9fa; cursor:pointer;" data-toggle="collapse" data-target="#gp_detail_'+gp.gp_id+'">';
+                html += '<div class="row">';
+                html += '<div class="col-3"><strong>'+gp.gp_code+'</strong></div>';
+                html += '<div class="col-2">'+gp.gp_date+'</div>';
+                html += '<div class="col-2"><span class="badge badge-'+statusClass+'">'+gp.gp_status+'</span></div>';
+                html += '<div class="col-3">Total: LKR '+parseFloat(gp.gp_total).toFixed(2)+'</div>';
+                html += '<div class="col-2 text-right">';
+                html += '<a href="'+BASE_URL+'print-gate-pass/'+gp.gp_id+'" target="_blank" class="btn btn-info btn-xs" title="Print"><i class="fa fa-print"></i></a>';
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+                html += '<div id="gp_detail_'+gp.gp_id+'" class="collapse">';
+                html += '<div class="card-body" style="padding:10px 15px;">';
+                if(gp.gp_notes) html += '<p class="text-muted" style="font-size:12px;">Notes: '+gp.gp_notes+'</p>';
+                html += '<div class="gp-items-container" data-gpid="'+gp.gp_id+'"><p class="text-muted">Loading items...</p></div>';
+                html += '</div></div></div>';
+            }
+            $('#gatepass_list').html(html);
+
+            // Load items when expanded
+            $('[data-toggle="collapse"]').on('click', function(){
+                var target = $(this).data('target');
+                var gpId = target.replace('#gp_detail_','');
+                var container = $(target).find('.gp-items-container');
+                if(container.data('loaded')) return;
+                container.data('loaded', true);
+                loadGatePassItems(gpId, container);
+            });
+        }
+    });
+}
+
+function loadGatePassItems(gpId, container){
+    $.ajax({
+        type: 'POST',
+        url: BASE_URL + 'production/getGatePassItems',
+        data: { gp_id: gpId },
+        dataType: 'json',
+        success: function(items){
+            if(!items || items.length === 0){
+                container.html('<p class="text-muted">No items in this gate pass.</p>');
+                return;
+            }
+            var html = '<table class="table table-bordered table-sm" style="font-size:12px;">';
+            html += '<thead class="bg-light"><tr><th>#</th><th>Material</th><th>UOM</th><th>Issued</th><th>Returned</th><th>Net Qty</th><th>Unit Price</th><th>Total</th><th>Action</th></tr></thead><tbody>';
+            for(var i=0; i<items.length; i++){
+                var it = items[i];
+                var issued = parseFloat(it.gpitem_qty);
+                var returned = parseFloat(it.gpitem_returned_qty);
+                var net = issued - returned;
+                var returnable = issued - returned;
+                html += '<tr>';
+                html += '<td>'+(i+1)+'</td>';
+                html += '<td>'+it.itm_code+' - '+it.itm_name+'</td>';
+                html += '<td>'+(it.itm_uom || it.gpitem_uom)+'</td>';
+                html += '<td>'+issued.toFixed(2)+'</td>';
+                html += '<td>'+(returned > 0 ? returned.toFixed(2) : '-')+'</td>';
+                html += '<td><strong>'+net.toFixed(2)+'</strong></td>';
+                html += '<td>'+parseFloat(it.gpitem_unit_price).toFixed(2)+'</td>';
+                html += '<td>'+parseFloat(it.gpitem_total).toFixed(2)+'</td>';
+                html += '<td>';
+                if(returnable > 0){
+                    html += '<button class="btn btn-warning btn-xs btn-return-mat" data-gpitemid="'+it.gpitem_id+'" data-gpid="'+gpId+'" data-max="'+returnable.toFixed(2)+'" data-name="'+it.itm_code+' - '+it.itm_name+'" data-uom="'+(it.itm_uom||it.gpitem_uom)+'"><i class="fa fa-undo"></i> Return</button>';
+                } else {
+                    html += '<span class="badge badge-success">Fully Returned</span>';
+                }
+                html += '</td></tr>';
+            }
+            html += '</tbody></table>';
+            container.html(html);
+
+            // Bind return buttons
+            container.find('.btn-return-mat').click(function(){
+                var gpitemId = $(this).data('gpitemid');
+                var gpIdRet = $(this).data('gpid');
+                var maxQty = $(this).data('max');
+                var matName = $(this).data('name');
+                var uom = $(this).data('uom');
+                $('#return_gpitem_id').val(gpitemId);
+                $('#return_gp_id').val(gpIdRet);
+                $('#return_qty').val('').attr('max', maxQty);
+                $('#return_info').html('<strong>'+matName+'</strong>');
+                $('#return_max_label').text('Max returnable: ' + maxQty + ' ' + uom);
+                $('#returnModal').modal('show');
+            });
+        }
+    });
+}
+
+// Confirm return
+$('#btn_confirm_return').click(function(){
+    var returnQty = parseFloat($('#return_qty').val());
+    var gpitemId = $('#return_gpitem_id').val();
+    var gpId = $('#return_gp_id').val();
+    if(!returnQty || returnQty <= 0){ alert('Enter valid return quantity'); return; }
+
+    var btn = $(this);
+    btn.prop('disabled', true);
+
+    $.ajax({
+        type: 'POST',
+        url: BASE_URL + 'production/returnGatePassItem',
+        data: {
+            gpitem_id: gpitemId,
+            return_qty: returnQty,
+            gp_id: gpId
+        },
+        dataType: 'json',
+        success: function(res){
+            btn.prop('disabled', false);
+            if(res.success){
+                $('#returnModal').modal('hide');
+                swal({type:'success', title:'Returned', text:'Material returned to warehouse successfully.'});
+                loadGatePasses();
+                loadMaterials();
+                refreshCosts();
+                loadRawMaterialsByStore($('#prod_store').val());
+            } else {
+                swal({type:'error', title:'Error', text: res.msg || 'Return failed'});
+            }
+        },
+        error: function(){
+            btn.prop('disabled', false);
+            swal({type:'error', title:'Error', text:'Server error'});
+        }
+    });
+});
 </script>

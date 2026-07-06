@@ -100,7 +100,8 @@ $route['barcode-api/generate-key'] = 'BarcodeApi/generate_key';
 $route['barcode-api/get-key'] = 'BarcodeApi/get_key';
 $route['barcode-api/settings'] = 'BarcodeApi/settings_page';
 
-
+// Gate Pass
+$route['print-gate-pass/(:num)'] = 'production/printGatePass/$1';
 
 
 
