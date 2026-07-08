@@ -98,7 +98,8 @@ class Loyalty_model extends CI_Model {
         if ($per <= 0) return 0;
         $pts = (floatval($grandtotal) / $per) * floatval($s['loyalty_earn_points']);
         if ($s['loyalty_round'] == 'nearest') return round($pts, 2);
-        return floor($pts * 100) / 100; // round down to 2dp
+        // round down to 2dp; add a tiny epsilon to absorb float error (8.7*100 = 869.9999...)
+        return floor($pts * 100 + 0.000001) / 100;
     }
 
     /**
