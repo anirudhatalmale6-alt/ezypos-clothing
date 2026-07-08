@@ -143,10 +143,19 @@
                                     <div class="col-lg-12 col-md-12 col-sm-12 col-xm-12 col-12">
                                             <div><b>Sub-total:</b><span style="float:right;font-family: arial"><?php echo $sales->sale_subtotal ?></span></div>
                                             <div><b>Discount<?php echo (isset($sales->sale_discount_type) && $sales->sale_discount_type=='flat') ? ' (Flat)' : ' (%)'; ?>:</b><span style="float:right;font-family: arial"> <?php echo $sales->sale_discount ?></span></div>
+                                            <?php if(isset($sales->sale_promo_discount) && $sales->sale_promo_discount > 0){ ?>
+                                            <div><b>Promotions:</b><span style="float:right;font-family: arial">- <?php echo number_format($sales->sale_promo_discount, 2) ?></span></div>
+                                            <?php } ?>
+                                            <?php if(isset($sales->sale_loyalty_redeemed) && $sales->sale_loyalty_redeemed > 0){ ?>
+                                            <div><b>Points Redeemed:</b><span style="float:right;font-family: arial">- <?php echo number_format($sales->sale_loyalty_redeemed, 2) ?></span></div>
+                                            <?php } ?>
                                             <?php if(isset($sales->sale_delivery_charge) && $sales->sale_delivery_charge > 0){ ?>
                                             <div><b>Delivery Charge:</b><span style="float:right;font-family: arial"><?php echo number_format($sales->sale_delivery_charge, 2) ?></span></div>
                                             <?php } ?>
                                             <div><b>Grand Total:</b><span style="float:right;font-family: arial"><?php echo $sales->sale_grandtotal ?></span></div>
+                                            <?php if(isset($sales->sale_loyalty_points_earned) && $sales->sale_loyalty_points_earned > 0){ ?>
+                                            <div style="font-size:12px;"><b>Points Earned:</b><span style="float:right;font-family: arial"><?php echo number_format($sales->sale_loyalty_points_earned, 2) ?></span></div>
+                                            <?php } ?>
                                         <hr>
                                         <?php 
                                             $cash=$paymnt->cus_pay_cash; 

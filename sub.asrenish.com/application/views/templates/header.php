@@ -240,6 +240,9 @@
                                     <li><a href="<?php echo base_url('delivery-companies')?>"><i class="fa fa-truck"></i> Delivery Companies</a></li>
                                     <?php if(isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1){ ?>
                                     <li class="divider"></li>
+                                    <li><a href="<?php echo base_url('promotions')?>"><i class="fa fa-tags"></i> Promotions</a></li>
+                                    <li><a href="<?php echo base_url('loyalty-settings')?>"><i class="fa fa-star"></i> Customer Loyalty</a></li>
+                                    <li class="divider"></li>
                                     <li><a href="<?php echo base_url('barcode-api/settings')?>"><i class="fa fa-barcode"></i> LabelJoy API</a></li>
                                     <?php } ?>
                                 </ul>

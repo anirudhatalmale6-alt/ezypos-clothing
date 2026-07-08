@@ -96,6 +96,17 @@
                                         </select>
                                     </div>
                                 </div>
+                                <div class="form-group row mb-1" id="promo_summary_row" style="display:none;">
+                                    <label class="col-5 col-form-label"><i class="fa fa-tags"></i> Promotions:</label>
+                                    <div class="col-7 col-form-label text-right" style="color:#2e7d32;">- LKR <span id="promo_discount_display">0.00</span></div>
+                                </div>
+                                <div class="form-group row mb-1" id="promo_names_row" style="display:none;">
+                                    <div class="col-12 text-right" style="font-size:11px;color:#2e7d32;"><span id="promo_applied_names"></span></div>
+                                </div>
+                                <div class="form-group row mb-1" id="loyalty_summary_row" style="display:none;">
+                                    <label class="col-5 col-form-label"><i class="fa fa-star"></i> Points Redeemed:</label>
+                                    <div class="col-7 col-form-label text-right" style="color:#e65100;">- LKR <span id="loyalty_redeem_display">0.00</span></div>
+                                </div>
                                 <div class="form-group row mb-1" id="delivery_charge_summary" style="display:none;">
                                     <label class="col-5 col-form-label"><i class="fa fa-truck"></i> Delivery:</label>
                                     <div class="col-7 col-form-label text-right">LKR <span id="delivery_charge_total_display">0.00</span></div>
@@ -157,6 +168,22 @@
                                         <label class="col-5 col-form-label"><strong>Voucher Total:</strong></label>
                                         <div class="col-7 col-form-label text-right"><strong style="color:#e65100;">LKR <span id="voucher_total">0.00</span></strong></div>
                                     </div>
+                                </div>
+                                <!-- Loyalty Points Redemption -->
+                                <div id="loyalty_block" style="background:#e8f5e9;border-radius:4px;padding:10px;margin-bottom:10px;display:none;">
+                                    <strong><i class="fa fa-star"></i> Loyalty Points</strong>
+                                    <div class="m-t-5" style="font-size:13px;">
+                                        Available: <strong><span id="loyalty_available">0</span></strong> pts
+                                        (worth LKR <span id="loyalty_available_value">0.00</span>)
+                                    </div>
+                                    <div class="input-group m-t-8">
+                                        <input type="number" class="form-control" id="loyalty_redeem_points" placeholder="Points to redeem" min="0">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-success" type="button" id="btn_apply_loyalty"><i class="fa fa-check"></i> Redeem</button>
+                                            <button class="btn btn-secondary" type="button" id="btn_clear_loyalty"><i class="fa fa-times"></i></button>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted" id="loyalty_hint"></small>
                                 </div>
                                 <hr>
                                 <div class="form-group row">
@@ -461,6 +488,7 @@
             $('#dynamic_pm_container').append(row);
             $('#pm_select_row').hide();
             $('#add_pm_row').show();
+            if(typeof grandtotalCalculation === 'function'){ grandtotalCalculation(); } // payment-scope promos
         });
 
         $(document).on('click', '.pm-remove-btn', function(){
@@ -469,7 +497,11 @@
             if(idx > -1) addedPmIds.splice(idx, 1);
             $(this).closest('.pm-dynamic-row').remove();
             calculateCredit();
+            if(typeof grandtotalCalculation === 'function'){ grandtotalCalculation(); } // payment-scope promos
         });
+
+        // Load active promotions once for auto-apply (Point 9)
+        loadActivePromotions();
 
         // =========== PHONE AUTO-POPULATE ON CUSTOMER SELECT ===========
         $(document).on('customerSelected', function(){
@@ -488,6 +520,9 @@
                     }
                 });
             }
+            // Load loyalty points for the selected customer (Point 8)
+            if(typeof loadLoyaltyForCustomer === 'function'){ loadLoyaltyForCustomer(); }
+            if(typeof grandtotalCalculation === 'function'){ grandtotalCalculation(); }
         });
 
         // =========== CARD REF + SMS FLOW GLOBALS ===========
@@ -862,14 +897,209 @@ var chequeHTML ='<div id="chequeDIV">'+
                 discountedTotal = +((100-invoiceDis)*subtotal/100).toFixed(2);
             }
             if(discountedTotal < 0) discountedTotal = 0;
+
+            // ---- Promotions (Point 9): auto-detect & apply ----
+            evaluatePromotions();
+            var afterPromo = +(discountedTotal - promoDiscount).toFixed(2);
+            if(afterPromo < 0) afterPromo = 0;
+
+            // ---- Loyalty (Point 8): redemption ----
+            recalcLoyaltyRedeem(afterPromo);
+            var afterLoyalty = +(afterPromo - loyaltyRedeemAmount).toFixed(2);
+            if(afterLoyalty < 0) afterLoyalty = 0;
+            loyaltyEarnBase = afterLoyalty; // points earned on the net merchandise value
+
             // Add delivery charge
             var deliveryCharge = parseFloat($('#delivery_charge_input').val());
             if(isNaN(deliveryCharge)) deliveryCharge = 0;
-            grandtotal = +(discountedTotal + deliveryCharge).toFixed(2);
+            grandtotal = +(afterLoyalty + deliveryCharge).toFixed(2);
 
             $("#grandtotalLbl").html(grandtotal);
             $("#creditvalue").html(grandtotal);
         }
+
+        // ===================== PROMOTIONS (Point 9) =====================
+        var activePromos = [];
+        var promoDiscount = 0;
+        var appliedPromosList = [];
+
+        function loadActivePromotions(){
+            $.ajax({
+                type: 'GET',
+                url: '<?php echo base_url("promotions/active"); ?>',
+                dataType: 'json',
+                success: function(res){ activePromos = res || []; },
+                error: function(){ activePromos = []; }
+            });
+        }
+
+        // read current cart lines as {id,total}
+        function getCartLines(){
+            var lines = [];
+            var rws = $("#datatable").find("tr").length;
+            for (var i = 1; i < rws; i++){
+                var id = parseInt($("#datatable").find("tr").eq(i).find("td").eq(1).text());
+                var tot = parseFloat($("#datatable").find("tr").eq(i).find("td").eq(5).text());
+                if(!isNaN(id) && !isNaN(tot)){ lines.push({id:id, total:tot}); }
+            }
+            return lines;
+        }
+
+        function promoDiscountFor(promo, base){
+            if(promo.promo_type == 'percentage'){
+                return +(base * parseFloat(promo.promo_value) / 100).toFixed(2);
+            }
+            var d = parseFloat(promo.promo_value);
+            return d > base ? +base.toFixed(2) : +d.toFixed(2);
+        }
+
+        function evaluatePromotions(){
+            promoDiscount = 0;
+            appliedPromosList = [];
+            if(!activePromos || activePromos.length === 0){ updatePromoUI(); return; }
+
+            var lines = getCartLines();
+            var sub = subtotal;
+            var applyMap = {}; // promo_id -> aggregated
+
+            function record(promo, disc){
+                if(disc <= 0) return;
+                var key = promo.promo_id;
+                if(!applyMap[key]){
+                    applyMap[key] = {promo_id: promo.promo_id, name: promo.promo_name, scope: promo.promo_scope, discount: 0};
+                }
+                applyMap[key].discount = +(applyMap[key].discount + disc).toFixed(2);
+                promoDiscount = +(promoDiscount + disc).toFixed(2);
+            }
+
+            // item + category scope: best matching promo per cart line
+            for(var li=0; li<lines.length; li++){
+                var line = lines[li];
+                var bestDisc = 0, bestPromo = null;
+                for(var pi=0; pi<activePromos.length; pi++){
+                    var p = activePromos[pi];
+                    if(p.promo_scope != 'item' && p.promo_scope != 'category') continue;
+                    if(sub < parseFloat(p.promo_min_bill || 0)) continue;
+                    var match = false;
+                    if(p.promo_scope == 'item' && parseInt(p.promo_target_id) === line.id) match = true;
+                    if(p.promo_scope == 'category' && p.item_ids && p.item_ids.indexOf(line.id) !== -1) match = true;
+                    if(!match) continue;
+                    var d = promoDiscountFor(p, line.total);
+                    if(d > bestDisc){ bestDisc = d; bestPromo = p; }
+                }
+                if(bestPromo){ record(bestPromo, bestDisc); }
+            }
+
+            // bill scope: single best applicable
+            var bBest = 0, bPromo = null;
+            for(var bi=0; bi<activePromos.length; bi++){
+                var bp = activePromos[bi];
+                if(bp.promo_scope != 'bill') continue;
+                if(sub < parseFloat(bp.promo_min_bill || 0)) continue;
+                var bd = promoDiscountFor(bp, sub);
+                if(bd > bBest){ bBest = bd; bPromo = bp; }
+            }
+            if(bPromo){ record(bPromo, bBest); }
+
+            // payment scope: applies if the matching payment method has been added
+            for(var yi=0; yi<activePromos.length; yi++){
+                var yp = activePromos[yi];
+                if(yp.promo_scope != 'payment') continue;
+                if(sub < parseFloat(yp.promo_min_bill || 0)) continue;
+                if(typeof addedPmIds === 'undefined' || addedPmIds.indexOf(parseInt(yp.promo_target_id)) === -1) continue;
+                record(yp, promoDiscountFor(yp, sub));
+            }
+
+            for(var k in applyMap){ if(applyMap.hasOwnProperty(k)) appliedPromosList.push(applyMap[k]); }
+            updatePromoUI();
+        }
+
+        function updatePromoUI(){
+            if(promoDiscount > 0){
+                $("#promo_discount_display").html(promoDiscount.toFixed(2));
+                $("#promo_summary_row").show();
+                var names = appliedPromosList.map(function(a){ return a.name; }).join(', ');
+                $("#promo_applied_names").text(names);
+                $("#promo_names_row").toggle(names.length > 0);
+            } else {
+                $("#promo_summary_row").hide();
+                $("#promo_names_row").hide();
+            }
+        }
+
+        // ===================== LOYALTY (Point 8) =====================
+        var loyaltyInfo = {enabled:0, points:0, redeem_value:1, min_redeem:0, max_redeem_pct:100};
+        var loyaltyRedeemPoints = 0;          // points the cashier asked to redeem
+        var loyaltyRedeemPointsEffective = 0;  // points actually consumed after capping
+        var loyaltyRedeemAmount = 0;           // currency value redeemed
+        var loyaltyEarnBase = 0;
+
+        function loadLoyaltyForCustomer(){
+            var cid = $('#customer-id').val();
+            $.ajax({
+                type: 'POST',
+                url: '<?php echo base_url("loyalty/customerInfo"); ?>',
+                data: {cus_id: cid},
+                dataType: 'json',
+                async: false,
+                success: function(res){
+                    loyaltyInfo = res;
+                    if(res.enabled == 1 && cid){
+                        $("#loyalty_available").text((res.points||0));
+                        $("#loyalty_available_value").text((res.points * res.redeem_value).toFixed(2));
+                        $("#loyalty_block").show();
+                    } else {
+                        $("#loyalty_block").hide();
+                    }
+                    // reset any previous redemption when customer changes
+                    clearLoyaltyRedeem();
+                },
+                error: function(){ $("#loyalty_block").hide(); }
+            });
+        }
+
+        function clearLoyaltyRedeem(){
+            loyaltyRedeemPoints = 0;
+            loyaltyRedeemPointsEffective = 0;
+            loyaltyRedeemAmount = 0;
+            $('#loyalty_redeem_points').val('');
+            $('#loyalty_hint').text('');
+            $('#loyalty_summary_row').hide();
+        }
+
+        function recalcLoyaltyRedeem(billBase){
+            if(loyaltyInfo.enabled != 1 || loyaltyRedeemPoints <= 0){
+                loyaltyRedeemAmount = 0;
+                loyaltyRedeemPointsEffective = 0;
+                $('#loyalty_summary_row').hide();
+                return;
+            }
+            var maxAmt = +(billBase * (loyaltyInfo.max_redeem_pct/100)).toFixed(2);
+            var amt = +(loyaltyRedeemPoints * loyaltyInfo.redeem_value).toFixed(2);
+            if(amt > maxAmt) amt = maxAmt;
+            if(amt < 0) amt = 0;
+            loyaltyRedeemAmount = amt;
+            loyaltyRedeemPointsEffective = loyaltyInfo.redeem_value > 0 ? +(amt / loyaltyInfo.redeem_value).toFixed(2) : 0;
+            $("#loyalty_redeem_display").html(amt.toFixed(2));
+            $('#loyalty_summary_row').toggle(amt > 0);
+        }
+
+        $('#btn_apply_loyalty').click(function(){
+            var pts = parseFloat($('#loyalty_redeem_points').val());
+            if(isNaN(pts) || pts <= 0){ swal({type:'error',title:'Oops...',text:'Enter points to redeem.'}); return; }
+            if(pts > (loyaltyInfo.points||0)){ swal({type:'error',title:'Oops...',text:'Customer does not have that many points.'}); return; }
+            if((loyaltyInfo.points||0) < loyaltyInfo.min_redeem){
+                swal({type:'error',title:'Oops...',text:'Minimum '+loyaltyInfo.min_redeem+' points required to redeem.'}); return;
+            }
+            loyaltyRedeemPoints = pts;
+            $('#loyalty_hint').text('Redeeming '+pts+' pts = LKR '+(pts*loyaltyInfo.redeem_value).toFixed(2)+' (capped to '+loyaltyInfo.max_redeem_pct+'% of bill)');
+            grandtotalCalculation();
+        });
+
+        $('#btn_clear_loyalty').click(function(){
+            clearLoyaltyRedeem();
+            grandtotalCalculation();
+        });
 
         // invoice Discount
         $( "#invoiceDis" ).keyup(function() {
@@ -1212,7 +1442,40 @@ var chequeHTML ='<div id="chequeDIV">'+
                                 console.log(err);
                             }
                         });
-                    } 
+                    }
+
+                    // ===== Loyalty accrual + redemption (Point 8) =====
+                    if (sale_ID > 0 && loyaltyInfo.enabled == 1 && cusID) {
+                        $.ajax({
+                            type: "Post",
+                            url: "<?php echo base_url('loyalty/processSale'); ?>",
+                            data: {
+                                sale_id: sale_ID,
+                                cus_id: cusID,
+                                grandtotal: loyaltyEarnBase,
+                                redeem_points: loyaltyRedeemPointsEffective,
+                                redeem_amount: loyaltyRedeemAmount
+                            },
+                            async: false,
+                            dataType: "json",
+                            success: function(res){ console.log('loyalty processed', res); },
+                            error: function(err){ console.log('loyalty error', err); }
+                        });
+                    }
+
+                    // ===== Record applied promotions (Point 9) =====
+                    if (sale_ID > 0 && appliedPromosList.length > 0) {
+                        $.ajax({
+                            type: "Post",
+                            url: "<?php echo base_url('promotions/recordSale'); ?>",
+                            data: { sale_id: sale_ID, applied: appliedPromosList },
+                            async: false,
+                            dataType: "json",
+                            success: function(res){ console.log('promotions recorded', res); },
+                            error: function(err){ console.log('promotion record error', err); }
+                        });
+                    }
+
                     // Process gift voucher redemptions
                     if (redeemedVouchers.length > 0 && sale_ID > 0) {
                         for (var rv = 0; rv < redeemedVouchers.length; rv++) {

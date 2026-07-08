@@ -103,6 +103,13 @@ $route['barcode-api/settings'] = 'BarcodeApi/settings_page';
 // Gate Pass
 $route['print-gate-pass/(:num)'] = 'production/printGatePass/$1';
 
+// Customer Loyalty (Point 8)
+$route['loyalty-settings'] = 'Loyalty/settings';
+$route['loyalty-report'] = 'Loyalty/report';
+
+// Promotions (Point 9)
+$route['promotions'] = 'Promotions/manage';
+
 
 
 
