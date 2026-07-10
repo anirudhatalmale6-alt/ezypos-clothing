@@ -237,6 +237,31 @@
                 </div><!-- End of Add Sales Form // href="javascript:window.print()" _blank//-->
 
                 <div class="col-lg-8 col-md-7 col-sm-12"><!--Start Table & row -->
+                    <!-- Gift Voucher Selling Section (moved above barcode scanner) -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card-box clearfix" style="border-left:3px solid #e65100;">
+                                <h5 class="header-title m-t-0 m-b-10"><i class="fa fa-gift" style="color:#e65100;"></i> Sell Gift Vouchers</h5>
+                                <div class="row">
+                                    <div class="col-5">
+                                        <select class="form-control" id="gv_category">
+                                            <option value="">Select Voucher Type</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="number" class="form-control" id="gv_qty" min="1" value="1" placeholder="Qty">
+                                    </div>
+                                    <div class="col-4">
+                                        <button type="button" class="btn btn-warning" id="btn_add_vouchers"><i class="fa fa-plus"></i> Add Vouchers</button>
+                                    </div>
+                                </div>
+                                <div id="gv_sell_rows" class="m-t-10"></div>
+                                <div id="gv_sell_total_row" style="display:none;padding:8px;background:#fff3e0;border-radius:4px;margin-top:8px;">
+                                    <strong>Voucher Total: LKR <span id="gv_sell_total">0.00</span></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="row">
                         <div class="col-12">
                             <div class="form-group row mb-2" style="background:#e8f5e9;padding:8px;border-radius:4px;">
@@ -322,32 +347,6 @@
                         </div>                 
                     </div>
                 </div> <!--End of  Table & row -->
-
-                    <!-- Gift Voucher Selling Section -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card-box clearfix" style="border-left:3px solid #e65100;">
-                                <h5 class="header-title m-t-0 m-b-10"><i class="fa fa-gift" style="color:#e65100;"></i> Sell Gift Vouchers</h5>
-                                <div class="row">
-                                    <div class="col-5">
-                                        <select class="form-control" id="gv_category">
-                                            <option value="">Select Voucher Type</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-3">
-                                        <input type="number" class="form-control" id="gv_qty" min="1" value="1" placeholder="Qty">
-                                    </div>
-                                    <div class="col-4">
-                                        <button type="button" class="btn btn-warning" id="btn_add_vouchers"><i class="fa fa-plus"></i> Add Vouchers</button>
-                                    </div>
-                                </div>
-                                <div id="gv_sell_rows" class="m-t-10"></div>
-                                <div id="gv_sell_total_row" style="display:none;padding:8px;background:#fff3e0;border-radius:4px;margin-top:8px;">
-                                    <strong>Voucher Total: LKR <span id="gv_sell_total">0.00</span></strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
             </div>
           </div>

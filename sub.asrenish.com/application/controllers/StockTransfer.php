@@ -7,6 +7,10 @@ class StockTransfer extends CI_Controller {
         if (!$this->session->userdata('username')) {
             redirect('login');
         }
+        // Block direct URL access unless admin or granted Stock Transfers permission
+        if ($this->session->userdata('userrole') != 1 && !$this->session->userdata('privStocktransfer')) {
+            show_404();
+        }
         $this->load->model('StockTransfer_model');
         $this->load->model('Stores_model');
         $this->load->model('Items_model');

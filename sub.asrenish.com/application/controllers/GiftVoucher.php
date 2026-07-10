@@ -10,9 +10,18 @@ class GiftVoucher extends CI_Controller {
         $this->load->model('Configs_model');
     }
 
+    // Admin or users granted the Gift Vouchers permission may open the management pages.
+    // (The sales-screen endpoints below are intentionally NOT gated so cashiers can still
+    //  sell/redeem vouchers during a sale.)
+    private function _canManage() {
+        return (isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1)
+            || (isset($_SESSION['privGiftvoucher']) && $_SESSION['privGiftvoucher'] == 1);
+    }
+
     // =========== MANAGEMENT PAGE ===========
 
     public function manage($page = 'gift-voucher-manage') {
+        if (!$this->_canManage()) { show_404(); }
         if (!file_exists(APPPATH . 'views/transactions/' . $page . '.php')) {
             show_404();
         }
@@ -254,6 +263,7 @@ class GiftVoucher extends CI_Controller {
     // =========== REPORTS ===========
 
     public function reports($page = 'gift-voucher-reports') {
+        if (!$this->_canManage()) { show_404(); }
         if (!file_exists(APPPATH . 'views/listing/' . $page . '.php')) {
             show_404();
         }

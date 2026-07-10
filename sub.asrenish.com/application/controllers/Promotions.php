@@ -18,8 +18,11 @@ class Promotions extends CI_Controller {
         $this->load->model('Sales_model');
     }
 
+    // Admin OR a user granted the Promotions permission may manage promotions.
+    // (active() and recordSale() are used by the sales screen and are intentionally left open.)
     private function _isAdmin() {
-        return isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1;
+        return (isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1)
+            || (isset($_SESSION['privPromotions']) && $_SESSION['privPromotions'] == 1);
     }
 
     public function manage() {

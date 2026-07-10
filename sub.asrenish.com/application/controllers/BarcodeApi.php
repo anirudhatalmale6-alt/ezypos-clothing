@@ -362,8 +362,8 @@ class BarcodeApi extends CI_Controller {
     // Generate/regenerate API key (admin only, session-authenticated)
     public function generate_key()
     {
-        if (!$this->session->userdata('username') || $this->session->userdata('userrole') != 1) {
-            $this->_sendJson(array('error' => 'Admin login required.'), 403);
+        if (!$this->session->userdata('username') || ($this->session->userdata('userrole') != 1 && !$this->session->userdata('privLabeljoy'))) {
+            $this->_sendJson(array('error' => 'Admin/permission required.'), 403);
         }
 
         $newKey = bin2hex(openssl_random_pseudo_bytes(24));
@@ -385,8 +385,8 @@ class BarcodeApi extends CI_Controller {
     // Get current API key (admin only, session-authenticated)
     public function get_key()
     {
-        if (!$this->session->userdata('username') || $this->session->userdata('userrole') != 1) {
-            $this->_sendJson(array('error' => 'Admin login required.'), 403);
+        if (!$this->session->userdata('username') || ($this->session->userdata('userrole') != 1 && !$this->session->userdata('privLabeljoy'))) {
+            $this->_sendJson(array('error' => 'Admin/permission required.'), 403);
         }
 
         $key = $this->Configs_model->fetch_config_value(null, 'labeljoy_api_key');
@@ -399,7 +399,7 @@ class BarcodeApi extends CI_Controller {
         if (!$this->session->userdata('username')) {
             redirect('login');
         }
-        if ($this->session->userdata('userrole') != 1) {
+        if ($this->session->userdata('userrole') != 1 && !$this->session->userdata('privLabeljoy')) {
             show_404();
         }
 

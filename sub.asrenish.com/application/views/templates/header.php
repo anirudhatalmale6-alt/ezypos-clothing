@@ -204,7 +204,14 @@
                             <li>
                                 <a href="<?php echo base_url()?>"><i class="zmdi zmdi-view-dashboard"></i> <span> Dashboard </span> </a>
                             </li> 
-                            <?php if(isset($_SESSION['privMasters'])){if($_SESSION['privMasters'] >= 1){  ?>         
+                            <?php
+                            $isAdmin = (isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1);
+                            $canPromotions = $isAdmin || (isset($_SESSION['privPromotions']) && $_SESSION['privPromotions']==1);
+                            $canLoyalty    = $isAdmin || (isset($_SESSION['privLoyalty']) && $_SESSION['privLoyalty']==1);
+                            $canLabeljoy   = $isAdmin || (isset($_SESSION['privLabeljoy']) && $_SESSION['privLabeljoy']==1);
+                            $showMasters = (isset($_SESSION['privMasters']) && $_SESSION['privMasters'] >= 1)
+                                || $isAdmin || $canPromotions || $canLoyalty || $canLabeljoy;
+                            if($showMasters){ ?>
                             <li class="has-submenu">
                                 <a href="#"><i class="zmdi zmdi-album"></i> <span> Masters </span> </a>
                                 <ul class="submenu">
@@ -238,16 +245,19 @@
                                     <?php  }}?>
                                     <li><a href="<?php echo base_url('payment-methods')?>"><i class="fa fa-credit-card"></i> Payment Methods</a></li>
                                     <li><a href="<?php echo base_url('delivery-companies')?>"><i class="fa fa-truck"></i> Delivery Companies</a></li>
-                                    <?php if(isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1){ ?>
+                                    <?php if($canPromotions || $canLoyalty || $canLabeljoy){ ?>
                                     <li class="divider"></li>
+                                    <?php } if($canPromotions){ ?>
                                     <li><a href="<?php echo base_url('promotions')?>"><i class="fa fa-tags"></i> Promotions</a></li>
+                                    <?php } if($canLoyalty){ ?>
                                     <li><a href="<?php echo base_url('loyalty-settings')?>"><i class="fa fa-star"></i> Customer Loyalty</a></li>
+                                    <?php } if($canLabeljoy){ ?>
                                     <li class="divider"></li>
                                     <li><a href="<?php echo base_url('barcode-api/settings')?>"><i class="fa fa-barcode"></i> LabelJoy API</a></li>
                                     <?php } ?>
                                 </ul>
                             </li>
-                            <?php }} ?>
+                            <?php } ?>
                             <?php if(isset($_SESSION['privUsers'])){if($_SESSION['privUsers'] >= 1){?>
                             <li class="has-submenu">
                                 <a href="#"><i class="zmdi zmdi-album"></i> <span>Users </span> </a>
@@ -259,12 +269,19 @@
                             </li>
                             <?php }} ?>
                             <?php
+                            // Per-module transaction privileges (admins always allowed)
+                            $canProduction    = $isAdmin || (isset($_SESSION['privProduction']) && $_SESSION['privProduction']==1);
+                            $canTailoring     = $isAdmin || (isset($_SESSION['privTailoring']) && $_SESSION['privTailoring']==1);
+                            $canGiftvoucher   = $isAdmin || (isset($_SESSION['privGiftvoucher']) && $_SESSION['privGiftvoucher']==1);
+                            $canReturns       = $isAdmin || (isset($_SESSION['privReturns']) && $_SESSION['privReturns']==1) || (isset($_SESSION['privExchanges']) && $_SESSION['privExchanges']==1);
+                            $canStocktransfer = $isAdmin || (isset($_SESSION['privStocktransfer']) && $_SESSION['privStocktransfer']==1);
                             // Show Transactions menu if user has at least one transaction privilege
                             $showTransactions = (
                                 (isset($_SESSION['privGrn']) && $_SESSION['privGrn'] == 1) ||
                                 (isset($_SESSION['privSales']) && $_SESSION['privSales'] == 1) ||
                                 (isset($_SESSION['privExpense']) && $_SESSION['privExpense'] == 1) ||
-                                (isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1)
+                                $isAdmin || $canProduction || $canTailoring ||
+                                $canGiftvoucher || $canReturns || $canStocktransfer
                             );
                             if($showTransactions): ?>
                             <li class="has-submenu">
@@ -277,22 +294,25 @@
                                     <?php }} if(isset($_SESSION['privExpense'])){if($_SESSION['privExpense'] == 1){  ?>
                                     <li><a href="<?php echo base_url('add-expense')?>">Expense</a></li>
                                     <?php }} ?>
-                                    <?php if(!isset($_SESSION['privProduction']) || $_SESSION['privProduction'] == 1){ ?>
+                                    <?php if($canProduction){ ?>
                                     <li><a href="<?php echo base_url('add-production')?>"><i class="fa fa-industry"></i> Production</a></li>
                                     <li><a href="<?php echo base_url('show-all-productions')?>"><i class="fa fa-list"></i> All Productions</a></li>
                                     <li class="divider"></li>
-                                    <?php } if(!isset($_SESSION['privTailoring']) || $_SESSION['privTailoring'] == 1){ ?>
+                                    <?php } if($canTailoring){ ?>
                                     <li><a href="<?php echo base_url('add-production-sale')?>"><i class="fa fa-scissors"></i> Tailoring Order</a></li>
                                     <li><a href="<?php echo base_url('all-production-sales')?>"><i class="fa fa-list"></i> All Tailoring Orders</a></li>
-                                    <?php } ?>
                                     <li class="divider"></li>
+                                    <?php } if($canGiftvoucher){ ?>
                                     <li><a href="<?php echo base_url('gift-vouchers')?>"><i class="fa fa-gift"></i> Gift Vouchers</a></li>
                                     <li><a href="<?php echo base_url('gift-voucher-reports')?>"><i class="fa fa-bar-chart"></i> Voucher Reports</a></li>
                                     <li class="divider"></li>
+                                    <?php } if($canReturns){ ?>
                                     <li><a href="<?php echo base_url('returns')?>"><i class="fa fa-undo"></i> Returns & Exchanges</a></li>
                                     <li><a href="<?php echo base_url('all-returns')?>"><i class="fa fa-list"></i> All Returns</a></li>
                                     <li class="divider"></li>
+                                    <?php } if($canStocktransfer){ ?>
                                     <li><a href="<?php echo base_url('stock-transfers')?>"><i class="fa fa-exchange"></i> Stock Transfers</a></li>
+                                    <?php } ?>
                                 </ul>
                             </li>
                             <?php endif; ?>

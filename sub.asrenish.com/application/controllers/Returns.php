@@ -7,6 +7,12 @@ class Returns extends CI_Controller {
         if (!$this->session->userdata('username')) {
             redirect('login');
         }
+        // Block direct URL access unless admin or granted Returns/Exchanges permission
+        if ($this->session->userdata('userrole') != 1
+            && !$this->session->userdata('privReturns')
+            && !$this->session->userdata('privExchanges')) {
+            show_404();
+        }
         $this->load->model('Returns_model');
         $this->load->model('Configs_model');
         $this->load->model('User_model');

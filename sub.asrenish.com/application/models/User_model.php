@@ -178,6 +178,22 @@ class User_model extends CI_Model {
         if(in_array('priv_production', $fields)) $data['priv_production'] = $production;
         if(in_array('priv_tailoring', $fields)) $data['priv_tailoring'] = $tailoring;
 
+        // Newer per-module privileges (add only if the column exists so pre-migration DBs don't break)
+        $extraPrivs = array(
+            'priv_giftvoucher'  => 'giftvoucher',
+            'priv_returns'      => 'returns',
+            'priv_exchanges'    => 'exchanges',
+            'priv_stocktransfer'=> 'stocktransfer',
+            'priv_loyalty'      => 'loyalty',
+            'priv_promotions'   => 'promotions',
+            'priv_labeljoy'     => 'labeljoy'
+        );
+        foreach($extraPrivs as $col => $postKey){
+            if(in_array($col, $fields)){
+                $data[$col] = isset($_POST[$postKey]) ? $this->input->post($postKey) : 0;
+            }
+        }
+
         return $this->db->insert('ezy_pos_privileges', $data);
         
     }
@@ -225,9 +241,9 @@ class User_model extends CI_Model {
     }
     public function editUsers($id){ //should edit for more pages
 
-        $str2 ="SELECT user_id,user_username,user_name,user_password,user_role,priv_item,priv_category,priv_customer,priv_supplier,priv_store,priv_staff,priv_tax,priv_grn,priv_sales,priv_expense,
-        priv_l_allGrn,priv_l_stock,priv_l_stockSupplierWise,priv_l_stockLog,priv_l_cheque,priv_re_stock,priv_re_stockLog,priv_re_salesReport,priv_re_monthlySalesReport,
-        priv_re_purchaseReport,priv_re_expenseReport,priv_re_todaySummary,priv_re_profitLossReport,priv_py_customerPayment,priv_py_supplierPayment,priv_bank
+        // Select everything so newer privilege columns (production, tailoring, giftvoucher,
+        // returns, exchanges, stocktransfer, loyalty, promotions, labeljoy) are always preloaded.
+        $str2 ="SELECT ezy_pos_users.*, ezy_pos_privileges.*
         FROM ezy_pos_users
         INNER JOIN ezy_pos_privileges ON ezy_pos_users.user_id = ezy_pos_privileges.priv_userid
         where user_id = '".$id."'";
@@ -382,6 +398,22 @@ class User_model extends CI_Model {
         $fields = $this->db->list_fields('ezy_pos_privileges');
         if(in_array('priv_production', $fields)) $updateData['priv_production'] = $production;
         if(in_array('priv_tailoring', $fields)) $updateData['priv_tailoring'] = $tailoring;
+
+        // Newer per-module privileges (edit form uses E_ prefixed checkbox names)
+        $extraPrivs = array(
+            'priv_giftvoucher'  => 'E_giftvoucher',
+            'priv_returns'      => 'E_returns',
+            'priv_exchanges'    => 'E_exchanges',
+            'priv_stocktransfer'=> 'E_stocktransfer',
+            'priv_loyalty'      => 'E_loyalty',
+            'priv_promotions'   => 'E_promotions',
+            'priv_labeljoy'     => 'E_labeljoy'
+        );
+        foreach($extraPrivs as $col => $postKey){
+            if(in_array($col, $fields)){
+                $updateData[$col] = isset($_POST[$postKey]) ? $this->input->post($postKey) : 0;
+            }
+        }
         // $updateData = array(            
         //     'priv_item' => $item,
         //     'priv_category' => $category,            

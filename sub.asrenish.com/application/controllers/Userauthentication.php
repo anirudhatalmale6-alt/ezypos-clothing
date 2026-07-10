@@ -102,8 +102,17 @@ class Userauthentication extends CI_Controller {
                 $py_supplierPayment=$user_info[0]['priv_py_supplierPayment'];
 
 
-                $production = isset($user_info[0]['priv_production']) ? $user_info[0]['priv_production'] : 1;
-                $tailoring = isset($user_info[0]['priv_tailoring']) ? $user_info[0]['priv_tailoring'] : 1;
+                // Per-module privileges. Default 0 => hidden unless explicitly granted
+                // (admins bypass this via userrole==1 checks in the menu/controllers).
+                $production    = isset($user_info[0]['priv_production'])    ? $user_info[0]['priv_production']    : 0;
+                $tailoring     = isset($user_info[0]['priv_tailoring'])     ? $user_info[0]['priv_tailoring']     : 0;
+                $giftvoucher   = isset($user_info[0]['priv_giftvoucher'])   ? $user_info[0]['priv_giftvoucher']   : 0;
+                $returns_p     = isset($user_info[0]['priv_returns'])       ? $user_info[0]['priv_returns']       : 0;
+                $exchanges_p   = isset($user_info[0]['priv_exchanges'])     ? $user_info[0]['priv_exchanges']     : 0;
+                $stocktransfer = isset($user_info[0]['priv_stocktransfer']) ? $user_info[0]['priv_stocktransfer'] : 0;
+                $loyalty_p     = isset($user_info[0]['priv_loyalty'])       ? $user_info[0]['priv_loyalty']       : 0;
+                $promotions_p  = isset($user_info[0]['priv_promotions'])    ? $user_info[0]['priv_promotions']    : 0;
+                $labeljoy_p    = isset($user_info[0]['priv_labeljoy'])      ? $user_info[0]['priv_labeljoy']      : 0;
 
                 $Master=$itm+$cat+$cus+$sup+$store+$staff+$tax+$expense_cat;
                 $User=$register;
@@ -143,7 +152,14 @@ class Userauthentication extends CI_Controller {
                     'privPy_supplierPayment'=>$py_supplierPayment,
                     'priv_bank'=>$bank,
                     'privProduction'=>$production,
-                    'privTailoring'=>$tailoring
+                    'privTailoring'=>$tailoring,
+                    'privGiftvoucher'=>$giftvoucher,
+                    'privReturns'=>$returns_p,
+                    'privExchanges'=>$exchanges_p,
+                    'privStocktransfer'=>$stocktransfer,
+                    'privLoyalty'=>$loyalty_p,
+                    'privPromotions'=>$promotions_p,
+                    'privLabeljoy'=>$labeljoy_p
                 );
                         
                 $this->session->set_userdata($session_data);

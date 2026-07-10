@@ -74,10 +74,18 @@
                         <div class="col-7">
                             <select class="form-control" id="ps_advance_method">
                                 <option value="Cash">Cash</option>
+                                <option value="Cheque">Cheque</option>
+                                <option value="Credit Card">Credit Card</option>
                                 <?php if(isset($paymentMethods)){ foreach($paymentMethods as $pm){ ?>
                                 <option value="<?php echo $pm->pm_name; ?>"><?php echo $pm->pm_name; ?></option>
                                 <?php }} ?>
                             </select>
+                        </div>
+                    </div>
+                    <div class="form-group row" id="advance_cardref_row" style="display:none;">
+                        <label class="col-5 col-form-label">Card No / Reference</label>
+                        <div class="col-7">
+                            <input type="text" class="form-control" id="ps_advance_cardref" placeholder="Enter card number / reference no">
                         </div>
                     </div>
                     <div class="form-group row">
@@ -277,8 +285,8 @@
                     </select>
                 </div>
                 <div class="form-group" id="ps_card_ref_group" style="display:none;">
-                    <label>Card Number / Reference</label>
-                    <input type="text" class="form-control" id="ps_card_ref" placeholder="Enter card number">
+                    <label>Card Number / Reference No</label>
+                    <input type="text" class="form-control" id="ps_card_ref" placeholder="Enter card number / reference no">
                 </div>
                 <div class="form-group">
                     <label>Payment Amount</label>
@@ -323,7 +331,17 @@ $(document).ready(function() {
     $('#ps_advance_payment').on('input change', function(){
         var amt = parseFloat($(this).val()) || 0;
         if(amt > 0) $('#advance_pm_row').show();
-        else $('#advance_pm_row').hide();
+        else { $('#advance_pm_row').hide(); $('#advance_cardref_row').hide(); }
+    });
+
+    // Advance payment: show card/reference field for any non-Cash method (same as Sales)
+    $('#ps_advance_method').change(function(){
+        if($(this).val() !== 'Cash'){
+            $('#advance_cardref_row').show();
+        } else {
+            $('#advance_cardref_row').hide();
+            $('#ps_advance_cardref').val('');
+        }
     });
 
     // Item autocomplete
@@ -370,6 +388,13 @@ $(document).ready(function() {
         if(!storeId || storeId == '0'){ alert('Please select a store'); return; }
         if(!deliveryDate){ alert('Please set a delivery date'); return; }
 
+        // If an advance payment is entered with a non-Cash method, require a reference (same as Sales)
+        var advAmtChk = parseFloat($('#ps_advance_payment').val()) || 0;
+        var advMethodChk = $('#ps_advance_method').val() || 'Cash';
+        if(advAmtChk > 0 && advMethodChk !== 'Cash' && !$('#ps_advance_cardref').val().trim()){
+            swal({type:'error', title:'Reference required', text:'Please enter the card number / reference for ' + advMethodChk}); return;
+        }
+
         $.ajax({
             type: 'POST',
             url: BASE_URL + 'ProductionSale/createOrder',
@@ -392,9 +417,10 @@ $(document).ready(function() {
                     var advAmt = parseFloat($('#ps_advance_payment').val()) || 0;
                     if(advAmt > 0){
                         var advMethod = $('#ps_advance_method').val() || 'Cash';
+                        var advRef = (advMethod !== 'Cash') ? $('#ps_advance_cardref').val().trim() : '';
                         $.ajax({
                             type: 'POST', url: BASE_URL + 'ProductionSale/addPayment',
-                            data: { prodsale_id: id, amount: advAmt, method: advMethod, card_ref: '' },
+                            data: { prodsale_id: id, amount: advAmt, method: advMethod, card_ref: advRef },
                             async: false, dataType: 'json'
                         });
                     }
@@ -498,12 +524,15 @@ $(document).ready(function() {
     });
 
     // Payment
-    // Show/hide card reference field based on payment method
+    // Show/hide card reference field based on payment method.
+    // Same rule as the Sales module: any non-Cash method (Card / Cheque /
+    // Reference / configured methods) requires a card number / reference.
     $('#ps_payment_method').change(function(){
-        if($(this).val() === 'Credit Card'){
+        if($(this).val() !== 'Cash'){
             $('#ps_card_ref_group').show();
         } else {
             $('#ps_card_ref_group').hide();
+            $('#ps_card_ref').val('');
         }
     });
 
@@ -593,8 +622,8 @@ $(document).ready(function() {
         var cardRef = $('#ps_card_ref').val().trim();
         var deliverAfter = $(this).data('deliver-after');
 
-        if(method === 'Credit Card' && !cardRef){
-            swal({type:'error', title:'Error', text:'Please enter the card number'}); return;
+        if(method !== 'Cash' && !cardRef){
+            swal({type:'error', title:'Error', text:'Please enter the card number / reference for ' + method}); return;
         }
 
         $.post(BASE_URL + 'ProductionSale/addPayment', { prodsale_id: currentPsId, amount: amt, method: method, card_ref: cardRef }, function(){

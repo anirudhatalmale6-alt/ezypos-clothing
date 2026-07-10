@@ -17,8 +17,11 @@ class Loyalty extends CI_Controller {
         $this->load->model('Customers_model');
     }
 
+    // Admin OR a user granted the Customer Loyalty permission may manage loyalty.
+    // (customerInfo() and processSale() are used by the sales screen and are left open.)
     private function _isAdmin() {
-        return isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1;
+        return (isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1)
+            || (isset($_SESSION['privLoyalty']) && $_SESSION['privLoyalty'] == 1);
     }
 
     /* ---------------- admin settings + report page ---------------- */

@@ -222,7 +222,50 @@
                                                     </label>
                                                     </div>
                                                 </td>
-                                                <td></td><td></td><td></td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="giftvoucher" name="giftvoucher" type="checkbox" value=1>
+                                                    <label for="giftvoucher">Gift Vouchers</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="returns" name="returns" type="checkbox" value=1>
+                                                    <label for="returns">Returns</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="exchanges" name="exchanges" type="checkbox" value=1>
+                                                    <label for="exchanges">Exchanges</label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="stocktransfer" name="stocktransfer" type="checkbox" value=1>
+                                                    <label for="stocktransfer">Stock Transfers</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="loyalty" name="loyalty" type="checkbox" value=1>
+                                                    <label for="loyalty">Customer Loyalty</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="promotions" name="promotions" type="checkbox" value=1>
+                                                    <label for="promotions">Promotions</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="labeljoy" name="labeljoy" type="checkbox" value=1>
+                                                    <label for="labeljoy">LabelJoy API</label>
+                                                    </div>
+                                                </td>
                                             </tr>
 											<tr>
                                                 <th><b><u> Listing </u></b></th>
@@ -609,7 +652,60 @@
                                                     </label>
                                                     </div>
                                                 </td>
-                                                <td></td><td></td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_giftvoucher" name="E_giftvoucher" type="checkbox"
+                                                    <?php echo (isset($user['priv_giftvoucher']) && $user['priv_giftvoucher']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_giftvoucher">Gift Vouchers</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_returns" name="E_returns" type="checkbox"
+                                                    <?php echo (isset($user['priv_returns']) && $user['priv_returns']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_returns">Returns</label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_exchanges" name="E_exchanges" type="checkbox"
+                                                    <?php echo (isset($user['priv_exchanges']) && $user['priv_exchanges']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_exchanges">Exchanges</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_stocktransfer" name="E_stocktransfer" type="checkbox"
+                                                    <?php echo (isset($user['priv_stocktransfer']) && $user['priv_stocktransfer']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_stocktransfer">Stock Transfers</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_loyalty" name="E_loyalty" type="checkbox"
+                                                    <?php echo (isset($user['priv_loyalty']) && $user['priv_loyalty']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_loyalty">Customer Loyalty</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_promotions" name="E_promotions" type="checkbox"
+                                                    <?php echo (isset($user['priv_promotions']) && $user['priv_promotions']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_promotions">Promotions</label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_labeljoy" name="E_labeljoy" type="checkbox"
+                                                    <?php echo (isset($user['priv_labeljoy']) && $user['priv_labeljoy']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_labeljoy">LabelJoy API</label>
+                                                    </div>
+                                                </td>
+                                                <td></td><td></td><td></td>
                                             </tr>
                                             <tr>
                                                 <th><b><u> Listing </u></b></th>
