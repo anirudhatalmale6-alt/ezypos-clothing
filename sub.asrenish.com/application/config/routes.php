@@ -32,9 +32,15 @@ $route['add-bankacc'] = 'banks/createbankGet/bank-account';
 $route['add-expense'] = 'expenses/addExpense/addexpense';
 $route['add-sale'] = 'sales/addSaleGET/addsale';
 $route['add-grn'] = 'grns/addGrnGET/addgrn';
-$route['add-production'] = 'production/addProductionGET/addproduction';
-$route['edit-production/(:num)'] = 'production/editProductionGET/$1';
-$route['show-all-productions'] = 'production/showAllProductions/All-Productions';
+// Production module - redesigned workflow (Item 4). Old Production controller
+// kept intact but no longer linked from the menu.
+$route['add-production'] = 'Manufacturing/index';
+$route['show-all-productions'] = 'Manufacturing/listAll';
+$route['mfg-gate-pass-print/(:num)'] = 'Manufacturing/printGatePass/$1';
+// legacy routes (old production module, still reachable directly if needed)
+$route['old-add-production'] = 'production/addProductionGET/addproduction';
+$route['old-edit-production/(:num)'] = 'production/editProductionGET/$1';
+$route['old-show-all-productions'] = 'production/showAllProductions/All-Productions';
 
 $route['subcat-view'] = 'categories/editSubCat/showsubcategories';
 
