@@ -42,6 +42,7 @@
         <strong>Production ID:</strong> <?php echo $p->p_code; ?>
         &nbsp;|&nbsp; <strong>Raw Material:</strong> <?php echo $p->raw_name; ?> (<?php echo $p->raw_code; ?>)
         &nbsp;|&nbsp; <strong>Qty:</strong> <?php echo number_format($p->p_raw_qty,2); ?> <?php echo $p->p_raw_uom; ?>
+        <?php if(!empty($p->tailor_name)): ?>&nbsp;|&nbsp; <strong>Tailor:</strong> <?php echo htmlspecialchars($p->tailor_name); ?><?php endif; ?>
         <table class="items">
             <thead>
                 <tr><th>#</th><th>Output Item</th><th>Material Used</th><th>Qty Produced</th></tr>

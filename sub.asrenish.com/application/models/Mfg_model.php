@@ -35,6 +35,20 @@ class Mfg_model extends CI_Model {
         return $this->db->get('ezy_pos_stores')->result();
     }
 
+    // Default warehouse for Production (auto-selected). Uses the first active
+    // warehouse (store_is_warehouse = 1). Production always consumes from this
+    // warehouse so the user never has to pick it manually.
+    public function getDefaultWarehouse() {
+        $fields = $this->db->list_fields('ezy_pos_stores');
+        $this->db->where('store_status', 1);
+        if (in_array('store_is_warehouse', $fields)) {
+            $this->db->where('store_is_warehouse', 1);
+        }
+        $this->db->order_by('store_id', 'asc');
+        $this->db->limit(1);
+        return $this->db->get('ezy_pos_stores')->row();
+    }
+
     // Raw materials = Fabric category (cat_is_raw = 1). Latest GRN cost + stock.
     public function getFabricItems() {
         $str = "SELECT i.itm_id, i.itm_code, i.itm_name, i.itm_uom, c.cat_name
@@ -108,6 +122,15 @@ class Mfg_model extends CI_Model {
         return $this->db->insert_id();
     }
 
+    // True if a gate pass with this code already exists (uniqueness check for
+    // the manually-entered gate pass number). Case-insensitive, trimmed.
+    public function gatePassCodeExists($code, $exclude_id = 0) {
+        $this->db->from('ezy_pos_mfg_gatepass');
+        $this->db->where('LOWER(TRIM(gp_code))', strtolower(trim($code)));
+        if ($exclude_id > 0) $this->db->where('gp_id !=', $exclude_id);
+        return $this->db->count_all_results() > 0;
+    }
+
     public function getGatePass($gp_id) {
         $str = "SELECT g.*, s.store_name
                 FROM ezy_pos_mfg_gatepass g
@@ -153,21 +176,28 @@ class Mfg_model extends CI_Model {
     }
 
     public function getProduction($p_id) {
+        // tailor name joined only if the p_tailor_id column exists
+        $hasTailor = in_array('p_tailor_id', $this->db->list_fields('ezy_pos_mfg_production'));
+        $tailorSel  = $hasTailor ? ", sup.sup_name AS tailor_name, p.p_tailor_id AS tailor_id" : "";
+        $tailorJoin = $hasTailor ? " LEFT JOIN ezy_pos_suppliers sup ON p.p_tailor_id = sup.sup_id" : "";
         $str = "SELECT p.*, g.gp_code, g.gp_status, g.gp_store_id,
                        i.itm_name AS raw_name, i.itm_code AS raw_code, i.itm_uom AS raw_uom_master,
-                       s.store_name
+                       s.store_name" . $tailorSel . "
                 FROM ezy_pos_mfg_production p
                 LEFT JOIN ezy_pos_mfg_gatepass g ON p.p_gp_id = g.gp_id
                 LEFT JOIN ezy_pos_items i ON p.p_raw_item_id = i.itm_id
-                LEFT JOIN ezy_pos_stores s ON p.p_store_id = s.store_id
+                LEFT JOIN ezy_pos_stores s ON p.p_store_id = s.store_id" . $tailorJoin . "
                 WHERE p.p_id = ?";
         return $this->db->query($str, array($p_id))->row();
     }
 
     public function getProductionsByGp($gp_id) {
-        $str = "SELECT p.*, i.itm_name AS raw_name, i.itm_code AS raw_code
+        $hasTailor = in_array('p_tailor_id', $this->db->list_fields('ezy_pos_mfg_production'));
+        $tailorSel  = $hasTailor ? ", sup.sup_name AS tailor_name" : "";
+        $tailorJoin = $hasTailor ? " LEFT JOIN ezy_pos_suppliers sup ON p.p_tailor_id = sup.sup_id" : "";
+        $str = "SELECT p.*, i.itm_name AS raw_name, i.itm_code AS raw_code" . $tailorSel . "
                 FROM ezy_pos_mfg_production p
-                LEFT JOIN ezy_pos_items i ON p.p_raw_item_id = i.itm_id
+                LEFT JOIN ezy_pos_items i ON p.p_raw_item_id = i.itm_id" . $tailorJoin . "
                 WHERE p.p_gp_id = ?
                 ORDER BY p.p_id";
         return $this->db->query($str, array($gp_id))->result();
@@ -253,6 +283,57 @@ class Mfg_model extends CI_Model {
         return $this->db->insert_id();
     }
 
+    /* ============================ payments ============================ */
+
+    // Same workflow as the Tailoring payment module: Cash / Cheque, multiple
+    // payments, running paid/balance and a full payment history.
+    public function paymentsReady() {
+        return $this->db->table_exists('ezy_pos_mfg_payment');
+    }
+
+    public function getPayments($p_id) {
+        $str = "SELECT mp.*, u.user_name AS created_by_name
+                FROM ezy_pos_mfg_payment mp
+                LEFT JOIN ezy_pos_users u ON mp.mp_created_by = u.user_id
+                WHERE mp.mp_p_id = ?
+                ORDER BY mp.mp_id DESC";
+        return $this->db->query($str, array($p_id))->result();
+    }
+
+    public function addPayment($p_id, $amount, $method = 'Cash', $ref = '', $by = 0) {
+        $this->db->insert('ezy_pos_mfg_payment', array(
+            'mp_p_id'       => $p_id,
+            'mp_amount'     => $amount,
+            'mp_method'     => $method ? $method : 'Cash',
+            'mp_ref'        => $ref,
+            'mp_created_by' => $by
+        ));
+        $this->syncPaidBalance($p_id);
+        return $this->db->insert_id();
+    }
+
+    public function deletePayment($mp_id) {
+        $row = $this->db->query("SELECT mp_p_id FROM ezy_pos_mfg_payment WHERE mp_id = ?", array($mp_id))->row();
+        $this->db->where('mp_id', $mp_id)->delete('ezy_pos_mfg_payment');
+        if ($row) $this->syncPaidBalance($row->mp_p_id);
+    }
+
+    // Recompute paid + balance from the ledger against the final bill.
+    public function syncPaidBalance($p_id) {
+        if (!$this->paymentsReady()) return;
+        $fields = $this->db->list_fields('ezy_pos_mfg_production');
+        if (!in_array('p_paid', $fields)) return;
+        $paidRow = $this->db->query("SELECT COALESCE(SUM(mp_amount),0) paid FROM ezy_pos_mfg_payment WHERE mp_p_id = ?", array($p_id))->row();
+        $paid = $paidRow ? floatval($paidRow->paid) : 0;
+        $prod = $this->db->query("SELECT p_final_bill FROM ezy_pos_mfg_production WHERE p_id = ?", array($p_id))->row();
+        $bill = $prod ? floatval($prod->p_final_bill) : 0;
+        $this->db->where('p_id', $p_id);
+        $this->db->update('ezy_pos_mfg_production', array(
+            'p_paid'    => round($paid, 2),
+            'p_balance' => round($bill - $paid, 2)
+        ));
+    }
+
     /**
      * Recalculate a production's derived totals from its outputs & charges.
      * - material cost per output = material used x latest GRN cost per UOM
@@ -305,5 +386,7 @@ class Mfg_model extends CI_Model {
             'p_final_bill'    => round($finalBill, 2),
             'p_remaining_raw' => round($remaining, 2)
         ));
+        // Keep paid/balance snapshot in sync now that the final bill changed
+        $this->syncPaidBalance($p_id);
     }
 }

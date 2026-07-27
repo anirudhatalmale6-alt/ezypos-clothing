@@ -36,6 +36,8 @@ $route['add-grn'] = 'grns/addGrnGET/addgrn';
 // kept intact but no longer linked from the menu.
 $route['add-production'] = 'Manufacturing/index';
 $route['show-all-productions'] = 'Manufacturing/listAll';
+$route['mfg-edit/(:num)'] = 'Manufacturing/edit/$1';
+$route['mfg-payments/(:num)'] = 'Manufacturing/payments/$1';
 $route['mfg-gate-pass-print/(:num)'] = 'Manufacturing/printGatePass/$1';
 // legacy routes (old production module, still reachable directly if needed)
 $route['old-add-production'] = 'production/addProductionGET/addproduction';
@@ -74,6 +76,8 @@ $route['payment-methods-report'] = 'reports/payment_methods_report/payment-metho
 $route['add-production-sale'] = 'ProductionSale/addProductionSale/addproductionsale';
 $route['edit-production-sale/(:num)'] = 'ProductionSale/editProductionSale/$1';
 $route['all-production-sales'] = 'ProductionSale/allProductionSales/allproductionsales';
+$route['tailoring-estimate/(:num)'] = 'ProductionSale/print_estimate/$1';
+$route['tailoring-final/(:num)'] = 'ProductionSale/print_final/$1';
 
 // Delivery Companies
 $route['delivery-companies'] = 'DeliveryCompany/manage';

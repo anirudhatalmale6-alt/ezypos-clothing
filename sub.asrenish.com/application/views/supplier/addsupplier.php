@@ -36,8 +36,17 @@
                                 <div class="form-group row">
                                     <label for="balanceid" class="col-3 col-form-label">Balance</label>
                                     <div class="col-9">
-                                        <input class="form-control DecimalFix" type="text" placeholder="Enter Balance 0.00" 
+                                        <input class="form-control DecimalFix" type="text" placeholder="Enter Balance 0.00"
                                         name="balance" id="balanceid" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$">
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <label class="col-3 col-form-label">Is Tailor</label>
+                                    <div class="col-9">
+                                        <div class="checkbox">
+                                            <input type="checkbox" name="is_tailor" id="is_tailor" value="1">
+                                            <label for="is_tailor">&nbsp;This supplier is a Tailor (available in Tailor selection lists)</label>
+                                        </div>
                                     </div>
                                 </div>
                                 <button type="submit" id="add" class="btn btn-primary waves-effect">Add</button>
@@ -60,6 +69,7 @@
                                     <th>Address</th>
                                     <th>Contact</th>
                                     <th>Balance</th>
+                                    <th>Tailor</th>
                                     <th>Actions</th>
                                 </tr>
                                 </thead>
@@ -110,6 +120,15 @@
                                     <div class="col-9">
                                         <input class="form-control DecimalFix" type="text" placeholder="Enter Balance 0.00" readonly
                                         name="edit_balance" id="edit_balanceid" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$">
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <label class="col-3 col-form-label">Is Tailor</label>
+                                    <div class="col-9">
+                                        <div class="checkbox">
+                                            <input type="checkbox" name="edit_is_tailor" id="edit_is_tailor" value="1">
+                                            <label for="edit_is_tailor">&nbsp;This supplier is a Tailor</label>
+                                        </div>
                                     </div>
                                 </div>
                     </div>
@@ -170,6 +189,7 @@
                                     '<td>'+data[i].sup_address+'</td>'+
                                     '<td>'+data[i].sup_contact+'</td>'+
                                     '<td>'+data[i].sup_balance+'</td>'+
+                                    '<td>'+(data[i].sup_is_tailor==1?'<span class="badge badge-success">Tailor</span>':'')+'</td>'+
                                     '<td>'+
                                     '<a href="javascript:;" style="margin-right:10px;" class="btn btn-sm btn-info sup-edit" data="'+data[i].sup_id+'"><i class="fa fa-edit"></i></a>'+
                                     '<a href="javascript:;" class="btn btn-sm btn-danger sup-delete" data="'+data[i].sup_id+'"><i class="fa fa-times-rectangle-o"></i></a>'+
@@ -202,6 +222,7 @@
                             $('input[name=edit_contact]').val(data.sup_contact);
                             $('input[name=edit_balance]').val(data.sup_balance);
                             $('input[name=hiddenID]').val(data.sup_id);
+                            $('#edit_is_tailor').prop('checked', (data.sup_is_tailor == 1));
                         },
                         error: function() {
                             alert("There was an error. Try again please!");

@@ -16,20 +16,24 @@
                   <th>Warehouse</th>
                   <th>Raw Material</th>
                   <th>Final Bill</th>
+                  <th>Balance</th>
                   <th>Status</th>
                   <th>Created By</th>
                   <th>Date</th>
-                  <th>Gate Pass</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <?php if($productions): foreach($productions as $p): ?>
+                <?php $canEdit = in_array($p->gp_status, array('Draft','Ready for Dispatch'));
+                      $bal = isset($p->p_balance) ? $p->p_balance : $p->p_final_bill; ?>
                 <tr>
                   <td><?php echo $p->p_code; ?></td>
                   <td><?php echo $p->gp_code; ?></td>
                   <td><?php echo $p->store_name; ?></td>
                   <td><?php echo $p->raw_name; ?> (<?php echo number_format($p->p_raw_qty,2); ?> <?php echo $p->p_raw_uom; ?>)</td>
                   <td><?php echo number_format($p->p_final_bill,2); ?></td>
+                  <td class="<?php echo ($bal>0)?'text-danger':'text-success'; ?>"><?php echo number_format($bal,2); ?></td>
                   <td><?php
                       $cls='secondary';
                       if($p->p_status=='Dispatched') $cls='primary';
@@ -38,10 +42,18 @@
                       ?><span class="badge badge-<?php echo $cls; ?>"><?php echo $p->p_status; ?></span></td>
                   <td><?php echo $p->created_by_name; ?></td>
                   <td><?php echo $p->p_createdat; ?></td>
-                  <td><a href="<?php echo base_url('mfg-gate-pass-print/'.$p->p_gp_id); ?>" target="_blank" class="btn btn-sm btn-outline-dark"><i class="fa fa-print"></i></a></td>
+                  <td style="white-space:nowrap;">
+                    <?php if($canEdit): ?>
+                    <a href="<?php echo base_url('mfg-edit/'.$p->p_id); ?>" class="btn btn-sm btn-outline-primary" title="Edit Production"><i class="fa fa-edit"></i></a>
+                    <?php else: ?>
+                    <a href="<?php echo base_url('mfg-edit/'.$p->p_id); ?>" class="btn btn-sm btn-outline-secondary" title="View Production"><i class="fa fa-eye"></i></a>
+                    <?php endif; ?>
+                    <a href="<?php echo base_url('mfg-payments/'.$p->p_id); ?>" class="btn btn-sm btn-outline-success" title="Manage Payments"><i class="fa fa-money"></i></a>
+                    <a href="<?php echo base_url('mfg-gate-pass-print/'.$p->p_gp_id); ?>" target="_blank" class="btn btn-sm btn-outline-dark" title="Print Gate Pass"><i class="fa fa-print"></i></a>
+                  </td>
                 </tr>
                 <?php endforeach; else: ?>
-                <tr><td colspan="9" class="text-center text-muted">No productions yet.</td></tr>
+                <tr><td colspan="10" class="text-center text-muted">No productions yet.</td></tr>
                 <?php endif; ?>
               </tbody>
             </table>

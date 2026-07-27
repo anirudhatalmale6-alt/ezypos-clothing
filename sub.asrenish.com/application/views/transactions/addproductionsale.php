@@ -132,6 +132,28 @@
                         <span id="ps_status_badge" class="badge badge-info" style="font-size:14px;">Pending</span>
                     </div>
                 </div>
+                <!-- Tailor assignment (assigned LATER, during processing) -->
+                <div id="ps_tailor_section" style="display:none;">
+                    <div class="form-group row">
+                        <label class="col-5 col-form-label"><strong>Tailor:</strong></label>
+                        <div class="col-7">
+                            <div class="input-group">
+                                <select class="form-control" id="ps_tailor">
+                                    <option value="">-- Select Tailor --</option>
+                                    <?php if(!empty($tailors)){ foreach($tailors as $t){ ?>
+                                    <option value="<?php echo $t->sup_id; ?>"><?php echo htmlspecialchars($t->sup_name); ?></option>
+                                    <?php }} ?>
+                                </select>
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-primary" id="btn_assign_tailor" type="button"><i class="fa fa-check"></i></button>
+                                </div>
+                            </div>
+                            <?php if(empty($tailors)): ?>
+                            <small class="text-muted">No tailors yet. Mark a Supplier as "Is Tailor" first.</small>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
                 <!-- Action Buttons -->
                 <div id="ps_create_btn">
                     <button class="btn btn-success btn-block" id="btn_create_ps" <?php echo (isset($editPsId) && $editPsId) ? 'style="display:none;"' : ''; ?>>
@@ -169,6 +191,18 @@
                             <button class="btn btn-sm btn-block" style="background:#e0e0e0;" id="btn_ps_payment">
                                 <i class="fa fa-money"></i> Add Payment
                             </button>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <div class="col-6">
+                            <a class="btn btn-outline-secondary btn-block btn-sm" id="btn_print_estimate" target="_blank" href="#">
+                                <i class="fa fa-print"></i> Estimate Bill
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a class="btn btn-outline-dark btn-block btn-sm" id="btn_print_final" target="_blank" href="#">
+                                <i class="fa fa-print"></i> Final Bill
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -426,10 +460,13 @@ $(document).ready(function() {
                     }
                     $('#ps_code, #ps_store, #ps_pickup_store, #ps_customer_search, #ps_date, #ps_delivery_date, #ps_tailoring_charge, #ps_notes, #ps_advance_payment, #ps_advance_method').prop('disabled', true);
                     $('#ps_create_btn, #advance_payment_row, #advance_pm_row').hide();
-                    $('#ps_items_section, #ps_services_section, #ps_status_section, #ps_status_buttons').show();
+                    $('#ps_items_section, #ps_services_section, #ps_status_section, #ps_status_buttons, #ps_tailor_section').show();
+                    setPrintLinks();
                     refreshPsOrder();
-                    var msg = advAmt > 0 ? 'Order created with advance payment of LKR ' + advAmt.toFixed(2) + '. Now add materials and services.' : 'Now add materials and services.';
+                    var msg = advAmt > 0 ? 'Order created with advance payment of LKR ' + advAmt.toFixed(2) + '. Estimate bill is opening in a new tab.' : 'Order created. Estimate bill is opening in a new tab.';
                     swal({type:'success', title:'Order Created!', text: msg});
+                    // Print the estimate bill immediately after creation + advance
+                    window.open(BASE_URL + 'tailoring-estimate/' + currentPsId, '_blank');
                 }
             }
         });
@@ -505,6 +542,17 @@ $(document).ready(function() {
             swal({type:'info', title:'Status Updated', text:'Order is now: ' + label});
         });
     }
+    // Assign / change the tailor (later, during processing)
+    $('#btn_assign_tailor').click(function(){
+        var tid = $('#ps_tailor').val();
+        if(!tid){ swal({type:'error', title:'Select tailor', text:'Please choose a tailor first.'}); return; }
+        $.post(BASE_URL + 'ProductionSale/assignTailor', { prodsale_id: currentPsId, tailor_id: tid }, function(res){
+            var r = (typeof res === 'string') ? JSON.parse(res) : res;
+            if(r.success){ swal({type:'success', title:'Tailor assigned', timer:1200, showConfirmButton:false}); }
+            else { swal({type:'error', title:'Error', text:r.msg || 'Failed'}); }
+        });
+    });
+
     $('#btn_ps_cutting').click(function(){ updatePsStatus('Cutting', 'warning', 'Cutting'); });
     $('#btn_ps_stitching').click(function(){ updatePsStatus('Stitching', 'info', 'Stitching'); });
     $('#btn_ps_ready').click(function(){ updatePsStatus('Ready', 'primary', 'Ready for Pickup'); });
@@ -600,7 +648,9 @@ $(document).ready(function() {
             else if(st === 'Ready') stClass = 'primary';
             else if(st === 'Delivered') stClass = 'success';
             $('#ps_status_badge').text(st).removeClass().addClass('badge badge-'+stClass).css('font-size','14px');
-            $('#ps_items_section, #ps_services_section, #ps_status_section').show();
+            $('#ps_items_section, #ps_services_section, #ps_status_section, #ps_tailor_section').show();
+            if(o.prodsale_tailor_id) $('#ps_tailor').val(o.prodsale_tailor_id);
+            setPrintLinks();
             if(st === 'Delivered'){
                 $('#ps_date, #ps_delivery_date, #ps_pickup_store, #ps_tailoring_charge, #ps_notes').prop('disabled', true);
                 $('#ps_status_buttons, #btn_update_ps').hide();
@@ -706,6 +756,12 @@ function loadPsServices(){
             }
         });
     });
+}
+
+function setPrintLinks(){
+    if(!currentPsId) return;
+    $('#btn_print_estimate').attr('href', BASE_URL + 'tailoring-estimate/' + currentPsId);
+    $('#btn_print_final').attr('href', BASE_URL + 'tailoring-final/' + currentPsId);
 }
 
 function refreshPsOrder(){

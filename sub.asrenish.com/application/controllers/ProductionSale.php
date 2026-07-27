@@ -15,6 +15,7 @@ class ProductionSale extends CI_Controller {
         $this->load->model('Customers_model');
         $this->load->model('Items_model');
         $this->load->model('Sales_model');
+        $this->load->model('Suppliers_model');
     }
 
     public function addProductionSale($page = 'index')
@@ -32,6 +33,7 @@ class ProductionSale extends CI_Controller {
         $data['items'] = $this->ProductionSale_model->getAllActiveItems();
         $data['nextCode'] = $this->ProductionSale_model->getNextCode();
         $data['paymentMethods'] = $this->Sales_model->getActivePaymentMethods();
+        $data['tailors'] = $this->Suppliers_model->getTailors();
 
         $this->load->view('templates/header', $data);
         $this->load->view('transactions/' . $page, $data);
@@ -50,6 +52,7 @@ class ProductionSale extends CI_Controller {
         $data['items'] = $this->ProductionSale_model->getAllActiveItems();
         $data['nextCode'] = '';
         $data['paymentMethods'] = $this->Sales_model->getActivePaymentMethods();
+        $data['tailors'] = $this->Suppliers_model->getTailors();
         $data['editPsId'] = intval($prodsale_id);
 
         $this->load->view('templates/header', $data);
@@ -214,6 +217,20 @@ class ProductionSale extends CI_Controller {
         echo json_encode(true);
     }
 
+    // Assign a Tailor to an order (done LATER during processing, not at creation)
+    public function assignTailor()
+    {
+        $id = intval($this->input->post('prodsale_id'));
+        $tailor_id = intval($this->input->post('tailor_id'));
+        if (!in_array('prodsale_tailor_id', $this->db->list_fields('ezy_pos_prodsale'))) {
+            echo json_encode(array('success' => false, 'msg' => 'Run the tailor_batch_b.sql migration to enable tailor assignment.'));
+            return;
+        }
+        $this->db->where('prodsale_id', $id);
+        $this->db->update('ezy_pos_prodsale', array('prodsale_tailor_id' => $tailor_id));
+        echo json_encode(array('success' => true));
+    }
+
     public function getItemPrice()
     {
         $itemId = $this->input->post('item_id');
@@ -246,14 +263,33 @@ class ProductionSale extends CI_Controller {
         echo json_encode($result);
     }
 
-    // Print invoice
+    // Print invoice (kept for backward compatibility -> Final Bill)
     public function print_inv($id = 0)
     {
+        $this->print_final($id);
+    }
+
+    // Estimate Bill: printed immediately after order creation + advance payment.
+    public function print_estimate($id = 0)
+    {
         if ($id == 0) { $id = $this->uri->segment(3); }
-        $data['order'] = $this->ProductionSale_model->getOrderDetails($id);
-        $data['items'] = $this->ProductionSale_model->getItems($id);
+        $data['order']    = $this->ProductionSale_model->getOrderDetails($id);
+        $data['items']    = $this->ProductionSale_model->getItems($id);
         $data['services'] = $this->ProductionSale_model->getServices($id);
-        $data['config'] = $this->Configs_model->getConfigName();
-        $this->load->view('transactions/prodsale_invoice', $data);
+        $data['payments'] = $this->ProductionSale_model->getPayments($id);
+        $data['config']   = $this->Configs_model->getConfigName();
+        $this->load->view('transactions/prodsale_estimate', $data);
+    }
+
+    // Final Bill: printed when the order is completed / delivered.
+    public function print_final($id = 0)
+    {
+        if ($id == 0) { $id = $this->uri->segment(3); }
+        $data['order']    = $this->ProductionSale_model->getOrderDetails($id);
+        $data['items']    = $this->ProductionSale_model->getItems($id);
+        $data['services'] = $this->ProductionSale_model->getServices($id);
+        $data['payments'] = $this->ProductionSale_model->getPayments($id);
+        $data['config']   = $this->Configs_model->getConfigName();
+        $this->load->view('transactions/prodsale_final', $data);
     }
 }

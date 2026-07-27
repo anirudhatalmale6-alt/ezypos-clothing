@@ -188,6 +188,8 @@ function loadAllProdSales(){
                         '<td>'+payCell+'</td>'+
                         '<td><a href="'+BASE_URL+'edit-production-sale/'+d.prodsale_id+'" class="btn btn-xs btn-info" title="View/Edit"><i class="fa fa-eye"></i></a>'+
                         (d.prodsale_status !== 'Delivered' ? ' <a href="'+BASE_URL+'edit-production-sale/'+d.prodsale_id+'" class="btn btn-xs btn-primary" title="Edit"><i class="fa fa-pencil"></i></a>' : '')+
+                        ' <a href="'+BASE_URL+'tailoring-estimate/'+d.prodsale_id+'" target="_blank" class="btn btn-xs btn-secondary" title="Estimate Bill"><i class="fa fa-file-text-o"></i></a>'+
+                        ' <a href="'+BASE_URL+'tailoring-final/'+d.prodsale_id+'" target="_blank" class="btn btn-xs btn-dark" title="Final Bill"><i class="fa fa-print"></i></a>'+
                         '</td>'+
                         '</tr>';
                 }

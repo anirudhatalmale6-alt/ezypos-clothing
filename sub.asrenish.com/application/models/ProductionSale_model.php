@@ -65,13 +65,26 @@ class ProductionSale_model extends CI_Model {
 
     public function getOrderDetails($prodsale_id)
     {
-        $str = "SELECT p.*, c.cus_name, st.store_name
+        // include tailor + customer contact if the columns exist
+        $hasTailor = in_array('prodsale_tailor_id', $this->db->list_fields('ezy_pos_prodsale'));
+        $tailorSel  = $hasTailor ? ", sup.sup_name AS tailor_name" : "";
+        $tailorJoin = $hasTailor ? " LEFT JOIN ezy_pos_suppliers sup ON sup.sup_id = p.prodsale_tailor_id" : "";
+        $str = "SELECT p.*, c.cus_name, c.cus_contact, c.cus_address, st.store_name" . $tailorSel . "
                 FROM ezy_pos_prodsale p
                 LEFT JOIN ezy_pos_customers c ON c.cus_id = p.prodsale_cus_id
-                LEFT JOIN ezy_pos_stores st ON st.store_id = p.prodsale_store_id
+                LEFT JOIN ezy_pos_stores st ON st.store_id = p.prodsale_store_id" . $tailorJoin . "
                 WHERE p.prodsale_id = '" . intval($prodsale_id) . "'";
         $q = $this->db->query($str);
         return $q->row();
+    }
+
+    // Payment history for an order (for the estimate / final bill printouts)
+    public function getPayments($prodsale_id)
+    {
+        if (!$this->db->table_exists('ezy_pos_prodsale_payments')) return array();
+        $this->db->where('psp_prodsale_id', $prodsale_id);
+        $this->db->order_by('psp_id', 'asc');
+        return $this->db->get('ezy_pos_prodsale_payments')->result();
     }
 
     public function getItemById($id)

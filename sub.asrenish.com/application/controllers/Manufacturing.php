@@ -24,6 +24,7 @@ class Manufacturing extends CI_Controller {
         $this->load->model('Mfg_model');
         $this->load->model('Configs_model');
         $this->load->model('Stores_model');
+        $this->load->model('Suppliers_model');
         $this->load->model('CurQtyWithGrn_model');
     }
 
@@ -31,22 +32,31 @@ class Manufacturing extends CI_Controller {
 
     /* ============================ pages ============================ */
 
-    public function index() {
+    // $open_prod > 0 opens straight into that production for editing
+    // (the "Edit Production" action from the All Productions list).
+    public function index($open_prod = 0) {
         $data1['title']  = 'Production';
         $data1['config'] = $this->Configs_model->getConfigName();
         $data = array(
-            'ready'         => $this->Mfg_model->ready(),
-            'warehouses'    => $this->Mfg_model->getWarehouses(),
-            'fabrics'       => $this->Mfg_model->getFabricItems(),
-            'finishedItems' => $this->Mfg_model->getFinishedItems(),
-            'nextGp'        => $this->Mfg_model->ready() ? $this->Mfg_model->getNextGpCode() : 'GP-00001',
-            'nextProd'      => $this->Mfg_model->ready() ? $this->Mfg_model->getNextProdCode() : 'PRD-00001'
+            'ready'            => $this->Mfg_model->ready(),
+            'warehouses'       => $this->Mfg_model->getWarehouses(),
+            'defaultWarehouse' => $this->Mfg_model->ready() ? $this->Mfg_model->getDefaultWarehouse() : null,
+            'fabrics'          => $this->Mfg_model->getFabricItems(),
+            'finishedItems'    => $this->Mfg_model->getFinishedItems(),
+            'tailors'          => $this->Suppliers_model->getTailors(),
+            'nextProd'         => $this->Mfg_model->ready() ? $this->Mfg_model->getNextProdCode() : 'PRD-00001',
+            'openProd'         => intval($open_prod)
         );
         $this->load->view('templates/header', $data1);
         $this->load->view('transactions/manufacturing', $data);
         $this->load->view('templates/footer');
         $this->load->view('templates/rightslidebar');
         $this->load->view('templates/footerscripts');
+    }
+
+    // "Edit Production" from the list - opens the build screen on that production.
+    public function edit($p_id = 0) {
+        $this->index(intval($p_id));
     }
 
     public function listAll() {
@@ -70,9 +80,23 @@ class Manufacturing extends CI_Controller {
     }
 
     public function createGatePass() {
+        // Gate pass number is entered MANUALLY (no auto-generation). Validate
+        // it is present and unique before creating.
+        $code = trim($this->input->post('gp_code'));
+        if ($code === '') { echo json_encode(array('success' => false, 'msg' => 'Please enter a Gate Pass number.')); return; }
+        if ($this->Mfg_model->gatePassCodeExists($code)) {
+            echo json_encode(array('success' => false, 'msg' => 'Gate Pass number "'.$code.'" already exists. Please enter a unique number.'));
+            return;
+        }
+
+        // Production always uses the configured default warehouse (auto-selected).
         $store_id = intval($this->input->post('store_id'));
-        if ($store_id <= 0) { echo json_encode(array('success' => false, 'msg' => 'Select a warehouse')); return; }
-        $code = $this->Mfg_model->getNextGpCode();
+        if ($store_id <= 0) {
+            $wh = $this->Mfg_model->getDefaultWarehouse();
+            if (!$wh) { echo json_encode(array('success' => false, 'msg' => 'No warehouse configured. Please mark a store as Warehouse first.')); return; }
+            $store_id = intval($wh->store_id);
+        }
+
         $gp_id = $this->Mfg_model->createGatePass(array(
             'gp_code'      => $code,
             'gp_store_id'  => $store_id,
@@ -151,6 +175,10 @@ class Manufacturing extends CI_Controller {
             'p_raw_grn_cost'=> $grn_cost,
             'p_notes'       => $notes
         );
+        // Tailor (Supplier where Is Tailor = 1) - store only if the column exists
+        if (in_array('p_tailor_id', $this->db->list_fields('ezy_pos_mfg_production'))) {
+            $header['p_tailor_id'] = intval($this->input->post('tailor_id'));
+        }
 
         if ($p_id > 0) {
             $existing = $this->Mfg_model->getProduction($p_id);
@@ -398,6 +426,62 @@ class Manufacturing extends CI_Controller {
             'approvedBy' => $gp->gp_approved_by
         );
         $this->load->view('transactions/mfg_gate_pass_print', $data);
+    }
+
+    /* ============================ payments ============================ */
+
+    // Manage Payments page for a production (same flow as the Tailoring module:
+    // Cash / Cheque, multiple payments, history, outstanding balance).
+    public function payments($p_id = 0) {
+        $prod = $this->Mfg_model->getProduction($p_id);
+        if (!$prod) { show_404(); return; }
+        $data1['title']  = 'Production Payments';
+        $data1['config'] = $this->Configs_model->getConfigName();
+        $data = array(
+            'prod'     => $prod,
+            'payments' => $this->Mfg_model->paymentsReady() ? $this->Mfg_model->getPayments($p_id) : array(),
+            'ready'    => $this->Mfg_model->paymentsReady()
+        );
+        $this->load->view('templates/header', $data1);
+        $this->load->view('transactions/mfg_payments', $data);
+        $this->load->view('templates/footer');
+        $this->load->view('templates/rightslidebar');
+        $this->load->view('templates/footerscripts');
+    }
+
+    public function getPayments($p_id = 0) {
+        if (!$this->Mfg_model->paymentsReady()) { echo json_encode(array('success' => false, 'msg' => 'Run the production_batch_a.sql migration to enable payments.')); return; }
+        $prod = $this->Mfg_model->getProduction($p_id);
+        if (!$prod) { echo json_encode(array('success' => false)); return; }
+        echo json_encode(array(
+            'success'  => true,
+            'final'    => floatval($prod->p_final_bill),
+            'paid'     => isset($prod->p_paid) ? floatval($prod->p_paid) : 0,
+            'balance'  => isset($prod->p_balance) ? floatval($prod->p_balance) : floatval($prod->p_final_bill),
+            'payments' => $this->Mfg_model->getPayments($p_id)
+        ));
+    }
+
+    public function addPayment() {
+        if (!$this->Mfg_model->paymentsReady()) { echo json_encode(array('success' => false, 'msg' => 'Run the production_batch_a.sql migration to enable payments.')); return; }
+        $p_id   = intval($this->input->post('p_id'));
+        $amount = floatval($this->input->post('amount'));
+        $method = $this->input->post('method');
+        $ref    = $this->input->post('ref');
+        $prod = $this->Mfg_model->getProduction($p_id);
+        if (!$prod) { echo json_encode(array('success' => false, 'msg' => 'Production not found')); return; }
+        if ($amount <= 0) { echo json_encode(array('success' => false, 'msg' => 'Enter a payment amount greater than zero.')); return; }
+        if ($method === 'Cheque' && trim($ref) === '') { echo json_encode(array('success' => false, 'msg' => 'Enter the cheque number / reference.')); return; }
+        $this->Mfg_model->addPayment($p_id, $amount, $method, $ref, $this->_uid());
+        $prod = $this->Mfg_model->getProduction($p_id);
+        echo json_encode(array('success' => true, 'paid' => floatval($prod->p_paid), 'balance' => floatval($prod->p_balance)));
+    }
+
+    public function deletePayment() {
+        if (!$this->Mfg_model->paymentsReady()) { echo json_encode(array('success' => false)); return; }
+        $mp_id = intval($this->input->post('mp_id'));
+        $this->Mfg_model->deletePayment($mp_id);
+        echo json_encode(array('success' => true));
     }
 
     /* ============================ stock helpers ============================ */

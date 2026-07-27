@@ -27,20 +27,22 @@
                   <label>Or Create New Gate Pass</label>
                   <div class="row">
                     <div class="col-7">
-                      <select class="form-control" id="gp_new_store">
-                        <option value="">Select Warehouse (source)</option>
-                        <?php foreach($warehouses as $w): ?>
-                        <option value="<?php echo $w->store_id; ?>"><?php echo $w->store_name; ?></option>
-                        <?php endforeach; ?>
-                      </select>
+                      <input type="text" class="form-control" id="gp_new_code" placeholder="Enter Gate Pass Number" autocomplete="off">
                     </div>
                     <div class="col-5">
                       <button class="btn btn-outline-primary btn-block" id="btn_create_gp"><i class="fa fa-plus"></i> Create New</button>
                     </div>
                   </div>
-                  <?php if(empty($warehouses)): ?>
-                  <small class="text-danger">No warehouse locations found. Mark a store as Warehouse first.</small>
+                  <small class="text-muted">
+                    Source Warehouse:
+                    <strong><?php echo $defaultWarehouse ? $defaultWarehouse->store_name : '(none configured)'; ?></strong>
+                    (default, auto-selected)
+                  </small>
+                  <?php if(!$defaultWarehouse): ?>
+                  <br><small class="text-danger">No warehouse configured. Mark a store as Warehouse first.</small>
                   <?php endif; ?>
+                  <input type="hidden" id="gp_default_store" value="<?php echo $defaultWarehouse ? $defaultWarehouse->store_id : ''; ?>">
+                  <input type="hidden" id="gp_default_store_name" value="<?php echo $defaultWarehouse ? htmlspecialchars($defaultWarehouse->store_name, ENT_QUOTES) : ''; ?>">
                 </div>
                 <div id="gp_chosen_info" style="display:none;background:#eafaf1;padding:8px;border-radius:4px;">
                   <strong>Gate Pass:</strong> <span id="gp_chosen_code"></span>
@@ -102,6 +104,20 @@
                 <input type="hidden" id="raw_grn_cost" value="0">
                 <input type="hidden" id="raw_uom" value="">
                 <div class="form-group row mb-2">
+                  <label class="col-5 col-form-label">Tailor</label>
+                  <div class="col-7">
+                    <select class="form-control" id="prod_tailor">
+                      <option value="">-- Select Tailor --</option>
+                      <?php if(!empty($tailors)){ foreach($tailors as $t){ ?>
+                      <option value="<?php echo $t->sup_id; ?>"><?php echo htmlspecialchars($t->sup_name); ?></option>
+                      <?php }} ?>
+                    </select>
+                    <?php if(empty($tailors)): ?>
+                    <small class="text-muted">No tailors yet. Mark a Supplier as "Is Tailor" to list them here.</small>
+                    <?php endif; ?>
+                  </div>
+                </div>
+                <div class="form-group row mb-2">
                   <label class="col-5 col-form-label">Notes</label>
                   <div class="col-7"><textarea class="form-control" id="prod_notes" rows="2"></textarea></div>
                 </div>
@@ -136,7 +152,7 @@
                 <button class="btn btn-sm btn-primary" id="btn_add_out"><i class="fa fa-plus"></i> Add Output Row</button>
 
                 <hr>
-                <h6><i class="fa fa-truck"></i> Overall Production Charges (Transport / Loading / Delivery / Misc.)</h6>
+                <h6><i class="fa fa-truck"></i> Overall Production Charges (Transport / Loading / Miscellaneous)</h6>
                 <div class="table-responsive">
                   <table class="table table-sm" id="chg_table">
                     <tbody id="chg_body"></tbody>
@@ -238,7 +254,19 @@ var GP = { id:0, code:'', store_id:0, store_name:'', status:'Draft' };
 var CUR_PID = 0;          // production being edited
 var CUR_STATUS = 'Draft'; // production status
 
+var OPEN_PROD = <?php echo intval($openProd); ?>;
+
 $(function(){
+    // ---------- Edit Production: open straight into a production ----------
+    if(OPEN_PROD > 0){
+        $.get(MBASE+'manufacturing/getProduction/'+OPEN_PROD, function(res){
+            var r = JSON.parse(res);
+            if(!r.success || !r.production){ $('#gpModal').modal('show'); return; }
+            $('#prodScreen').show();
+            loadGatePass(r.production.p_gp_id, OPEN_PROD);
+        });
+        return;
+    }
     // ---------- Gate pass popup ----------
     $('#gpModal').modal('show');
 
@@ -263,13 +291,15 @@ $(function(){
     });
 
     $('#btn_create_gp').click(function(){
-        var store = $('#gp_new_store').val();
-        if(!store){ swal({type:'error',title:'Select warehouse',text:'Please choose the source warehouse.'}); return; }
-        $.post(MBASE + 'manufacturing/createGatePass', {store_id: store, notes:''}, function(res){
+        var code = $.trim($('#gp_new_code').val());
+        var store = $('#gp_default_store').val();
+        if(!code){ swal({type:'error',title:'Gate Pass number required',text:'Please enter a gate pass number.'}); return; }
+        if(!store){ swal({type:'error',title:'No warehouse',text:'No default warehouse is configured. Mark a store as Warehouse first.'}); return; }
+        $.post(MBASE + 'manufacturing/createGatePass', {gp_code: code, store_id: store, notes:''}, function(res){
             var r = JSON.parse(res);
             if(!r.success){ swal({type:'error',title:'Error',text:r.msg||'Failed'}); return; }
             GP.id=r.gp_id; GP.code=r.gp_code; GP.store_id=r.store_id;
-            GP.store_name=$('#gp_new_store option:selected').text(); GP.status='Draft';
+            GP.store_name=$('#gp_default_store_name').val(); GP.status='Draft';
             $('#gp_chosen_code').text(GP.code); $('#gp_chosen_status').text('Draft');
             $('#gp_chosen_info').show(); $('#btn_gp_next').prop('disabled', false);
         });
@@ -339,7 +369,7 @@ $(function(){
     $('#btn_confirm_complete').click(confirmComplete);
 });
 
-function loadGatePass(gp_id){
+function loadGatePass(gp_id, openProdId){
     $.get(MBASE+'manufacturing/getGatePass/'+gp_id, function(res){
         var r = JSON.parse(res);
         if(!r.success) return;
@@ -350,8 +380,12 @@ function loadGatePass(gp_id){
         $('#gp_status_lbl').text(GP.status).removeClass().addClass('badge '+statusClass(GP.status));
         $('#btn_print_gp').attr('href', MBASE+'mfg-gate-pass-print/'+GP.id);
         renderProdList(r.productions);
-        resetProductionForm(r.nextProd);
-        applyLock();
+        if(openProdId && openProdId > 0){
+            loadProduction(openProdId);
+        } else {
+            resetProductionForm(r.nextProd);
+            applyLock();
+        }
     });
 }
 
@@ -370,6 +404,7 @@ function resetProductionForm(nextProd){
     CUR_PID = 0; CUR_STATUS='Draft';
     if(nextProd) $('#hdr_prod').val(nextProd);
     $('#raw_search,#raw_item_id,#raw_uom,#prod_notes').val('');
+    $('#prod_tailor').val('');
     $('#raw_qty').val(''); $('#raw_grn_cost').val('0'); $('#raw_grn_cost_lbl').text('0.00'); $('#raw_stock_lbl').text('0');
     $('#out_body').empty(); $('#chg_body').empty();
     addOutRow();
@@ -386,6 +421,7 @@ function loadProduction(p_id){
         $('#raw_qty').val(parseFloat(p.p_raw_qty).toFixed(2));
         $('#raw_uom').val(p.p_raw_uom); $('#raw_uom_lbl,#raw_uom_lbl2').text(p.p_raw_uom); $('.raw_uom_txt').text(p.p_raw_uom);
         $('#raw_grn_cost').val(p.p_raw_grn_cost); $('#raw_grn_cost_lbl').text(parseFloat(p.p_raw_grn_cost).toFixed(2));
+        $('#prod_tailor').val(p.tailor_id || p.p_tailor_id || '');
         $('#prod_notes').val(p.p_notes||'');
         $('#out_body').empty();
         r.outputs.forEach(function(o){ addOutRow(o); });
@@ -486,6 +522,7 @@ function saveProduction(){
         p_id: CUR_PID, gp_id: GP.id, store_id: GP.store_id,
         raw_item_id: $('#raw_item_id').val(), raw_qty: $('#raw_qty').val(),
         raw_uom: $('#raw_uom').val(), raw_grn_cost: $('#raw_grn_cost').val(),
+        tailor_id: $('#prod_tailor').val() || 0,
         notes: $('#prod_notes').val(), outputs: JSON.stringify(outs), charges: JSON.stringify(collectCharges())
     }, function(res){
         var r = JSON.parse(res);
@@ -555,7 +592,7 @@ function confirmComplete(){
 // Editing allowed only before dispatch; buttons switch by status
 function applyLock(){
     var editable = (GP.status==='Draft' || GP.status==='Ready for Dispatch');
-    $('#raw_search,#raw_qty,#prod_notes').prop('disabled', !editable);
+    $('#raw_search,#raw_qty,#prod_notes,#prod_tailor').prop('disabled', !editable);
     $('.out-inp,.out-search,.chg-inp').prop('disabled', !editable);
     $('#btn_add_out,#btn_add_chg,#btn_save_prod,#btn_new_prod').toggle(editable);
     $('#btn_dispatch').toggle(editable);
