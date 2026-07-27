@@ -1199,6 +1199,7 @@
                 var discnt_SR=0;
                 var supID_R=0;
                 var grnid_R=0;
+                var grnStore_R=0; // warehouse the GRN landed in (for correct stock reduction)
                 function getGrnItems(){
                     $.ajax({
                             type: 'post',
@@ -1251,6 +1252,7 @@
                         dataType: "json",
                         success: function (data) {
                             supID_R = data.grn_supplier_id;
+                            grnStore_R = data.grn_location ? data.grn_location : 0;
                             var grandtotal_SR = data.grn_grandtotal;
                             discnt_SR = data.grn_discount;
                             var row = '<tr>' +
@@ -1372,11 +1374,11 @@
                                         }
                                     });
 
-                                    // stock -
+                                    // stock - (reduce from the warehouse the GRN landed in)
                                     $.ajax({
                                         type: "Post",
                                         url:"<?php echo base_url('stocks/decreaseStock'); ?>",
-                                        data: {itmid:rItmID,qty:retrnQty},
+                                        data: {itmid:rItmID,qty:retrnQty,storeid:grnStore_R},
                                         async: false,
                                         dataType: "json",
                                         success: function (res) {
@@ -1392,7 +1394,7 @@
                                     $.ajax({
                                         type: "Post",
                                         url:"<?php echo base_url('stocks/stocklog'); ?>",
-                                        data: {itmid:rItmID,qty:retrnQty,supRID:SupRtrnID,supID:supID_R},
+                                        data: {itmid:rItmID,qty:retrnQty,supRID:SupRtrnID,supID:supID_R,storeid:grnStore_R},
                                         async: false,
                                         dataType: "json",
                                         success: function (res) {

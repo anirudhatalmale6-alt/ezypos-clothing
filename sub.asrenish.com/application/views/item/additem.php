@@ -47,27 +47,31 @@
                                     <option value=0>-Select Sub Category-</option>                                       
                                         </select>
                                     </div>
-                                </div>  
+                                </div>
+                                <!-- Item 11: simplified item form - extra fields hidden but kept
+                                     (with defaults) so the record still saves correctly. -->
+                                <div id="advanced_item_fields_top" style="display:none;">
                                 <div class="form-group row">
                                     <label for="brandid" class="col-3 col-form-label">Brand</label>
                                     <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Brand" 
+                                        <input class="form-control" type="text" placeholder="Enter Brand"
                                         name="brand" id="brandid">
                                     </div>
                                 </div>
                                 <div class="form-group row">
                                     <label for="manufactureid" class="col-3 col-form-label">Manufacture</label>
                                     <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Manufacture" 
+                                        <input class="form-control" type="text" placeholder="Enter Manufacture"
                                         name="manufacture" id="manufactureid" >
                                     </div>
                                 </div>
                                 <div class="form-group row">
                                     <label for="discriptionid" class="col-3 col-form-label">Description</label>
                                     <div class="col-9">
-                                        <textarea class="form-control" placeholder="Enter Description" 
+                                        <textarea class="form-control" placeholder="Enter Description"
                                         name="description" id="discriptionid" rows="3" ></textarea>
                                     </div>
+                                </div>
                                 </div>
                                 <div class="form-group row">
                                     <label for="priceid" class="col-3 col-form-label">Selling Price<span class="text-danger">*</span></label>
@@ -86,32 +90,35 @@
                                         data-parsley-maxlength="21">
                                     </div>
                                 </div>
-                                -->                                 
+                                -->
+                                <div id="advanced_item_fields_bottom" style="display:none;">
                                 <div class="form-group row">
                                     <label for="reorderlevel" class="col-3 col-form-label">Reorder Level</label>
                                     <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Alerting Quantity" 
-                                        name="reorderlevel" id="reorderlevel" data-parsley-type="number" 
+                                        <input class="form-control" type="text" placeholder="Enter Alerting Quantity"
+                                        name="reorderlevel" id="reorderlevel" data-parsley-type="number"
                                         data-parsley-maxlength="21">
                                     </div>
                                 </div>
                                 <div class="form-group row">
-                                    <label for="uom" class="col-3 col-form-label">UOM<span class="text-danger">*</span></label>
+                                    <label for="uom" class="col-3 col-form-label">UOM</label>
                                     <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Unit of Measurement" 
-                                        name="uom" id="uom" required 
+                                        <input class="form-control" type="text" placeholder="Unit of Measurement"
+                                        name="uom" id="uom" value="pcs"
                                         data-parsley-maxlength="21">
                                     </div>
                                 </div>
                                 <div class="form-group row">
-                                    <label for="warehouse" class="col-3 col-form-label">Warehouse<span class="text-danger">*</span></label>
+                                    <label for="warehouse" class="col-3 col-form-label">Warehouse</label>
                                     <div class="col-9">
-                                        <select class="form-control" name="warehouse" id="warehouse" required>
+                                        <select class="form-control" name="warehouse" id="warehouse">
                                             <option value="0">-Select Warehouse-</option>
                                             <!-- Options will be populated by AJAX -->
                                         </select>
                                     </div>
                                 </div>
+                                </div>
+                                <small class="text-muted d-block m-b-10"><a href="javascript:;" id="toggle_advanced_item">+ More options (Brand, UOM, Warehouse...)</a></small>
 
                                 <button type="submit" id="submit" class="btn btn-primary waves-effect">Add</button>
                                 <button type="reset" class="btn btn-secondary waves-effect">Reset</button>
@@ -853,6 +860,9 @@ function loadWarehouses() {
                 options += '<option value="' + data[i].wh_id + '">' + data[i].wh_name + '</option>';
             }
             $('#warehouse').html(options);
+            // Item 11: warehouse field is hidden on the simplified form, so default
+            // to the first available warehouse automatically.
+            if (data.length > 0) { $('#warehouse').val(data[0].wh_id); }
         },
         error: function() {
             alert("Error loading warehouses. Please try again.");
@@ -863,6 +873,11 @@ function loadWarehouses() {
 // Call function to load warehouses when document is ready
 $(document).ready(function() {
     loadWarehouses(); // Populate warehouse dropdown on page load
+    // Toggle the hidden advanced fields (Brand, UOM, Warehouse...)
+    $('#toggle_advanced_item').click(function(){
+        $('#advanced_item_fields_top, #advanced_item_fields_bottom').toggle();
+        $(this).text($('#advanced_item_fields_top').is(':visible') ? '- Fewer options' : '+ More options (Brand, UOM, Warehouse...)');
+    });
 });
 
 // Modify the Add Item form submit to save to both tables (items & item_warehouse)

@@ -22,7 +22,7 @@ class SupReturns_model extends CI_Model {
     }
     public function getGrnDetails(){
         $grnid = $this->input->post('grnid');
-        $this->db->select('grn_supplier_id, grn_grandtotal,grn_discount');
+        $this->db->select('grn_supplier_id, grn_grandtotal, grn_discount, grn_location');
         $this->db->from('ezy_pos_grns');
         $this->db->where('grn_id', $grnid);
         $this->db->where('grn_status', 1);

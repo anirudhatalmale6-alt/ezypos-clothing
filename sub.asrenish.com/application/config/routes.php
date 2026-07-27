@@ -9,6 +9,7 @@ $route['cus-payment'] = 'payments/CusPaymentGET/Payment-Customer';
 $route['sup-payment'] = 'payments/SupPaymentGET/Payment-Supplier';
 
 $route['show-all-grn'] = 'grns/showAllGRN/All-GRNs';
+$route['grn-print/(:num)'] = 'grns/printGrn/$1';
 
 $route['our-cheque'] = 'SupplierPayment/ourCheque/our-cheque';
 $route['cus-cheque'] = 'CustomerPayment/cusCheque/cus-cheque';

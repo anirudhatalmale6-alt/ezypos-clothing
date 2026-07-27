@@ -103,7 +103,19 @@ class Grns extends CI_Controller {
         }
         public function updateGrn(){
                 $response = $this->Grns_model->updateGrn();
-                echo json_encode($response);  
+                echo json_encode($response);
+        }
+
+        // Item 9: printable GRN document (header + line items)
+        public function printGrn($id = 0){
+                $header = $this->Grns_model->getGrnHeader($id);
+                if(!$header){ show_404(); return; }
+                $data = array(
+                        'grn'     => $header,
+                        'items'   => $this->Grns_model->getGrnItemsById($id),
+                        'company' => $this->Configs_model->getConfigName()
+                );
+                $this->load->view('listing/grn_print', $data);
         }
         
 

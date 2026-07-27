@@ -182,11 +182,16 @@
                                 '<td>'+
                                     '<a href="javascript:;" style="margin-right:10px;" class="btn btn-sm btn-success show_items" data="'+data[i].grn_id+'"><i class="fa fa-info-circle"></i></a>'+
                                     '<a href="javascript:;" style="margin-right:10px;" class="btn btn-sm btn-info grn_edit" data="'+data[i].grn_id+'"><i class="fa fa-edit"></i></a>'+
+                                    '<a href="<?php echo base_url("grn-print/"); ?>'+data[i].grn_id+'" target="_blank" style="margin-right:10px;" class="btn btn-sm btn-dark" title="Print GRN"><i class="fa fa-print"></i></a>'+
                                 '</td>'+
                             '</tr>';
                     }
+                        try{ $('#datatableGrn').DataTable().destroy(); }catch(e){}
                         $('#tbodyShowGrn').html("");
-                        $('#tbodyShowGrn').html(rows);						
+                        $('#tbodyShowGrn').html(rows);
+                        // Item 15: search bar + sorting on All GRNs (DataTables global search
+                        // covers GRN no, supplier, store, date, reference, etc.)
+                        $('#datatableGrn').DataTable({ order: [[0,'desc']], pageLength: 25, destroy: true });
                 },
                 error: function(){
                     alert('error data collection');
@@ -196,7 +201,7 @@
         
         showAllGrn(); 
         
-        $(".show_items").click(function(){
+        $(document).on('click', '.show_items', function(){
             var id = $(this).attr('data');
             $('#grnItmModal').modal('show');
                 $('#grnItmModal').find('.modal-title').text("Items");
@@ -225,7 +230,7 @@
                         }
                     });
         });
-        $(".grn_edit").click(function(){
+        $(document).on('click', '.grn_edit', function(){
             var id = $(this).attr('data');
             $('#grnEditModal').modal('show');
             $('#grnEditModal').find('.modal-title').text("Edit GRN");

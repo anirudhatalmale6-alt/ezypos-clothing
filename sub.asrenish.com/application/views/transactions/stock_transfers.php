@@ -457,12 +457,14 @@ $(document).ready(function() {
 
                     // Show/hide action buttons based on status and permissions
                     $('#modal_btn_edit, #modal_btn_accept, #modal_btn_reject').hide();
+                    $('#modal_pending_hint').remove();
                     if (t.transfer_status == 'Pending') {
                         // Edit: creator or admin
                         if (IS_ADMIN || t.transfer_created_by == CURRENT_USER_ID) {
                             $('#modal_btn_edit').show();
                         }
-                        // Accept/Reject: destination store user or admin
+                        // Accept/Reject: destination (receiving) store user or admin only.
+                        // Stock is added to the destination ONLY after they approve.
                         var canAcceptReject = IS_ADMIN;
                         if (!IS_ADMIN) {
                             for (var u = 0; u < USER_STORE_IDS.length; u++) {
@@ -475,6 +477,8 @@ $(document).ready(function() {
                         if (canAcceptReject) {
                             $('#modal_btn_accept').show();
                             $('#modal_btn_reject').show();
+                        } else {
+                            $('#modal_btn_accept').before('<div id="modal_pending_hint" class="text-warning mr-auto" style="align-self:center;"><i class="fa fa-clock-o"></i> Awaiting approval from the receiving store (' + (t.to_store_name || '') + ').</div>');
                         }
                     }
 

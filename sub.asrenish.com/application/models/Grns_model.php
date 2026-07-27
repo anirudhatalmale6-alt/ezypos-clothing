@@ -78,7 +78,7 @@ class Grns_model extends CI_Model {
         $str ="SELECT grnitm_price,grnitm_quantity,grnitm_discount,grnitm_total,itm_name,itm_code
         FROM ezy_pos_grn_item
         LEFT JOIN ezy_pos_items ON ezy_pos_items.itm_id=ezy_pos_grn_item.grnitm_itemid
-        WHERE grnitm_grn_id='".$grndid."' ORDER BY grnitm_id";        
+        WHERE grnitm_grn_id='".$grndid."' ORDER BY grnitm_id";
         $query = $this->db->query($str);
         if($query->num_rows()>0){
             return $query->result();
@@ -86,6 +86,27 @@ class Grns_model extends CI_Model {
         else{
             return false;
         }
+    }
+    // GRN header for the print view (single GRN by id)
+    public function getGrnHeader($id){
+        $str ="SELECT g.*, IFNULL(s.sup_name,'') AS sup_name, IFNULL(s.sup_contact,'') AS sup_contact,
+               IFNULL(st.store_name,'N/A') AS store_name, IFNULL(u.user_name,'') AS user_name,
+               sp.sup_pay_cash, sp.sup_pay_credit
+               FROM ezy_pos_grns g
+               LEFT JOIN ezy_pos_suppliers s ON s.sup_id=g.grn_supplier_id
+               LEFT JOIN ezy_pos_stores st ON st.store_id=g.grn_location
+               LEFT JOIN ezy_pos_users u ON u.user_id=g.grn_createdby
+               LEFT JOIN ezy_pos_sup_payment sp ON sp.sup_pay_grnid=g.grn_id
+               WHERE g.grn_id=? ORDER BY g.grn_id LIMIT 1";
+        return $this->db->query($str, array($id))->row();
+    }
+    // GRN line items for the print view (single GRN by id)
+    public function getGrnItemsById($id){
+        $str ="SELECT grnitm_price,grnitm_quantity,grnitm_discount,grnitm_total,itm_name,itm_code
+               FROM ezy_pos_grn_item
+               LEFT JOIN ezy_pos_items ON ezy_pos_items.itm_id=ezy_pos_grn_item.grnitm_itemid
+               WHERE grnitm_grn_id=? ORDER BY grnitm_id";
+        return $this->db->query($str, array($id))->result();
     }
     public function editGrn(){
         $grndid = $this->input->post('id');
