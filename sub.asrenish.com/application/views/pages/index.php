@@ -7,24 +7,20 @@
         <div class="container-fluid">
 
             <?php
-            // Item 6: Sales quick-access cards. Each card shows only if the logged-in
-            // user has permission for that page (admin sees all).
+            // Item 6: Sales module quick-access cards on the dashboard. Only Sales pages
+            // are shown here (other modules keep their normal submenu navigation), and each
+            // card appears only if the logged-in user has permission for that page.
             $isAdmin = ($this->session->userdata('userrole') == 1);
             $has = function($k) { return $this->session->userdata($k) == 1; };
             $qa = array();
-            if($isAdmin || $has('privSales'))         $qa[] = array('add-sale','Sales','fa-shopping-cart','#4a90d9');
-            if($isAdmin || $has('privGrn'))           $qa[] = array('add-grn','GRN','fa-truck','#27ae60');
-            if($isAdmin || $has('privProduction'))    $qa[] = array('add-production','Production','fa-industry','#8e44ad');
-            if($isAdmin || $has('privProduction'))    $qa[] = array('show-all-productions','All Productions','fa-list','#8e44ad');
-            if($isAdmin || $has('privTailoring'))     $qa[] = array('add-production-sale','Tailoring Order','fa-scissors','#e67e22');
-            if($isAdmin || $has('privTailoring'))     $qa[] = array('all-production-sales','All Tailoring Orders','fa-list-alt','#e67e22');
-            if($isAdmin || $has('privGiftvoucher'))   $qa[] = array('gift-vouchers','Gift Vouchers','fa-gift','#c0392b');
-            if($isAdmin || $has('privReturns') || $has('privExchanges')) $qa[] = array('returns','Returns & Exchanges','fa-undo','#16a085');
-            if($isAdmin || $has('privStocktransfer')) $qa[] = array('stock-transfers','Stock Transfers','fa-exchange','#2c3e50');
+            if($isAdmin || $has('privSales'))                 $qa[] = array('add-sale','New Sale','fa-shopping-cart','#4a90d9');
+            if($isAdmin || $has('privRe_salesReport'))        $qa[] = array('sales-report','Sales Report','fa-line-chart','#27ae60');
+            if($isAdmin || $has('privRe_monthlySalesReport')) $qa[] = array('monthly-sales-report','Monthly Sales','fa-calendar','#8e44ad');
+            if($isAdmin || $has('privSales'))                 $qa[] = array('item-sales-report','Item Sales','fa-cubes','#e67e22');
             if(!empty($qa)): ?>
             <div class="row m-t-10">
                 <div class="col-12">
-                    <h4 class="header-title m-t-0 m-b-15"><i class="fa fa-bolt"></i> Quick Access</h4>
+                    <h4 class="header-title m-t-0 m-b-15"><i class="fa fa-bolt"></i> Sales Quick Access</h4>
                 </div>
                 <?php foreach($qa as $card): ?>
                 <div class="col-lg-2 col-md-3 col-sm-4 col-6 m-b-15">
