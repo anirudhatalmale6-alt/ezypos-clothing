@@ -120,7 +120,7 @@
                                                     <?php $x = 0; foreach($saleitems as $saleitem) { $x++?>
                                                         <tr>
                                                             <td style="margin-right:5px; font-family: arial"><?php echo $x ?></td>
-                                                            <td colspan="5" style="font-family: arial"><?php echo $saleitem->itm_name ?></td>
+                                                            <td colspan="5" style="font-family: arial"><?php echo (isset($saleitem->itm_code) && $saleitem->itm_code) ? '['.$saleitem->itm_code.'] ' : ''; ?><?php echo $saleitem->itm_name ?></td>
                                                             
                                                         </tr>
                                                         <tr style="font-family: arial;">

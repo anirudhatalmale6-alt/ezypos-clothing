@@ -603,6 +603,17 @@ public function get_overall_expenses() {
         echo json_encode($result ? $result : array());
     }
 
+    // Item 17: all sales receipts (bills) that contain a given item code.
+    public function getSalesReceiptsByItem()
+    {
+        $item_code = $this->input->post('item_code');
+        $from = $this->input->post('from');
+        $to = $this->input->post('to');
+        if (!$item_code) { echo json_encode(array()); return; }
+        $result = $this->Report_model->getSalesReceiptsByItem($item_code, $from, $to);
+        echo json_encode($result ? $result : array());
+    }
+
     // ===================== PRODUCTION & TAILORING REPORT =====================
 
     public function production_report($page = 'index')

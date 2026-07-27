@@ -3,8 +3,40 @@
 <!-- ============================================================== -->
 <div id="index-page">
     <div class="wrapper">
-        
+
         <div class="container-fluid">
+
+            <?php
+            // Item 6: Sales quick-access cards. Each card shows only if the logged-in
+            // user has permission for that page (admin sees all).
+            $isAdmin = ($this->session->userdata('userrole') == 1);
+            $has = function($k) { return $this->session->userdata($k) == 1; };
+            $qa = array();
+            if($isAdmin || $has('privSales'))         $qa[] = array('add-sale','Sales','fa-shopping-cart','#4a90d9');
+            if($isAdmin || $has('privGrn'))           $qa[] = array('add-grn','GRN','fa-truck','#27ae60');
+            if($isAdmin || $has('privProduction'))    $qa[] = array('add-production','Production','fa-industry','#8e44ad');
+            if($isAdmin || $has('privProduction'))    $qa[] = array('show-all-productions','All Productions','fa-list','#8e44ad');
+            if($isAdmin || $has('privTailoring'))     $qa[] = array('add-production-sale','Tailoring Order','fa-scissors','#e67e22');
+            if($isAdmin || $has('privTailoring'))     $qa[] = array('all-production-sales','All Tailoring Orders','fa-list-alt','#e67e22');
+            if($isAdmin || $has('privGiftvoucher'))   $qa[] = array('gift-vouchers','Gift Vouchers','fa-gift','#c0392b');
+            if($isAdmin || $has('privReturns') || $has('privExchanges')) $qa[] = array('returns','Returns & Exchanges','fa-undo','#16a085');
+            if($isAdmin || $has('privStocktransfer')) $qa[] = array('stock-transfers','Stock Transfers','fa-exchange','#2c3e50');
+            if(!empty($qa)): ?>
+            <div class="row m-t-10">
+                <div class="col-12">
+                    <h4 class="header-title m-t-0 m-b-15"><i class="fa fa-bolt"></i> Quick Access</h4>
+                </div>
+                <?php foreach($qa as $card): ?>
+                <div class="col-lg-2 col-md-3 col-sm-4 col-6 m-b-15">
+                    <a href="<?php echo base_url($card[0]); ?>" class="card-box text-center" style="display:block;text-decoration:none;border-top:3px solid <?php echo $card[3]; ?>;">
+                        <i class="fa <?php echo $card[2]; ?>" style="font-size:28px;color:<?php echo $card[3]; ?>;"></i>
+                        <div class="m-t-10" style="color:#333;font-weight:600;font-size:13px;"><?php echo $card[1]; ?></div>
+                    </a>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+
             <div class="row">
                 
                  <?php if ($this->session->userdata('userrole') == 1): ?>

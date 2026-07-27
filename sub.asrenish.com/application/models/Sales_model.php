@@ -76,10 +76,10 @@ class Sales_model extends CI_Model {
     }
     //get sale items details for a spesific sale
     public function invoicePreview2($saleid){
-        $str ="SELECT itm_name,saleitem_price,saleitem_quantity,saleitem_discount,saleitem_total
+        $str ="SELECT itm_code,itm_name,saleitem_price,saleitem_quantity,saleitem_discount,saleitem_total
                 FROM ezy_pos_items
                 INNER JOIN ezy_pos_sale_item ON ezy_pos_items.itm_id = ezy_pos_sale_item.saleitem_item_id
-                WHERE saleitem_sale_id = '".$saleid."'";        
+                WHERE saleitem_sale_id = '".$saleid."'";
                 $query = $this->db->query($str);
                 if($query->num_rows()>0){
                     return $query->result();

@@ -29,8 +29,13 @@
                 </div>
             </div>
             <div class="col-1">
-                <button type="button" id="btnFilter" class="btn btn-primary waves-effect waves-light">
+                <button type="button" id="btnFilter" class="btn btn-primary waves-effect waves-light" title="Item summary report">
                     <i class="fa fa-search"></i>
+                </button>
+            </div>
+            <div class="col-2">
+                <button type="button" id="btnReceipts" class="btn btn-info waves-effect waves-light" title="Find sales receipts by item code">
+                    <i class="fa fa-file-text-o"></i> Find Receipts
                 </button>
             </div>
             <div class="col-1">
@@ -56,6 +61,29 @@
                             <h5>Total Revenue: <span class="text-success" id="summaryTotalRevenue">0.00</span></h5>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Receipts by Item Code (Item 17) -->
+        <div class="row" id="receiptsRow" style="display:none;">
+            <div class="col-12">
+                <div class="card-box table-responsive">
+                    <h4 class="header-title m-t-0 m-b-15"><i class="fa fa-file-text-o"></i> Sales Receipts containing <span id="receiptItemLabel" class="text-primary"></span></h4>
+                    <table class="table table-striped table-bordered" id="receiptsTable" width="100%">
+                        <thead>
+                            <tr>
+                                <th>Receipt #</th>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th style="text-align:right;">Qty</th>
+                                <th style="text-align:right;">Line Total</th>
+                                <th style="text-align:right;">Bill Total</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="receiptsBody"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -187,6 +215,46 @@ $(document).ready(function () {
         loadReport();
     });
 
+    // Item 17: find all sales receipts containing the entered item code
+    function loadReceipts(){
+        var itemCode = $('#itemCodeSearch').val().trim();
+        if(!itemCode){ alert('Enter an item code (or name) to find receipts.'); return; }
+        var from = $('#datepicFrom').val();
+        var to = $('#datepicTo').val();
+        $.ajax({
+            type: 'POST',
+            url: '<?php echo base_url()?>Reports/getSalesReceiptsByItem',
+            data: { item_code: itemCode, from: from, to: to },
+            dataType: 'json',
+            success: function(data){
+                try{ $('#receiptsTable').DataTable().destroy(); }catch(e){}
+                $('#receiptItemLabel').text('"' + itemCode + '"');
+                var html = '';
+                if(!data || data.length === 0){
+                    html = '<tr><td colspan="7" class="text-center text-muted">No sales receipts found for this item.</td></tr>';
+                } else {
+                    for(var i=0;i<data.length;i++){
+                        var r = data[i];
+                        html += '<tr>' +
+                            '<td>#' + r.sale_id + '</td>' +
+                            '<td>' + (r.sale_date || '') + '</td>' +
+                            '<td>' + (r.cus_name || '-') + ' <br><small class="text-muted">' + (r.itm_code||'') + ' - ' + (r.itm_name||'') + '</small></td>' +
+                            '<td style="text-align:right;">' + parseFloat(r.saleitem_quantity||0).toFixed(2) + '</td>' +
+                            '<td style="text-align:right;">' + parseFloat(r.saleitem_total||0).toFixed(2) + '</td>' +
+                            '<td style="text-align:right;">' + parseFloat(r.sale_grandtotal||0).toFixed(2) + '</td>' +
+                            '<td><a href="<?php echo base_url();?>Sales/print_inv/' + r.sale_id + '" target="_blank" class="btn btn-sm btn-outline-dark" title="View / Print bill"><i class="fa fa-eye"></i> View / Print</a></td>' +
+                            '</tr>';
+                    }
+                }
+                $('#receiptsBody').html(html);
+                $('#receiptsRow').show();
+                if(data && data.length){ $('#receiptsTable').DataTable({ order: [[0,'desc']], destroy: true }); }
+            },
+            error: function(){ alert('Failed to fetch sales receipts.'); }
+        });
+    }
+    $('#btnReceipts').click(loadReceipts);
+
     // Reset
     $('#reset').click(function(){
         try{ $('#datatable-buttons').DataTable().destroy(); }catch(e){}
@@ -196,6 +264,7 @@ $(document).ready(function () {
         $('#itemCodeSearch').val('');
         $('#totalRevenue').text("0.00");
         $('#summaryCards').hide();
+        $('#receiptsRow').hide();
     });
 });
 </script>

@@ -284,37 +284,29 @@
                                 $canGiftvoucher || $canReturns || $canStocktransfer
                             );
                             if($showTransactions): ?>
-                            <li class="has-submenu">
-                                <a href="#"><i class="zmdi zmdi-album"></i> <span>Transactions </span> </a>
-                                <ul class="submenu">
-                                    <?php if(isset($_SESSION['privGrn'])){if($_SESSION['privGrn'] == 1){?>
-                                    <li><a href="<?php echo base_url('add-grn')?>">GRN</a></li>
-                                    <?php }} if(isset($_SESSION['privSales'])){if($_SESSION['privSales'] == 1){  ?>
-                                    <li><a href="<?php echo base_url('add-sale')?>">Sales</a></li>
-                                    <?php }} if(isset($_SESSION['privExpense'])){if($_SESSION['privExpense'] == 1){  ?>
-                                    <li><a href="<?php echo base_url('add-expense')?>">Expense</a></li>
-                                    <?php }} ?>
-                                    <?php if($canProduction){ ?>
-                                    <li><a href="<?php echo base_url('add-production')?>"><i class="fa fa-industry"></i> Production</a></li>
-                                    <li><a href="<?php echo base_url('show-all-productions')?>"><i class="fa fa-list"></i> All Productions</a></li>
-                                    <li class="divider"></li>
-                                    <?php } if($canTailoring){ ?>
-                                    <li><a href="<?php echo base_url('add-production-sale')?>"><i class="fa fa-scissors"></i> Tailoring Order</a></li>
-                                    <li><a href="<?php echo base_url('all-production-sales')?>"><i class="fa fa-list"></i> All Tailoring Orders</a></li>
-                                    <li class="divider"></li>
-                                    <?php } if($canGiftvoucher){ ?>
-                                    <li><a href="<?php echo base_url('gift-vouchers')?>"><i class="fa fa-gift"></i> Gift Vouchers</a></li>
-                                    <li><a href="<?php echo base_url('gift-voucher-reports')?>"><i class="fa fa-bar-chart"></i> Voucher Reports</a></li>
-                                    <li class="divider"></li>
-                                    <?php } if($canReturns){ ?>
-                                    <li><a href="<?php echo base_url('returns')?>"><i class="fa fa-undo"></i> Returns & Exchanges</a></li>
-                                    <li><a href="<?php echo base_url('all-returns')?>"><i class="fa fa-list"></i> All Returns</a></li>
-                                    <li class="divider"></li>
-                                    <?php } if($canStocktransfer){ ?>
-                                    <li><a href="<?php echo base_url('stock-transfers')?>"><i class="fa fa-exchange"></i> Stock Transfers</a></li>
-                                    <?php } ?>
-                                </ul>
-                            </li>
+                            <?php // Item 7: sales-related pages shown as individual permission-based
+                                  // navigation links instead of one grouped "Transactions" submenu. ?>
+                            <?php if(isset($_SESSION['privGrn']) && $_SESSION['privGrn'] == 1){ ?>
+                            <li><a href="<?php echo base_url('add-grn')?>"><i class="zmdi zmdi-collection-plus"></i> <span>GRN</span></a></li>
+                            <?php } if(isset($_SESSION['privSales']) && $_SESSION['privSales'] == 1){ ?>
+                            <li><a href="<?php echo base_url('add-sale')?>"><i class="zmdi zmdi-shopping-cart"></i> <span>Sales</span></a></li>
+                            <?php } if(isset($_SESSION['privExpense']) && $_SESSION['privExpense'] == 1){ ?>
+                            <li><a href="<?php echo base_url('add-expense')?>"><i class="zmdi zmdi-money-box"></i> <span>Expense</span></a></li>
+                            <?php } if($canProduction){ ?>
+                            <li><a href="<?php echo base_url('add-production')?>"><i class="fa fa-industry"></i> <span>Production</span></a></li>
+                            <li><a href="<?php echo base_url('show-all-productions')?>"><i class="fa fa-list"></i> <span>All Productions</span></a></li>
+                            <?php } if($canTailoring){ ?>
+                            <li><a href="<?php echo base_url('add-production-sale')?>"><i class="fa fa-scissors"></i> <span>Tailoring Order</span></a></li>
+                            <li><a href="<?php echo base_url('all-production-sales')?>"><i class="fa fa-list"></i> <span>All Tailoring Orders</span></a></li>
+                            <?php } if($canGiftvoucher){ ?>
+                            <li><a href="<?php echo base_url('gift-vouchers')?>"><i class="fa fa-gift"></i> <span>Gift Vouchers</span></a></li>
+                            <li><a href="<?php echo base_url('gift-voucher-reports')?>"><i class="fa fa-bar-chart"></i> <span>Voucher Reports</span></a></li>
+                            <?php } if($canReturns){ ?>
+                            <li><a href="<?php echo base_url('returns')?>"><i class="fa fa-undo"></i> <span>Returns &amp; Exchanges</span></a></li>
+                            <li><a href="<?php echo base_url('all-returns')?>"><i class="fa fa-list"></i> <span>All Returns</span></a></li>
+                            <?php } if($canStocktransfer){ ?>
+                            <li><a href="<?php echo base_url('stock-transfers')?>"><i class="fa fa-exchange"></i> <span>Stock Transfers</span></a></li>
+                            <?php } ?>
                             <?php endif; ?>
                             <?php ?>
                             <li class="has-submenu">

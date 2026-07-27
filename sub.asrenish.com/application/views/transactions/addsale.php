@@ -153,6 +153,10 @@
                                     <label class="col-5 col-form-label">Credit:</label>
                                     <div class="col-7 col-form-label text-right">LKR <span id="creditvalue">0.00</span></div>
                                 </div>
+                                <div class="form-group row mb-0" id="change_return_row" style="display:none;background:#e8f5e9;border-radius:4px;padding:6px 0;">
+                                    <label class="col-5 col-form-label" style="font-size:16px;color:#1b5e20;"><strong>Balance to Return:</strong></label>
+                                    <div class="col-7 col-form-label text-right" style="font-size:16px;color:#1b5e20;"><strong>LKR <span id="change_return">0.00</span></strong></div>
+                                </div>
                                 <!-- Gift Voucher Redemption -->
                                 <hr>
                                 <div style="background:#fff3e0;border-radius:4px;padding:10px;margin-bottom:10px;">
@@ -1508,6 +1512,8 @@ var chequeHTML ='<div id="chequeDIV">'+
                     $("#grandtotalLbl").html("0.00");
                     $("#credit_lmt_value").html("0.00");
                     $("#creditvalue").html("0.00");
+                    $("#change_return").html("0.00");
+                    $("#change_return_row").hide();
                     $("#invoiceDis").val("");
                     $("#invoiceDisType").val("percentage");
                     $("#delivery_company").val("");
@@ -2042,6 +2048,7 @@ var chequeHTML ='<div id="chequeDIV">'+
         var voucherTotal = getVoucherTotal();
         var creditvalue = (grandtotal - cashvalue - totalcheq - totalPmPayments - voucherTotal).toFixed(2);
         $("#creditvalue").html(creditvalue);
+        updateChangeReturn();
         validate_user_credits();
     };
 
@@ -2058,7 +2065,23 @@ var chequeHTML ='<div id="chequeDIV">'+
         var voucherTotal = getVoucherTotal();
         var creditvalue = (grandtotal - cashvalue - totalPmPayments - voucherTotal).toFixed(2);
         $("#creditvalue").html(creditvalue);
+        updateChangeReturn();
     };
+
+    // Show the cash change / balance to return when the customer pays more than
+    // the grand total. creditvalue = grandtotal - all payments, so a negative
+    // creditvalue means the customer overpaid = balance to hand back.
+    function updateChangeReturn(){
+        var credit = parseFloat($('#creditvalue').text());
+        if (isNaN(credit)) credit = 0;
+        if (credit < -0.001) {
+            $('#change_return').text(Math.abs(credit).toFixed(2));
+            $('#change_return_row').show();
+        } else {
+            $('#change_return').text('0.00');
+            $('#change_return_row').hide();
+        }
+    }
 
     // =========== CARD REF CONFIRM HANDLER ===========
     $('#btnConfirmCardRefs').click(function(){

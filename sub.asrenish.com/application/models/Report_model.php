@@ -1013,6 +1013,32 @@ class Report_model extends CI_Model {
     }
 
 
+    // All sales receipts (individual bills) that contain a given item code/name.
+    // Used by the Item Sales screen so the user can open / print each bill.
+    public function getSalesReceiptsByItem($item_code, $from = '', $to = ''){
+        if(!$item_code || trim($item_code) === '') return array();
+        $sf = $this->_storeFilter('s.sale_location');
+        $where = "WHERE (i.itm_code LIKE ? OR i.itm_name LIKE ?)";
+        $params = array('%'.$item_code.'%', '%'.$item_code.'%');
+        if($from && $to){
+            $where .= " AND s.sale_date BETWEEN ? AND ?";
+            $params[] = $from . " 00:00:00";
+            $params[] = $to . " 23:59:59";
+        }
+        $str = "SELECT s.sale_id, s.sale_date, s.sale_grandtotal,
+                       c.cus_name,
+                       i.itm_code, i.itm_name,
+                       si.saleitem_quantity, si.saleitem_price, si.saleitem_total
+                FROM ezy_pos_sale_item si
+                INNER JOIN ezy_pos_items i ON i.itm_id = si.saleitem_item_id
+                INNER JOIN ezy_pos_sale s ON s.sale_id = si.saleitem_sale_id
+                LEFT JOIN ezy_pos_customers c ON c.cus_id = s.sale_cus_id
+                ".$where." ".$sf."
+                ORDER BY s.sale_id DESC";
+        $q = $this->db->query($str, $params);
+        return $q->result();
+    }
+
     public function getItemFullReport($from, $to, $item_code = ''){
         $hasDateRange = ($from && $to && $from !== '' && $to !== '');
         $start = $hasDateRange ? $from . " 00:00:00" : '';
