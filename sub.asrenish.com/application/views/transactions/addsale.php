@@ -149,7 +149,14 @@
                                     <label class="col-5 col-form-label">Customer Balance:</label>
                                     <div class="col-7 col-form-label text-right">LKR <span id="customer_balance">0.00</span></div>
                                 </div>
-                                <div class="form-group row">
+                                <div class="form-group row mb-0" style="background:#fff8e1;border-radius:4px;padding:6px 0;">
+                                    <label class="col-5 col-form-label" style="cursor:pointer;" for="credit_order"><strong>Credit Order:</strong></label>
+                                    <div class="col-7 col-form-label text-right">
+                                        <input type="checkbox" id="credit_order" style="transform:scale(1.4);margin-right:8px;vertical-align:middle;">
+                                        <small class="text-muted">tick for credit sale</small>
+                                    </div>
+                                </div>
+                                <div class="form-group row" id="credit_outstanding_row">
                                     <label class="col-5 col-form-label">Credit:</label>
                                     <div class="col-7 col-form-label text-right">LKR <span id="creditvalue">0.00</span></div>
                                 </div>
@@ -1143,10 +1150,20 @@ var chequeHTML ='<div id="chequeDIV">'+
             var custID= $('#customer-id').val();
             var rows = $("#datatable").find("tr").length;
             var customerPhone = $('#customer_phone').val().trim();
+            // Credit Order flag: separates a normal (fully paid / cash) sale from a
+            // credit sale where the unpaid balance is carried forward to the customer.
+            var isCreditOrder = $('#credit_order').is(':checked');
 
             // Validate phone
             if(!customerPhone){
                 swal({type:'error',title:'Phone Required',text:'Please enter customer phone number.'});
+                return;
+            }
+
+            // Normal (non-credit) sale must be paid in full. A shortfall is only allowed
+            // when the user explicitly marks it as a Credit Order.
+            if(!isCreditOrder && creditvalue > 0.001){
+                swal({type:'error',title:'Payment Incomplete',text:'Amount paid is less than the bill total. Tick "Credit Order" to carry the balance forward as customer credit, or collect the full amount.'});
                 return;
             }
 
@@ -1266,25 +1283,15 @@ var chequeHTML ='<div id="chequeDIV">'+
                         pymnt4sale=cashvalue;
                         salecrdit=creditvalue;
                     }
-                    //Add cash and credit                 
+                    // Only a Credit Order records an outstanding credit against the customer.
+                    // A normal sale never creates/updates customer credit (any overpayment is
+                    // simply cash change handed back), so the stored credit is forced to 0.
+                    var creditToSave = isCreditOrder ? creditvalue : 0;
+                    //Add cash and credit
                         $.ajax({
                             type: "Post",
                             url:"<?php echo base_url('CustomerPayment/customerCash'); ?>",
-                            data: {saleID:sale_ID,cash:cashvalue,credit:creditvalue,date:date},
-                            async: false,
-                            dataType: "json",
-                            success: function (res) {
-                            console.log("customer paymnt saved"); 
-                            },
-                            error: function (err) {
-                                alert("customer payment error");
-                            }
-                        }); 
-                        //add credit to customer balance
-                        $.ajax({
-                            type: "Post",
-                            url:"<?php echo base_url('CustomerPayment/cusBalance'); ?>",
-                            data: {cusID:cusID,bal:-creditvalue},
+                            data: {saleID:sale_ID,cash:cashvalue,credit:creditToSave,date:date},
                             async: false,
                             dataType: "json",
                             success: function (res) {
@@ -1294,6 +1301,22 @@ var chequeHTML ='<div id="chequeDIV">'+
                                 alert("customer payment error");
                             }
                         });
+                        //add credit to customer balance — credit orders only
+                        if(isCreditOrder && creditToSave != 0){
+                        $.ajax({
+                            type: "Post",
+                            url:"<?php echo base_url('CustomerPayment/cusBalance'); ?>",
+                            data: {cusID:cusID,bal:-creditToSave},
+                            async: false,
+                            dataType: "json",
+                            success: function (res) {
+                            console.log("customer paymnt saved");
+                            },
+                            error: function (err) {
+                                alert("customer payment error");
+                            }
+                        });
+                        }
                         // var creditvalue= parseFloat($('#creditvalue').text());
                         //update credit limit of the customer 
                         // removerd this function request on client
@@ -1514,6 +1537,8 @@ var chequeHTML ='<div id="chequeDIV">'+
                     $("#creditvalue").html("0.00");
                     $("#change_return").html("0.00");
                     $("#change_return_row").hide();
+                    $("#credit_order").prop('checked', false);
+                    $("#credit_outstanding_row").hide();
                     $("#invoiceDis").val("");
                     $("#invoiceDisType").val("percentage");
                     $("#delivery_company").val("");
@@ -2068,20 +2093,37 @@ var chequeHTML ='<div id="chequeDIV">'+
         updateChangeReturn();
     };
 
-    // Show the cash change / balance to return when the customer pays more than
-    // the grand total. creditvalue = grandtotal - all payments, so a negative
-    // creditvalue means the customer overpaid = balance to hand back.
+    // Two separate business processes, driven by the "Credit Order" checkbox:
+    //  - Credit Order OFF (normal sale): if the customer pays MORE than the total,
+    //    show the Balance to Return (change). Customer credit is NOT touched.
+    //  - Credit Order ON (credit sale): show the outstanding Credit that will be
+    //    carried forward to the customer's balance. No return-balance display.
     function updateChangeReturn(){
         var credit = parseFloat($('#creditvalue').text());
         if (isNaN(credit)) credit = 0;
-        if (credit < -0.001) {
-            $('#change_return').text(Math.abs(credit).toFixed(2));
-            $('#change_return_row').show();
-        } else {
+        var isCreditOrder = $('#credit_order').is(':checked');
+        if (isCreditOrder) {
+            // Credit sale: show outstanding credit, never the return balance.
+            $('#credit_outstanding_row').show();
             $('#change_return').text('0.00');
             $('#change_return_row').hide();
+        } else {
+            // Normal sale: outstanding credit is not applicable; show change when overpaid.
+            $('#credit_outstanding_row').hide();
+            if (credit < -0.001) {
+                $('#change_return').text(Math.abs(credit).toFixed(2));
+                $('#change_return_row').show();
+            } else {
+                $('#change_return').text('0.00');
+                $('#change_return_row').hide();
+            }
         }
     }
+    // Re-evaluate the display whenever the Credit Order checkbox is toggled.
+    $(document).on('change', '#credit_order', function(){
+        if (typeof calculateCredit === 'function') { calculateCredit(); }
+        else { updateChangeReturn(); }
+    });
 
     // =========== CARD REF CONFIRM HANDLER ===========
     $('#btnConfirmCardRefs').click(function(){

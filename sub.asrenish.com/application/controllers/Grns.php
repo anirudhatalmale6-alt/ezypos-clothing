@@ -80,8 +80,9 @@ class Grns extends CI_Controller {
                 }
                 $data1['title'] = ucfirst($page); 
                 $data1['config'] = $this->Configs_model->getConfigName(); 
-                $data = array(                                   
-                        'suppliers' => $this->Suppliers_model->getSuppliers()
+                $data = array(
+                        'suppliers' => $this->Suppliers_model->getSuppliers(),
+                        'items'     => $this->Items_model->getItems()
                 );
                 $this->load->view('templates/header', $data1);
                 $this->load->view('listing/'.$page,$data);
@@ -104,6 +105,16 @@ class Grns extends CI_Controller {
         public function updateGrn(){
                 $response = $this->Grns_model->updateGrn();
                 echo json_encode($response);
+        }
+
+        // Item 2: editable GRN item list for the edit modal
+        public function grnItemsForEdit(){
+                $id = intval($this->input->post('id'));
+                echo json_encode($this->Grns_model->getGrnItemsForEdit($id));
+        }
+        // Item 2: full GRN edit (header + items + stock reconciliation)
+        public function updateGrnFull(){
+                echo json_encode($this->Grns_model->updateGrnFull());
         }
 
         // Item 9: printable GRN document (header + line items)

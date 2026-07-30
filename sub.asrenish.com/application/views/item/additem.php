@@ -212,26 +212,31 @@
                                     </div>
 
 
+                                    <!-- Item 1 (edit): extra fields hidden and optional so editing only
+                                         needs Code, Name, Category, Subcategory, Price. Values are still
+                                         populated/preserved on save. -->
+                                    <div id="edit_advanced_fields_top" style="display:none;">
                                     <div class="form-group row">
                                         <label for="Edit_brand" class="col-3 col-form-label">Brand</label>
                                         <div class="col-9">
-                                            <input class="form-control" type="text" placeholder="Enter Brand" 
-                                            name="Edit_brand" id="Edit_brand" required>
+                                            <input class="form-control" type="text" placeholder="Enter Brand"
+                                            name="Edit_brand" id="Edit_brand">
                                         </div>
                                     </div>
                                     <div class="form-group row">
                                         <label for="Edit_manufacturer" class="col-3 col-form-label">Manufacturer</label>
                                         <div class="col-9">
-                                            <input class="form-control" type="text" placeholder="Enter Manufacture" 
-                                            name="Edit_manufacturer" id="Edit_manufacturer" required>
+                                            <input class="form-control" type="text" placeholder="Enter Manufacture"
+                                            name="Edit_manufacturer" id="Edit_manufacturer">
                                         </div>
                                     </div>
                                     <div class="form-group row">
                                         <label for="Edit_discription" class="col-3 col-form-label">Description</label>
                                         <div class="col-9">
-                                            <textarea class="form-control" placeholder="Enter Description" 
-                                            name="Edit_description" id="Edit_discription" rows="3" required></textarea>
+                                            <textarea class="form-control" placeholder="Enter Description"
+                                            name="Edit_description" id="Edit_discription" rows="3"></textarea>
                                         </div>
+                                    </div>
                                     </div>
                                     <div class="form-group row">
                                         <label for="Edit_price" class="col-3 col-form-label">Selling Price</label>
@@ -241,33 +246,36 @@
                                             data-parsley-maxlength="21">
                                         </div>
                                     </div>
+                                    <div id="edit_advanced_fields_bottom" style="display:none;">
                                     <div class="form-group row">
                                         <label for="Edit_reorderlevel" class="col-3 col-form-label">Reorder Level</label>
                                         <div class="col-9">
-                                            <input class="form-control" type="text" placeholder="Enter Alerting Quantity" 
-                                            name="Edit_reorderlevel" id="Edit_reorderlevel" data-parsley-type="number" 
+                                            <input class="form-control" type="text" placeholder="Enter Alerting Quantity"
+                                            name="Edit_reorderlevel" id="Edit_reorderlevel" data-parsley-type="number"
                                             data-parsley-maxlength="21">
                                         </div>
                                     </div>
                                     <div class="form-group row">
                                         <label for="Edit_uom" class="col-3 col-form-label">UOM</label>
                                         <div class="col-9">
-                                            <input class="form-control" type="text" placeholder="Unit of Measurement" 
-                                            name="Edit_uom" id="Edit_uom" required 
+                                            <input class="form-control" type="text" placeholder="Unit of Measurement"
+                                            name="Edit_uom" id="Edit_uom"
                                             data-parsley-maxlength="21">
                                         </div>
                                     </div>
                                      <!-- Warehouse -->
                                     <div class="form-group row">
-                                        <label for="Edit_warehouse" class="col-3 col-form-label">Warehouse<span class="text-danger">*</span></label>
+                                        <label for="Edit_warehouse" class="col-3 col-form-label">Warehouse</label>
                                         <div class="col-9">
-                                            <select class="form-control" name="Edit_warehouse" id="Edit_warehouse" required>
+                                            <select class="form-control" name="Edit_warehouse" id="Edit_warehouse">
                                                 <option value="0">-Select Warehouse-</option>
                                                 <!-- Options will be populated by AJAX -->
                                             </select>
                                         </div>
                                     </div>
-                                         
+                                    </div>
+                                    <small class="text-muted d-block m-b-10"><a href="javascript:;" id="toggle_edit_advanced_item">+ More options (Brand, UOM, Warehouse...)</a></small>
+
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
@@ -877,6 +885,16 @@ $(document).ready(function() {
     $('#toggle_advanced_item').click(function(){
         $('#advanced_item_fields_top, #advanced_item_fields_bottom').toggle();
         $(this).text($('#advanced_item_fields_top').is(':visible') ? '- Fewer options' : '+ More options (Brand, UOM, Warehouse...)');
+    });
+    // Toggle the hidden advanced fields inside the Edit modal
+    $('#toggle_edit_advanced_item').click(function(){
+        $('#edit_advanced_fields_top, #edit_advanced_fields_bottom').toggle();
+        $(this).text($('#edit_advanced_fields_top').is(':visible') ? '- Fewer options' : '+ More options (Brand, UOM, Warehouse...)');
+    });
+    // Always collapse the edit advanced section when the modal opens
+    $('#EditModel').on('show.bs.modal', function(){
+        $('#edit_advanced_fields_top, #edit_advanced_fields_bottom').hide();
+        $('#toggle_edit_advanced_item').text('+ More options (Brand, UOM, Warehouse...)');
     });
 });
 

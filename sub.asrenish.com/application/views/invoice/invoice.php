@@ -170,6 +170,13 @@
                                         <?php }
                                         if($credit>0) { ?>
                                             <div><b>Credit:</b><span style="float:right;font-family: arial"><?php echo $credit ?></span></div>
+                                        <?php }
+                                        // Balance to Return (change) on a normal cash sale where the customer
+                                        // paid more than the bill total. Not shown on credit sales.
+                                        $paidTotal = floatval($cash) + floatval(isset($paymnt->cheq) ? $paymnt->cheq : 0);
+                                        $changeReturn = $paidTotal - floatval($sales->sale_grandtotal);
+                                        if($credit <= 0 && $changeReturn > 0.001) { ?>
+                                            <div><b>Balance to Return:</b><span style="float:right;font-family: arial"><?php echo number_format($changeReturn, 2) ?></span></div>
                                         <?php } ?>
                                     </div>
                                 </div>
