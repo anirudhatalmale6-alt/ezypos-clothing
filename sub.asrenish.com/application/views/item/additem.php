@@ -1183,11 +1183,14 @@ function generateBarcodePreview(){
 
     var html = '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;">';
     for(var i = 0; i < Math.min(copies, 20); i++){
-        html += '<div class="barcode-label" style="border:1px dashed #ccc;padding:8px;text-align:center;width:220px;">';
-        html += '<div style="font-size:11px;font-weight:bold;margin-bottom:2px;">' + name + '</div>';
-        html += '<svg class="barcode-svg"></svg>';
+        // Preview mirrors the printed label: name on top, barcode scaled to 160px,
+        // item code below at font-size 20, then price.
+        html += '<div class="barcode-label" style="border:1px dashed #ccc;padding:6px;text-align:center;width:200px;">';
+        html += '<div style="font-size:11px;font-weight:bold;margin-bottom:1px;white-space:nowrap;overflow:hidden;">' + name + '</div>';
+        html += '<svg class="barcode-svg" style="width:160px;height:38px;display:block;margin:1px auto;"></svg>';
+        html += '<div style="font-size:20px;font-weight:bold;line-height:1;letter-spacing:1px;">' + code + '</div>';
         if(showPrice){
-            html += '<div style="font-size:12px;font-weight:bold;margin-top:2px;">LKR ' + parseFloat(price).toFixed(2) + '</div>';
+            html += '<div style="font-size:12px;font-weight:bold;margin-top:1px;">LKR ' + parseFloat(price).toFixed(2) + '</div>';
         }
         html += '</div>';
     }
@@ -1197,15 +1200,14 @@ function generateBarcodePreview(){
     html += '</div>';
     $('#barcodePreview').html(html);
 
-    // Generate barcodes
+    // Generate barcodes (item code shown separately, so displayValue is off here too)
     try {
         JsBarcode('.barcode-svg', code, {
             format: format,
-            width: 1.5,
-            height: 40,
-            fontSize: 12,
-            margin: 2,
-            displayValue: true
+            width: 2,
+            height: 38,
+            margin: 0,
+            displayValue: false
         });
     } catch(e) {
         $('#barcodePreview').html('<div class="alert alert-danger">Invalid barcode format for this item code. Try CODE 128 or CODE 39.</div>');
@@ -1220,25 +1222,39 @@ $('#printBarcodeBtn').on('click', function(){
     var name = currentBarcodeData.name;
     var price = currentBarcodeData.price;
 
+    // Physical sticker size (mm). Adjust these two values if your label roll differs.
+    var LABEL_W_MM = 50, LABEL_H_MM = 25;
+    // Requested barcode width (px) so the barcode stays inside the sticker.
+    var BARCODE_W = 160;
+
     var printWin = window.open('', '_blank', 'width=800,height=600');
     var html = '<!DOCTYPE html><html><head><title>Print Barcodes - ' + code + '</title>';
     html += '<script src="<?php echo base_url()?>assets/js/JsBarcode.all.min.js"><\/script>';
-    html += '<style>body{margin:0;padding:10px;font-family:Arial,sans-serif;}';
-    html += '.labels{display:flex;flex-wrap:wrap;gap:5px;}';
-    html += '.label{border:1px dashed #ccc;padding:5px;text-align:center;width:200px;page-break-inside:avoid;}';
-    html += '.label .name{font-size:10px;font-weight:bold;margin-bottom:1px;}';
-    html += '.label .price{font-size:11px;font-weight:bold;margin-top:1px;}';
-    html += '@media print{.labels{gap:2px;}.label{border:none;padding:3px;}}</style></head><body>';
-    html += '<div class="labels">';
+    html += '<style>';
+    // One printed page == one physical sticker, with zero margin. This stops the
+    // thermal printer from advancing a big (A4) page worth of blank labels after each job.
+    html += '@page{size:' + LABEL_W_MM + 'mm ' + LABEL_H_MM + 'mm;margin:0;}';
+    html += 'html,body{margin:0;padding:0;font-family:Arial,sans-serif;}';
+    html += '.label{width:' + LABEL_W_MM + 'mm;height:' + LABEL_H_MM + 'mm;box-sizing:border-box;padding:1mm;'
+          + 'text-align:center;overflow:hidden;page-break-after:always;'
+          + 'display:flex;flex-direction:column;justify-content:center;align-items:center;}';
+    html += '.label:last-child{page-break-after:auto;}'; // no trailing blank label
+    html += '.label .name{font-size:11px;font-weight:bold;line-height:1.1;margin:0;white-space:nowrap;overflow:hidden;max-width:100%;}';
+    html += '.label .bc{width:' + BARCODE_W + 'px;height:38px;display:block;margin:1px auto;}';
+    html += '.label .code{font-size:20px;font-weight:bold;line-height:1;margin:0;letter-spacing:1px;}';
+    html += '.label .price{font-size:12px;font-weight:bold;margin:0;}';
+    html += '</style></head><body>';
     for(var i = 0; i < copies; i++){
         html += '<div class="label">';
         html += '<div class="name">' + name + '</div>';
         html += '<svg class="bc"></svg>';
+        html += '<div class="code">' + code + '</div>';
         if(showPrice) html += '<div class="price">LKR ' + parseFloat(price).toFixed(2) + '</div>';
         html += '</div>';
     }
-    html += '</div>';
-    html += '<script>JsBarcode(".bc","' + code + '",{format:"' + format + '",width:1.5,height:35,fontSize:11,margin:1,displayValue:true});window.onload=function(){window.print();}<\/script>';
+    // displayValue:false — the item code is printed separately (below) at font size 20;
+    // the barcode SVG is then scaled by CSS to exactly ' + BARCODE_W + 'px wide.
+    html += '<script>JsBarcode(".bc","' + code + '",{format:"' + format + '",width:2,height:38,margin:0,displayValue:false});window.onload=function(){window.print();}<\/script>';
     html += '</body></html>';
     printWin.document.write(html);
     printWin.document.close();

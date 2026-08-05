@@ -87,7 +87,7 @@
                                                 <?php if(isset($return_items)): $x = 0; foreach($return_items as $ri): $x++; ?>
                                                 <tr style="font-family: arial;">
                                                     <td><?php echo $x; ?></td>
-                                                    <td><?php echo $ri->ri_item_name; ?></td>
+                                                    <td><?php echo (isset($ri->itm_code) && $ri->itm_code ? '['.$ri->itm_code.'] ' : '').$ri->ri_item_name; ?></td>
                                                     <td style="text-align:right;"><?php echo $ri->ri_qty; ?></td>
                                                     <td style="text-align:right;"><?php echo number_format($ri->ri_total, 2); ?></td>
                                                 </tr>
@@ -115,7 +115,7 @@
                                                 <?php $y = 0; foreach($exchange_items as $ei): $y++; ?>
                                                 <tr style="font-family: arial;">
                                                     <td><?php echo $y; ?></td>
-                                                    <td><?php echo $ei->ei_item_name; ?></td>
+                                                    <td><?php echo (isset($ei->itm_code) && $ei->itm_code ? '['.$ei->itm_code.'] ' : '').$ei->ei_item_name; ?></td>
                                                     <td style="text-align:right;"><?php echo $ei->ei_qty; ?></td>
                                                     <td style="text-align:right;"><?php echo number_format($ei->ei_total, 2); ?></td>
                                                 </tr>

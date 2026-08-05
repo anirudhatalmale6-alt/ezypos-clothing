@@ -924,8 +924,13 @@ var chequeHTML ='<div id="chequeDIV">'+
             if(isNaN(deliveryCharge)) deliveryCharge = 0;
             grandtotal = +(afterLoyalty + deliveryCharge).toFixed(2);
 
-            $("#grandtotalLbl").html(grandtotal);
-            $("#creditvalue").html(grandtotal);
+            // Deduct any applied gift vouchers so the Grand Total shows the real payable.
+            var voucherTotal = (typeof getVoucherTotal === 'function') ? getVoucherTotal() : 0;
+            var netPayable = +(grandtotal - voucherTotal).toFixed(2);
+            if(netPayable < 0) netPayable = 0;
+
+            $("#grandtotalLbl").html(netPayable.toFixed(2));
+            $("#creditvalue").html(netPayable.toFixed(2));
         }
 
         // ===================== PROMOTIONS (Point 9) =====================
@@ -1741,22 +1746,12 @@ var chequeHTML ='<div id="chequeDIV">'+
            });
     }
     var alert_show=false;
+    // Credit Limit popup removed as requested. Credit sales still work normally; we no
+    // longer nag with an alert or block the Save button when a customer is over their
+    // credit limit. (Kept as a no-op so all existing callers remain valid.)
     function validate_user_credits(){
-                              var credit_limit_val=Number($('#credit_lmt_value').html());
-                              var customer_balance_val=Number($('#customer_balance').html());
-                              var credit_val=Number($('#creditvalue').html());
-                              
-                              if(credit_limit_val>=(customer_balance_val+credit_val))               
-                              {   document.getElementById("save").disabled = false;
-                                  alert_show=false;
-                              }else{
-                                  if(alert_show==false){
-                                  alert("CUSTOMER HAS REACHED THE CREDIT LIMIT");
-                                  alert_show=true;
-                              }
-                                  document.getElementById("save").disabled = true;
-                                  
-                              }
+        var saveBtn = document.getElementById("save");
+        if(saveBtn){ saveBtn.disabled = false; }
     }
     
     
@@ -1879,19 +1874,33 @@ var chequeHTML ='<div id="chequeDIV">'+
         }
     });
 
-    // Default CASH customer on page load
+    // Default Walk-in Customer (Customer ID 1) on page load
     <?php
     $cashCusId = 0;
     $cashCusName = '';
     if(isset($customers)){
+        // Prefer the Walk-in Customer (id 1)
         foreach($customers as $c){
-            if(strtoupper($c->cus_name) === 'CASH'){
+            if(intval($c->cus_id) === 1){
                 $cashCusId = $c->cus_id;
                 $cashCusName = $c->cus_name;
                 break;
             }
         }
+        // Fall back to a WALK-IN / CASH named customer if id 1 is not present
+        if($cashCusId == 0){
+            foreach($customers as $c){
+                $n = strtoupper($c->cus_name);
+                if(strpos($n, 'WALK') !== false || $n === 'CASH'){
+                    $cashCusId = $c->cus_id;
+                    $cashCusName = $c->cus_name;
+                    break;
+                }
+            }
+        }
     }
+    // Guarantee a default of Customer ID 1 as requested
+    if($cashCusId == 0){ $cashCusId = 1; $cashCusName = 'Walk-in Customer'; }
     if($cashCusId > 0){
     ?>
     // Auto-select CASH customer
@@ -1998,6 +2007,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                     });
                     renderVoucherList();
                     recalcVoucherTotal();
+                    if(typeof grandtotalCalculation === 'function'){ grandtotalCalculation(); }
                     calculateCredit();
                     $('#redeem_card_number').val('');
                 } else {
@@ -2031,6 +2041,7 @@ var chequeHTML ='<div id="chequeDIV">'+
             redeemedVouchers.splice(idx, 1);
             renderVoucherList();
             recalcVoucherTotal();
+            if(typeof grandtotalCalculation === 'function'){ grandtotalCalculation(); }
             calculateCredit();
         });
     }
