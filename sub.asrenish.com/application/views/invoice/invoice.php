@@ -1,210 +1,165 @@
 <html>
     <head>
-    <!-- Bootstrap CSS -->
-    <link href="<?php echo base_url(); ?>assets/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
-    <link href="https://fonts.googleapis.com/css?family=Slabo+27px" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css?family=EB+Garamond" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css?family=Pathway+Gothic+One" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300" rel="stylesheet">
+    <?php date_default_timezone_set('Asia/Colombo');
+        // Discount type + value (robust): percentage shows a % sign, flat shows a plain amount.
+        $discType = (isset($sales->sale_discount_type) && $sales->sale_discount_type == 'flat') ? 'flat' : 'percentage';
+        $discNum  = floatval(isset($sales->sale_discount) ? $sales->sale_discount : 0);
+    ?>
     <style>
-        body {
-            font-family:  'Open Sans Condensed', sans-serif;
+        /* 90mm thermal receipt: full printable width, bold/high-density, tight spacing. */
+        * { color:#000 !important; box-sizing:border-box; }
+        html,body {
+            margin:0; padding:0;
+            font-family: Arial, "Helvetica Neue", sans-serif;
+            font-weight:bold;                 /* thick font for clear thermal print */
+            font-size:13px; line-height:1.15;
+            -webkit-print-color-adjust:exact; print-color-adjust:exact;
         }
-        @media print {
-            #printBtn{
-                display: none;
-            }
-        }
-        
-     
+        .rcpt { width:100%; max-width:80mm; margin:0 auto; padding:2mm 2mm 4mm; }
+        .rcpt .center { text-align:center; }
+        .rcpt .shopname { font-size:18px; font-weight:900; margin:0 0 2px; }
+        .rcpt .shopinfo { font-size:12px; margin:0 0 4px; }
+        .rcpt .doctitle { font-size:14px; font-weight:900; margin:4px 0; letter-spacing:1px; }
+        .rcpt .meta { width:100%; font-size:12px; margin:2px 0; }
+        .rcpt .meta td { padding:0; vertical-align:top; }
+        .rcpt hr { border:none; border-top:1px dashed #000; margin:4px 0; }
+        table.items { width:100%; border-collapse:collapse; font-size:12px; }
+        table.items th { border-bottom:1px solid #000; padding:2px 1px; text-align:left; font-weight:900; }
+        table.items td { padding:1px; vertical-align:top; }         /* tight rows = more items per print */
+        table.items .r { text-align:right; }
+        .tots { width:100%; font-size:13px; margin-top:2px; }
+        .tots td { padding:0; }
+        .tots td.r { text-align:right; }
+        .tots .grand td { font-size:15px; font-weight:900; border-top:1px solid #000; padding-top:2px; }
+        .foot { text-align:center; font-size:12px; margin-top:6px; font-weight:900; }
+        @media print { #printBtn{ display:none; } @page { margin:2mm; } }
     </style>
     </head>
     <body>
-    <div class="">
-        <div class="container">
-               <!-- Page-Title -->    
-               <div class="row" >
-                    <div class="col-12">
-                        <div class="card-box">
-                            <!-- <div class="panel-heading">
-                                <h4>Invoice</h4>
-                            </div> -->
-                            <div class="panel-body">
-                                <div class="clearfix" style="font-family: arial;">
-                                    <?php date_default_timezone_set('Asia/Colombo');?>
-                                    <div class="">
-                                        <h3  style="text-align:center; font-family: arial;"><?php foreach($comName as $nme){ echo $nme->config_value;} ?></h3>
-                                        <div class="row" style="text-align:center">
-                                            <div class="col-lg-12 col-md-12 col-12 col-12">
-                                                <div class="" style="font-family: arial">
-                                                        <?php echo $sales->store_name;?> <br>
-                                                        <?php echo $sales->store_address.",";?><?php echo $sales->store_address2;?><br>
-                                                        <?php echo $sales->store_tel.",";?>
-                                                        <?php echo $sales->store_mobile.",";?>
-                                                        <?php echo $sales->store_mobile2.",";?>
-                                                        <?php echo $sales->store_fax.",";?>
-                                                        <br>
-                                                        <?php echo $sales->store_email;?>
-                                                    
-                                                </div>      
-                                            </div><!-- end col -->
-                                        </div>
-                                        <div class="" style="text-align:center">
-                                            <div class="col-lg-12 col-md-12 col-12 col-12">
-                                                    <span ><b>Invoice</b></span>     
-                                            </div><!-- end col -->
-                                        </div>
-                                        <div class="row">
-                                            <div class="col-7">
-                                                <div class="card-box table-responsive"> 
-                                                    <table  class="" cellspacing="0" width="100%" style="font-family: arial">                                
-                                                        <tbody>
-                                                                <tr>
-                                                                    <td>Customer:<?php echo " ".$customer->cus_name ?></td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td>Address:<?php echo " ".$customer->cus_address ?></td>
-                                                                </tr>
-                                                                <tr>  
-                                                                    <td>Created At:<?php echo " ".$sales->sale_createdat ?></td> 
-                                                                </tr>                                               
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                            <div class="col-5">
-                                                <div class="card-box table-responsive"> 
-                                                    <table  class="" cellspacing="0" width="100%" style="font-family: arial">                                
-                                                        <tbody>
-                                                                <tr>
-                                                                    <td >Inv No: <?php echo " "."AS00".$sales->sale_id ?></td>
-                                                                </tr>
-                                                                <?php if(isset($sales->sale_type) && $sales->sale_type != 'cash'): ?>
-                                                                <tr>
-                                                                    <td>Type: <?php echo ucfirst($sales->sale_type); ?></td>
-                                                                </tr>
-                                                                <?php endif; ?>
-                                                                <?php if(isset($sales->sale_online_id) && $sales->sale_online_id): ?>
-                                                                <tr>
-                                                                    <td>Online Ref: <?php echo $sales->sale_online_id; ?></td>
-                                                                </tr>
-                                                                <?php endif; ?>
-                                                                <tr>
-                                                                    <td >Bill By:<?php echo " ".$user ?></td>
-                                                                </tr>                                              
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        </div>   
+    <div class="rcpt">
+        <div class="center">
+            <div class="shopname"><?php foreach($comName as $nme){ echo $nme->config_value;} ?></div>
+            <div class="shopinfo">
+                <?php echo $sales->store_name; ?><br>
+                <?php echo $sales->store_address; ?><?php echo ($sales->store_address2 ? ', '.$sales->store_address2 : ''); ?><br>
+                <?php
+                    $tels = array_filter(array($sales->store_tel, $sales->store_mobile, $sales->store_mobile2));
+                    echo implode(' / ', $tels);
+                ?>
+            </div>
+            <div class="doctitle">INVOICE</div>
+        </div>
 
-                                    </div>
-                                </div>                             
-                                <!-- end row -->
+        <table class="meta">
+            <tr>
+                <td>Customer: <?php echo $customer->cus_name; ?></td>
+                <td class="r">Inv No: AS00<?php echo $sales->sale_id; ?></td>
+            </tr>
+            <tr>
+                <td>Address: <?php echo $customer->cus_address; ?></td>
+                <td class="r">Bill By: <?php echo $user; ?></td>
+            </tr>
+            <tr>
+                <td colspan="2">Date: <?php echo $sales->sale_createdat; ?></td>
+            </tr>
+            <?php if(isset($sales->sale_type) && $sales->sale_type != 'cash'): ?>
+            <tr><td colspan="2">Type: <?php echo ucfirst($sales->sale_type); ?><?php echo (isset($sales->sale_online_id) && $sales->sale_online_id) ? ' (Ref: '.$sales->sale_online_id.')' : ''; ?></td></tr>
+            <?php endif; ?>
+        </table>
+        <hr>
 
-                                <div class="row" >
-                                    <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12 col-12">
-                                        <div class="card-box responsive"> 
-                                            <table  class="table" cellspacing="0" width="100%" style="margin-right: 24px ">                                
-                                                <thead>
-                                                    <tr>
-                                                        <th style="margin-right:5px;">#</th>
-                                                        <th>Name</th>
-                                                        <th style="Text-align:right;">Price</th>
-                                                        <th style="Text-align:right;">Qty</th>
-                                                        <th style="Text-align:right;">Disc(%)</th>
-                                                        <th style="Text-align:right;padding-right: -10px">Total</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <?php $x = 0; $totalQty = 0; foreach($saleitems as $saleitem) { $x++; $totalQty += floatval($saleitem->saleitem_quantity); ?>
-                                                        <tr>
-                                                            <td style="margin-right:5px; font-family: arial"><?php echo $x ?></td>
-                                                            <td colspan="5" style="font-family: arial"><?php echo (isset($saleitem->itm_code) && $saleitem->itm_code) ? '['.$saleitem->itm_code.'] ' : ''; ?><?php echo $saleitem->itm_name ?></td>
-                                                            
-                                                        </tr>
-                                                        <tr style="font-family: arial;">
-                                                            <td>&nbsp;</td>                                                                                                                   
-                                                            <td colspan="2" style="Text-align:right;"><?php echo $saleitem->saleitem_price ?></td>
-                                                            <td style="Text-align:right;"><?php echo $saleitem->saleitem_quantity ?></td>
-                                                            <td style="Text-align:right;"><?php echo $saleitem->saleitem_discount ?></td>
-                                                            <td style="Text-align:right;"><?php echo $saleitem->saleitem_total ?></td>
-                                                        </tr>
-                                                        
-                                                    <?php } ?>                                                
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                                <hr>
+        <table class="items">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th class="r">Qty</th>
+                    <th class="r">Price</th>
+                    <th class="r">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php $totalQty = 0; foreach($saleitems as $saleitem){ $totalQty += floatval($saleitem->saleitem_quantity); ?>
+                <tr>
+                    <td colspan="4"><?php echo (isset($saleitem->itm_code) && $saleitem->itm_code) ? '['.$saleitem->itm_code.'] ' : ''; ?><?php echo $saleitem->itm_name; ?></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td class="r"><?php echo rtrim(rtrim(number_format(floatval($saleitem->saleitem_quantity),2),'0'),'.'); ?></td>
+                    <td class="r"><?php echo number_format(floatval($saleitem->saleitem_price),2); ?></td>
+                    <td class="r"><?php echo number_format(floatval($saleitem->saleitem_total),2); ?></td>
+                </tr>
+                <?php } ?>
+            </tbody>
+        </table>
+        <hr>
 
-                                <div class="row" style="margin-right: 5px ">                                 
-                                    <div class="col-lg-12 col-md-12 col-sm-12 col-xm-12 col-12">
-                                            <div><b>Total Qty:</b><span style="float:right;font-family: arial"><?php echo rtrim(rtrim(number_format($totalQty, 2), '0'), '.'); ?> pcs</span></div>
-                                            <div><b>Sub-total:</b><span style="float:right;font-family: arial"><?php echo $sales->sale_subtotal ?></span></div>
-                                            <div><b>Discount<?php echo (isset($sales->sale_discount_type) && $sales->sale_discount_type=='flat') ? ' (Flat)' : ' (%)'; ?>:</b><span style="float:right;font-family: arial"> <?php echo $sales->sale_discount ?></span></div>
-                                            <?php if(isset($sales->sale_promo_discount) && $sales->sale_promo_discount > 0){ ?>
-                                            <div><b>Promotions:</b><span style="float:right;font-family: arial">- <?php echo number_format($sales->sale_promo_discount, 2) ?></span></div>
-                                            <?php } ?>
-                                            <?php if(isset($sales->sale_loyalty_redeemed) && $sales->sale_loyalty_redeemed > 0){ ?>
-                                            <div><b>Points Redeemed:</b><span style="float:right;font-family: arial">- <?php echo number_format($sales->sale_loyalty_redeemed, 2) ?></span></div>
-                                            <?php } ?>
-                                            <?php if(isset($sales->sale_delivery_charge) && $sales->sale_delivery_charge > 0){ ?>
-                                            <div><b>Delivery Charge:</b><span style="float:right;font-family: arial"><?php echo number_format($sales->sale_delivery_charge, 2) ?></span></div>
-                                            <?php } ?>
-                                            <div><b>Grand Total:</b><span style="float:right;font-family: arial"><?php echo $sales->sale_grandtotal ?></span></div>
-                                            <?php if(isset($sales->sale_loyalty_points_earned) && $sales->sale_loyalty_points_earned > 0){ ?>
-                                            <div style="font-size:12px;"><b>Points Earned:</b><span style="float:right;font-family: arial"><?php echo number_format($sales->sale_loyalty_points_earned, 2) ?></span></div>
-                                            <?php } ?>
-                                        <hr>
-                                        <?php 
-                                            $cash=$paymnt->cus_pay_cash; 
-                                            $credit=$paymnt->cus_pay_credit; 
-                                            $noChqs=$paymnt->noOfChqs; 
-                                        
-                                        if($cash>0) { ?>
-                                            <div><b>Cash:</b><span style="float:right;font-family: arial"><?php echo $cash ?></span></div>
-                                        <?php }
-                                        if($noChqs>0) { ?>
-                                            <div><b>Cheque:</b>(No:<?php echo $noChqs ?>)<span style="float:right;font-family: arial"><?php echo $paymnt->cheq; ?></span></div>
-                                        <?php }
-                                        if($credit>0) { ?>
-                                            <div><b>Credit:</b><span style="float:right;font-family: arial"><?php echo $credit ?></span></div>
-                                        <?php }
-                                        // Balance to Return (change) on a normal cash sale where the customer
-                                        // paid more than the bill total. Not shown on credit sales.
-                                        $paidTotal = floatval($cash) + floatval(isset($paymnt->cheq) ? $paymnt->cheq : 0);
-                                        $changeReturn = $paidTotal - floatval($sales->sale_grandtotal);
-                                        if($credit <= 0 && $changeReturn > 0.001) { ?>
-                                            <div><b>Balance to Return:</b><span style="float:right;font-family: arial"><?php echo number_format($changeReturn, 2) ?></span></div>
-                                        <?php } ?>
-                                    </div>
-                                </div>
-                                <hr>
-                                <div class="row text-center justify-content-center">
-                                    <div class="col-12" style=";font-family: arial"> 
-                                        <?php foreach($footer as $Ftext){ echo $Ftext->config_value;} ?><br>
-                                    </div>
-                                </div>                                                            
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- end row -->              
-                <!-- end row -->
-                <button id="printBtn" class="btn btn-primary">Print</button>
+        <table class="tots">
+            <tr><td>Total Qty:</td><td class="r"><?php echo rtrim(rtrim(number_format($totalQty,2),'0'),'.'); ?> pcs</td></tr>
+            <tr><td>Sub-total:</td><td class="r"><?php echo number_format(floatval($sales->sale_subtotal),2); ?></td></tr>
+            <?php if($discNum > 0){ ?>
+            <tr>
+                <td>Discount:</td>
+                <td class="r"><?php
+                    if($discType == 'flat'){ echo number_format($discNum,2); }
+                    else { echo rtrim(rtrim(number_format($discNum,2),'0'),'.').'%'; }
+                ?></td>
+            </tr>
+            <?php } ?>
+            <?php if(isset($sales->sale_promo_discount) && $sales->sale_promo_discount > 0){ ?>
+            <tr><td>Promotions:</td><td class="r">- <?php echo number_format($sales->sale_promo_discount,2); ?></td></tr>
+            <?php } ?>
+            <?php if(isset($sales->sale_loyalty_redeemed) && $sales->sale_loyalty_redeemed > 0){ ?>
+            <tr><td>Points Redeemed:</td><td class="r">- <?php echo number_format($sales->sale_loyalty_redeemed,2); ?></td></tr>
+            <?php } ?>
+            <?php if(isset($sales->sale_delivery_charge) && $sales->sale_delivery_charge > 0){ ?>
+            <tr><td>Delivery Charge:</td><td class="r"><?php echo number_format($sales->sale_delivery_charge,2); ?></td></tr>
+            <?php } ?>
+            <tr class="grand"><td>Grand Total:</td><td class="r"><?php echo number_format(floatval($sales->sale_grandtotal),2); ?></td></tr>
+            <?php if(isset($sales->sale_loyalty_points_earned) && $sales->sale_loyalty_points_earned > 0){ ?>
+            <tr><td style="font-size:11px;">Points Earned:</td><td class="r" style="font-size:11px;"><?php echo number_format($sales->sale_loyalty_points_earned,2); ?></td></tr>
+            <?php } ?>
+        </table>
+        <hr>
+
+        <table class="tots">
+            <?php
+                $cash   = $paymnt->cus_pay_cash;
+                $credit = $paymnt->cus_pay_credit;
+                $noChqs = $paymnt->noOfChqs;
+                if($cash > 0){ ?>
+                <tr><td>Cash:</td><td class="r"><?php echo number_format(floatval($cash),2); ?></td></tr>
+            <?php }
+                if($noChqs > 0){ ?>
+                <tr><td>Cheque (No: <?php echo $noChqs; ?>):</td><td class="r"><?php echo number_format(floatval($paymnt->cheq),2); ?></td></tr>
+            <?php }
+                if($credit > 0){ ?>
+                <tr><td>Credit:</td><td class="r"><?php echo number_format(floatval($credit),2); ?></td></tr>
+            <?php }
+                // Balance to Return (change) on a normal cash sale where more than the total was paid.
+                $paidTotal = floatval($cash) + floatval(isset($paymnt->cheq) ? $paymnt->cheq : 0);
+                $changeReturn = $paidTotal - floatval($sales->sale_grandtotal);
+                if($credit <= 0 && $changeReturn > 0.001){ ?>
+                <tr><td>Balance to Return:</td><td class="r"><?php echo number_format($changeReturn,2); ?></td></tr>
+            <?php } ?>
+        </table>
+
+        <div class="foot">
+            Thank You! Come Again.<br>
+            Exchange within 7 days only.
+        </div>
+
+        <div class="center" style="margin-top:8px;">
+            <button id="printBtn" class="btn btn-primary">Print</button>
         </div>
     </div>
         <script src="<?php echo base_url().'assets/js/jquery.min.js'?>"></script>
-        <script src="<?php echo base_url().'assets/js/bootstrap.min.js'?>"></script>
         <script>
-            $(function(){ 
+            $(function(){
                 $("#printBtn").click(function(){
-                window.print();
-                $("#printBtn").hide();
+                    window.print();
+                    $("#printBtn").hide();
+                });
             });
-        }); 
         </script>
     </body>
 </html>

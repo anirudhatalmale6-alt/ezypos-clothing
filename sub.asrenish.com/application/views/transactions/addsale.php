@@ -10,8 +10,9 @@
                         <div class="col-12"><!-- col-lg-6 col-md-6 col-sm-8 col-xs-12-->
                             <div class="card-box clearfix">
                                 <div class="row">
-                                    <div class="col-6"><h4 class="header-title m-t-0 m-b-30">Add New Sales</h4></div>
-                                    <div class="col-6">
+                                    <!-- Item 8: "Add New Sales" title removed. Item 9: Sale Location
+                                         hidden for non-admin users (kept in DOM so the store still submits). -->
+                                    <div class="col-12" style="<?php echo ($_SESSION['userrole']==1) ? '' : 'display:none;'; ?>">
                                         <select class="form-control" name="storeLoctn" id="storeLoctn">
                                         <?php if($_SESSION['userrole']==1){?>
                                         <option value="0">Sale Location</option>
@@ -45,43 +46,22 @@
                                         <input class="form-control" type="text" id="customer_phone" placeholder="Customer phone number">
                                     </div>
                                 </div>
-                                <div class="form-group row">
+                                <!-- Item 9: Date hidden for non-admin (defaults to today, still submits). -->
+                                <div class="form-group row" style="<?php echo ($_SESSION['userrole']==1) ? '' : 'display:none;'; ?>">
                                     <label for="datepicker" class="col-4 col-form-label">Date<span class="text-danger">*</span></label>
                                     <div class="col-8">
-                                        <input class="form-control datepic" value="" id="datepicker">
+                                        <input class="form-control datepic" value="<?php echo date('Y-m-d'); ?>" id="datepicker">
                                     </div>
                                 </div>
-                                <div class="form-group row">
-                                    <div class="col-4"></div>
-                                    <div class="col-8">
-                                        <div class="checkbox checkbox-primary">
-                                            <input id="online_delivery" type="checkbox">
-                                            <label for="online_delivery">Online Delivery</label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div id="online_delivery_div" style="display:none;">
-                                    <div class="form-group row">
-                                        <label class="col-4 col-form-label">Delivery Co:</label>
-                                        <div class="col-8">
-                                            <select class="form-control form-control-sm" id="delivery_company">
-                                                <option value="">-- Select --</option>
-                                                <?php if(isset($deliveryCompanies)): foreach($deliveryCompanies as $dc): ?>
-                                                <option value="<?php echo $dc->dc_id; ?>"><?php echo $dc->dc_name; ?></option>
-                                                <?php endforeach; endif; ?>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="form-group row">
-                                        <label class="col-4 col-form-label">Delivery Charge:</label>
-                                        <div class="col-8">
-                                            <input class="form-control DecimalFix" type="text" placeholder="0.00" id="delivery_charge_input">
-                                        </div>
-                                    </div>
-                                </div>
+                                <!-- Item 10: Online Delivery checkbox + fields moved below the credit section (see later). -->
                                 </fieldset>
                                 <hr>
                                 <div style="background:#f8f9fa;border-radius:4px;padding:10px 5px;margin-bottom:10px;">
+                                <!-- Item 11: Total quantity shown at the top of the bill, above Sub Total. -->
+                                <div class="form-group row mb-1">
+                                    <label class="col-5 col-form-label">Total Qty:</label>
+                                    <div class="col-7 col-form-label text-right"><strong><span id="totalQtyLbl">0</span> pcs</strong></div>
+                                </div>
                                 <div class="form-group row mb-1">
                                     <label class="col-5 col-form-label">Sub Total:</label>
                                     <div class="col-7 col-form-label text-right"><strong>LKR <span id="subtotal">0.00</span></strong></div>
@@ -90,9 +70,10 @@
                                     <label class="col-3 col-form-label">Discount:</label>
                                     <div class="col-5"><input class="form-control DecimalFix" type="text" name="invoiceDis" placeholder="0" id="invoiceDis"/></div>
                                     <div class="col-4">
+                                        <!-- Item 15: Flat is the default discount type. -->
                                         <select class="form-control" id="invoiceDisType">
+                                            <option value="flat" selected>Flat (LKR)</option>
                                             <option value="percentage">%</option>
-                                            <option value="flat">Flat (LKR)</option>
                                         </select>
                                     </div>
                                 </div>
@@ -163,6 +144,34 @@
                                 <div class="form-group row mb-0" id="change_return_row" style="display:none;background:#e8f5e9;border-radius:4px;padding:6px 0;">
                                     <label class="col-5 col-form-label" style="font-size:16px;color:#1b5e20;"><strong>Balance to Return:</strong></label>
                                     <div class="col-7 col-form-label text-right" style="font-size:16px;color:#1b5e20;"><strong>LKR <span id="change_return">0.00</span></strong></div>
+                                </div>
+                                <!-- Item 10: Online Delivery below the credit section -->
+                                <div class="form-group row mb-0 m-t-5">
+                                    <div class="col-12">
+                                        <div class="checkbox checkbox-primary">
+                                            <input id="online_delivery" type="checkbox">
+                                            <label for="online_delivery">Online Delivery</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="online_delivery_div" style="display:none;">
+                                    <div class="form-group row">
+                                        <label class="col-4 col-form-label">Delivery Co:</label>
+                                        <div class="col-8">
+                                            <select class="form-control form-control-sm" id="delivery_company">
+                                                <option value="">-- Select --</option>
+                                                <?php if(isset($deliveryCompanies)): foreach($deliveryCompanies as $dc): ?>
+                                                <option value="<?php echo $dc->dc_id; ?>"><?php echo $dc->dc_name; ?></option>
+                                                <?php endforeach; endif; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-group row">
+                                        <label class="col-4 col-form-label">Delivery Charge:</label>
+                                        <div class="col-8">
+                                            <input class="form-control DecimalFix" type="text" placeholder="0.00" id="delivery_charge_input">
+                                        </div>
+                                    </div>
                                 </div>
                                 <!-- Gift Voucher Redemption -->
                                 <hr>
@@ -248,31 +257,7 @@
                 </div><!-- End of Add Sales Form // href="javascript:window.print()" _blank//-->
 
                 <div class="col-lg-8 col-md-7 col-sm-12"><!--Start Table & row -->
-                    <!-- Gift Voucher Selling Section (moved above barcode scanner) -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card-box clearfix" style="border-left:3px solid #e65100;">
-                                <h5 class="header-title m-t-0 m-b-10"><i class="fa fa-gift" style="color:#e65100;"></i> Sell Gift Vouchers</h5>
-                                <div class="row">
-                                    <div class="col-5">
-                                        <select class="form-control" id="gv_category">
-                                            <option value="">Select Voucher Type</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-3">
-                                        <input type="number" class="form-control" id="gv_qty" min="1" value="1" placeholder="Qty">
-                                    </div>
-                                    <div class="col-4">
-                                        <button type="button" class="btn btn-warning" id="btn_add_vouchers"><i class="fa fa-plus"></i> Add Vouchers</button>
-                                    </div>
-                                </div>
-                                <div id="gv_sell_rows" class="m-t-10"></div>
-                                <div id="gv_sell_total_row" style="display:none;padding:8px;background:#fff3e0;border-radius:4px;margin-top:8px;">
-                                    <strong>Voucher Total: LKR <span id="gv_sell_total">0.00</span></strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Item 7: "Sell Gift Vouchers" section moved to the bottom of the page (see below). -->
                     <div class="row">
                         <div class="col-12">
                             <div class="form-group row mb-2" style="background:#e8f5e9;padding:8px;border-radius:4px;">
@@ -347,15 +332,42 @@
                                             <th style="font-size: 12px;">Price</th>
                                             <th style="font-size: 12px;">Qty</th>
                                             <th style="font-size: 12px;">Total</th>
-                                            <th style="font-size: 12px;">Dscnt%</th>
+                                            <th style="font-size: 12px;" class="dscnt-col">Dscnt%</th>
                                             <th style="font-size: 12px;">Act</th>
+                                            <?php // Item 14: individual item discount hidden for non-admin users
+                                            if($_SESSION['userrole'] != 1){ echo '<style>#datatable .dscnt-col, #datatable td.discount{display:none;}</style>'; } ?>
                                         </tr>
                                     </thead>
                                     <tbody id="tbodyID">                                          
                                     </tbody>
-                                </table>                                
+                                </table>
                         </div>
-                        </div>                 
+                        </div>
+                    </div>
+                    <!-- Item 7: Sell Gift Vouchers section moved here, to the bottom of the sales page. -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card-box clearfix" style="border-left:3px solid #e65100;">
+                                <h5 class="header-title m-t-0 m-b-10"><i class="fa fa-gift" style="color:#e65100;"></i> Sell Gift Vouchers</h5>
+                                <div class="row">
+                                    <div class="col-5">
+                                        <select class="form-control" id="gv_category">
+                                            <option value="">Select Voucher Type</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="number" class="form-control" id="gv_qty" min="1" value="1" placeholder="Qty">
+                                    </div>
+                                    <div class="col-4">
+                                        <button type="button" class="btn btn-warning" id="btn_add_vouchers"><i class="fa fa-plus"></i> Add Vouchers</button>
+                                    </div>
+                                </div>
+                                <div id="gv_sell_rows" class="m-t-10"></div>
+                                <div id="gv_sell_total_row" style="display:none;padding:8px;background:#fff3e0;border-radius:4px;margin-top:8px;">
+                                    <strong>Voucher Total: LKR <span id="gv_sell_total">0.00</span></strong>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div> <!--End of  Table & row -->
 
@@ -498,7 +510,22 @@
             $('#dynamic_pm_container').append(row);
             $('#pm_select_row').hide();
             $('#add_pm_row').show();
+
+            // Item 12: balance carry-forward. When a new payment method is added, auto-fill it
+            // with the amount still outstanding = grand total (after voucher) - cash - cheques
+            // - amounts already entered against the other payment methods.
+            var gt   = parseFloat($('#grandtotalLbl').text()) || 0;
+            var cash = parseFloat($('#cashvalue').val()) || 0;
+            var cheq = 0;
+            $("input[name='amount[]']").each(function(){ var v=parseFloat($(this).val()); if(!isNaN(v)) cheq += v; });
+            var pmSum = 0;
+            $('#dynamic_pm_container .pm-amount-input').each(function(){ var v=parseFloat($(this).val()); if(!isNaN(v) && v>0) pmSum += v; });
+            var remaining = +(gt - cash - cheq - pmSum).toFixed(2);
+            if(remaining < 0){ remaining = 0; }
+            $('#dynamic_pm_container .pm-amount-input').last().val(remaining.toFixed(2));
+
             if(typeof grandtotalCalculation === 'function'){ grandtotalCalculation(); } // payment-scope promos
+            if(typeof calculateCredit === 'function'){ calculateCredit(); }
         });
 
         $(document).on('click', '.pm-remove-btn', function(){
@@ -884,10 +911,15 @@ var chequeHTML ='<div id="chequeDIV">'+
         function calSubtotal(){
             var rows = $("#datatable").find("tr").length;
             subtotal =0;
+            var totalQty = 0;
             for(var i=1; i<=rows; i++){
                 var rowTotal=$("#datatable").find("tr").eq(i).find("td").eq(5).text();
                 subtotal= +(1*subtotal+1*rowTotal).toFixed(2);
+                var rowQty = parseFloat($("#datatable").find("tr").eq(i).find("td").eq(4).text());
+                if(!isNaN(rowQty)){ totalQty += rowQty; }
             }
+            // Item 11: show total pieces sold at the top of the bill
+            $("#totalQtyLbl").html(+(totalQty.toFixed(2)));
             // Add gift voucher selling total
             if(typeof getGvSellTotal === 'function'){
                 subtotal = +(subtotal + getGvSellTotal()).toFixed(2);
@@ -1547,7 +1579,8 @@ var chequeHTML ='<div id="chequeDIV">'+
                     $("#credit_order").prop('checked', false);
                     $("#credit_outstanding_row").hide();
                     $("#invoiceDis").val("");
-                    $("#invoiceDisType").val("percentage");
+                    $("#invoiceDisType").val("flat");
+                    $("#totalQtyLbl").html("0");
                     $("#delivery_company").val("");
                     $("#delivery_charge_input").val("");
                     $("#delivery_charge_div").hide();
