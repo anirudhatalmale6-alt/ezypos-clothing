@@ -117,7 +117,7 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <?php $x = 0; foreach($saleitems as $saleitem) { $x++?>
+                                                    <?php $x = 0; $totalQty = 0; foreach($saleitems as $saleitem) { $x++; $totalQty += floatval($saleitem->saleitem_quantity); ?>
                                                         <tr>
                                                             <td style="margin-right:5px; font-family: arial"><?php echo $x ?></td>
                                                             <td colspan="5" style="font-family: arial"><?php echo (isset($saleitem->itm_code) && $saleitem->itm_code) ? '['.$saleitem->itm_code.'] ' : ''; ?><?php echo $saleitem->itm_name ?></td>
@@ -141,6 +141,7 @@
 
                                 <div class="row" style="margin-right: 5px ">                                 
                                     <div class="col-lg-12 col-md-12 col-sm-12 col-xm-12 col-12">
+                                            <div><b>Total Qty:</b><span style="float:right;font-family: arial"><?php echo rtrim(rtrim(number_format($totalQty, 2), '0'), '.'); ?> pcs</span></div>
                                             <div><b>Sub-total:</b><span style="float:right;font-family: arial"><?php echo $sales->sale_subtotal ?></span></div>
                                             <div><b>Discount<?php echo (isset($sales->sale_discount_type) && $sales->sale_discount_type=='flat') ? ' (Flat)' : ' (%)'; ?>:</b><span style="float:right;font-family: arial"> <?php echo $sales->sale_discount ?></span></div>
                                             <?php if(isset($sales->sale_promo_discount) && $sales->sale_promo_discount > 0){ ?>

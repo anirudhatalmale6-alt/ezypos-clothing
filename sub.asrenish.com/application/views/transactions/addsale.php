@@ -925,7 +925,9 @@ var chequeHTML ='<div id="chequeDIV">'+
             grandtotal = +(afterLoyalty + deliveryCharge).toFixed(2);
 
             // Deduct any applied gift vouchers so the Grand Total shows the real payable.
-            var voucherTotal = (typeof getVoucherTotal === 'function') ? getVoucherTotal() : 0;
+            // Guard redeemedVouchers: grandtotalCalculation() can run during page load
+            // (customer auto-select) before that array is initialised further down.
+            var voucherTotal = (typeof getVoucherTotal === 'function' && typeof redeemedVouchers !== 'undefined') ? getVoucherTotal() : 0;
             var netPayable = +(grandtotal - voucherTotal).toFixed(2);
             if(netPayable < 0) netPayable = 0;
 
@@ -2057,6 +2059,7 @@ var chequeHTML ='<div id="chequeDIV">'+
 
     function getVoucherTotal() {
         var total = 0;
+        if(typeof redeemedVouchers === 'undefined' || !redeemedVouchers) return 0;
         for (var i = 0; i < redeemedVouchers.length; i++) {
             total += redeemedVouchers[i].remaining_value;
         }
@@ -2348,6 +2351,7 @@ var chequeHTML ='<div id="chequeDIV">'+
     // Get voucher selling total for grand total calculation
     function getGvSellTotal(){
         var total = 0;
+        if(typeof gvSellRows === 'undefined' || !gvSellRows) return 0;
         for(var i=0; i<gvSellRows.length; i++){
             total += gvSellRows[i].value;
         }
