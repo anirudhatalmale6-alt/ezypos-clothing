@@ -9,16 +9,26 @@
                         </div>
                         <div class="col-lg-6 col-md-6">
                             <div class="row">
-                                <div class="col-4">
+                                <div class="col-3">
+                                    <select class="form-control" id="store_select">
+                                        <option value="all">All Branches</option>
+                                        <?php if(isset($storesForFilter) && $storesForFilter){ foreach ($storesForFilter as $st) {
+                                            $sid   = is_array($st) ? $st['store_id']   : $st->store_id;
+                                            $sname = is_array($st) ? $st['store_name'] : $st->store_name; ?>
+                                            <option value="<?php echo $sid; ?>"><?php echo htmlspecialchars($sname); ?></option>
+                                        <?php }} ?>
+                                    </select>
+                                </div>
+                                <div class="col-3">
                                     <input class="form-control datepic" placeholder="From.." id="datepicFrom">
                                 </div>
-                                <div class="col-4">
+                                <div class="col-3">
                                     <input class="form-control datepic" placeholder="To.." id="datepicTo">
                                 </div>
-                                <div class="col-2">
+                                <div class="col-1">
                                     <button type="button" id="btnFilterSummary" class="btn btn-primary"><i class="fa fa-search"></i></button>
                                 </div>
-                                <div class="col-2">
+                                <div class="col-1">
                                     <button type="button" id="btnResetSummary" class="btn btn-outline-danger"><i class="fa fa-refresh"></i></button>
                                 </div>
                             </div>
@@ -38,13 +48,22 @@
     </thead>
     <tbody>
 
+        <?php
+            // Cash / Cheque figures come from the SAME engine as the Cash Flow report,
+            // so the two screens always agree.
+            $cf = isset($cashflow_today) ? $cashflow_today : array(
+                'sale_cash'=>0,'sale_cheque'=>0,'sale_card'=>0,'sale_in'=>0,'tailoring_in'=>0,
+                'return_out'=>0,'exchange_in'=>0,'total_in'=>0,'total_out'=>0,'net'=>0,
+                'cash_in'=>0,'cash_out'=>0,'cash_net'=>0
+            );
+        ?>
         <tr>
             <td style="text-align:left">SALES</td>
             <td id="td_sale_total"><?php echo number_format($sale_result_total->sum_sale_grandtotal,2); ?></td>
-            <td id="td_sale_cash"><?php echo number_format($sale_result_cash->sum_pymntlog_amount,2); ?></td>
-            <td id="td_sale_cheque"><?php echo number_format($sale_result_cheque->sum_cus_cheque_amount,2); ?></td>
+            <td id="td_sale_cash"><?php echo number_format($cf['sale_cash'],2); ?></td>
+            <td id="td_sale_cheque"><?php echo number_format($cf['sale_cheque'],2); ?></td>
             <td id="td_sale_credit"><?php
-            $today_sale_credit=($sale_result_total->sum_sale_grandtotal)-(($sale_result_cash->sum_pymntlog_amount)+($sale_result_cheque->sum_cus_cheque_amount));
+            $today_sale_credit=($sale_result_total->sum_sale_grandtotal)-($cf['sale_cash']+$cf['sale_cheque']+$cf['sale_card']);
             echo number_format($today_sale_credit,2); ?></td>
         </tr>
 
@@ -107,6 +126,37 @@
         </tr>
     </tbody>
 </table>
+
+<!-- Cash Flow block: identical figures to the Cash Flow report for the same period -->
+<h4 style="margin-top:25px;">Cash Flow</h4>
+<table class="table table-striped table-bordered" cellspacing="0" width="100%" style="font-size:large;text-align:right;">
+    <tbody>
+        <tr>
+            <td style="text-align:left">Sales (cash + cheque + card received)</td>
+            <td id="td_cf_sale_in" style="color:#2e7d32;"><?php echo number_format($cf['sale_in'],2); ?></td>
+        </tr>
+        <tr>
+            <td style="text-align:left">Tailoring order payments received</td>
+            <td id="td_cf_tailoring_in" style="color:#2e7d32;"><?php echo number_format($cf['tailoring_in'],2); ?></td>
+        </tr>
+        <tr>
+            <td style="text-align:left">Exchange top-ups (new items cost more)</td>
+            <td id="td_cf_exchange_in" style="color:#2e7d32;"><?php echo number_format($cf['exchange_in'],2); ?></td>
+        </tr>
+        <tr>
+            <td style="text-align:left">Refunds paid out on returns / exchanges</td>
+            <td id="td_cf_return_out" style="color:#c62828;">-<?php echo number_format($cf['return_out'] + $cf['exchange_out'],2); ?></td>
+        </tr>
+        <tr style="background-color:#e8f5e9;font-weight:bold;">
+            <td style="text-align:left">NET CASH FLOW</td>
+            <td id="td_cf_net"><?php echo number_format($cf['net'],2); ?></td>
+        </tr>
+        <tr>
+            <td style="text-align:left;color:#666;font-size:medium;">Of which physical cash (in <?php echo number_format($cf['cash_in'],2); ?> / out <?php echo number_format($cf['cash_out'],2); ?>)</td>
+            <td id="td_cf_cash_net" style="color:#666;font-size:medium;"><?php echo number_format($cf['cash_net'],2); ?></td>
+        </tr>
+    </tbody>
+</table>
                 </div>
                 <button onclick="PrintElem('div_page_content')" class="btn btn-default"><i class="fa fa-print"></i> Print</button>
                   <div class="col-md-3"></div>
@@ -139,7 +189,7 @@ $( function() {
 
     function fmt(n){ return parseFloat(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
 
-    $('#btnFilterSummary').click(function(){
+    function loadSummary(){
         var from = $('#datepicFrom').val();
         var to = $('#datepicTo').val();
         if(!from || !to){ return; }
@@ -147,14 +197,14 @@ $( function() {
         $.ajax({
             type: 'POST',
             url: '<?php echo base_url()?>Reports/getTodaySummaryByDates',
-            data: { from: from, to: to },
+            data: { from: from, to: to, store_id: $('#store_select').val() },
             dataType: 'json',
             success: function(d){
                 if(d.status === 'error') return;
 
                 $('#summaryTitle').text('Summary: ' + from + ' to ' + to);
 
-                var saleCredit = parseFloat(d.sale_total) - (parseFloat(d.sale_cash) + parseFloat(d.sale_cheque));
+                var saleCredit = parseFloat(d.sale_total) - (parseFloat(d.sale_cash) + parseFloat(d.sale_cheque) + parseFloat(d.sale_card || 0));
                 $('#td_sale_total').text(fmt(d.sale_total));
                 $('#td_sale_cash').text(fmt(d.sale_cash));
                 $('#td_sale_cheque').text(fmt(d.sale_cheque));
@@ -183,8 +233,28 @@ $( function() {
 
                 var balCheque = parseFloat(d.payment_cheque) - (parseFloat(d.expense_cheque) + parseFloat(d.purchase_cheque));
                 $('#td_balance_cheque').text(fmt(balCheque));
+
+                // Cash flow block
+                $('#td_cf_sale_in').text(fmt(d.cf_sale_in));
+                $('#td_cf_tailoring_in').text(fmt(d.cf_tailoring_in));
+                $('#td_cf_exchange_in').text(fmt(d.cf_exchange_in));
+                $('#td_cf_return_out').text('-' + fmt(parseFloat(d.cf_return_out || 0) + parseFloat(d.cf_exchange_out || 0)));
+                $('#td_cf_net').text(fmt(d.cf_net));
+                $('#td_cf_cash_net').text(fmt(d.cf_cash_net));
             }
         });
+    }
+
+    $('#btnFilterSummary').click(function(){ loadSummary(); });
+    $('#store_select').change(function(){
+        // With no date range picked the page still shows today's server-rendered
+        // figures, so reload to apply the branch to those too.
+        if($('#datepicFrom').val() && $('#datepicTo').val()){ loadSummary(); }
+        else {
+            var t = '<?php echo date("Y-m-d"); ?>';
+            $('#datepicFrom').val(t); $('#datepicTo').val(t);
+            loadSummary();
+        }
     });
 
     $('#btnResetSummary').click(function(){

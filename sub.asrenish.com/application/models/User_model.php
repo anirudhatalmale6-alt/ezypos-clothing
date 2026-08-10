@@ -288,11 +288,27 @@ class User_model extends CI_Model {
             $role = 1;
         }
         $updateDate = array(
-            'user_username' => $this->input->post('E_username'),            
+            'user_username' => $this->input->post('E_username'),
             'user_name' => $this->input->post('E_name'),
-            'user_password' => $this->input->post('E_password'),
             'user_role' => $role
         );
+
+        // Password: only touch it when a new one was actually typed, and store it
+        // hashed the same way login checks it (md5), otherwise the user can't log in.
+        $newPassword = $this->input->post('E_password');
+        if($newPassword !== null && trim($newPassword) !== ''){
+            $newPassword = trim($newPassword);
+            // An older cached copy of the edit form pre-filled this box with the stored
+            // hash. If that exact hash comes back, treat it as "unchanged" rather than
+            // hashing it a second time and locking the user out.
+            $current = $this->db->select('user_password')
+                                ->where('user_id', $user_id)
+                                ->get('ezy_pos_users')->row();
+            if(!$current || $newPassword !== $current->user_password){
+                $updateDate['user_password'] = md5($newPassword);
+            }
+        }
+
         $this->db->where('user_id', $user_id);
         $this->db->update('ezy_pos_users', $updateDate);
     }

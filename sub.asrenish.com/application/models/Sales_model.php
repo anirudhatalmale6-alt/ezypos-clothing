@@ -292,5 +292,77 @@ class Sales_model extends CI_Model {
                 ORDER BY sp.sp_id";
         return $this->db->query($str, array($sale_id))->result();
     }
+
+    // Cheques attached to a sale, with number + bank so the bill can print the reference.
+    public function getSaleCheques($sale_id) {
+        if(!$this->db->table_exists('ezy_pos_cus_cheque')) return array();
+        $str = "SELECT cus_cheque_amount, cus_cheque_bank, cus_cheque_num, cus_cheque_date
+                FROM ezy_pos_cus_cheque
+                WHERE cus_cheque_saleid = ?
+                ORDER BY cus_cheque_id";
+        return $this->db->query($str, array($sale_id))->result();
+    }
+
+    /**
+     * One canonical payment breakdown for a sale, used by every bill so they can
+     * never disagree. Returns a flat list of rows:
+     *   label     - payment method name ("Cash", "Cheque", "Visa Card", ...)
+     *   reference - card machine ref / cheque number, '' when there is none
+     *   amount    - amount paid by that method
+     *   is_credit - true for the outstanding-credit row (money NOT received)
+     */
+    public function getPaymentBreakdown($sale_id) {
+        $rows = array();
+
+        // Cash + credit come from the customer payment record.
+        if($this->db->table_exists('ezy_pos_cus_payment')){
+            $p = $this->db->query(
+                "SELECT cus_pay_cash, cus_pay_credit FROM ezy_pos_cus_payment WHERE cus_pay_saleid = ?",
+                array($sale_id)
+            )->row();
+            if($p){
+                if(floatval($p->cus_pay_cash) > 0){
+                    $rows[] = (object)array(
+                        'label' => 'Cash', 'reference' => '',
+                        'amount' => floatval($p->cus_pay_cash), 'is_credit' => false
+                    );
+                }
+                if(floatval($p->cus_pay_credit) > 0){
+                    $rows[] = (object)array(
+                        'label' => 'Credit', 'reference' => '',
+                        'amount' => floatval($p->cus_pay_credit), 'is_credit' => true
+                    );
+                }
+            }
+        }
+
+        // Each cheque as its own line, carrying its cheque number as the reference.
+        foreach($this->getSaleCheques($sale_id) as $c){
+            if(floatval($c->cus_cheque_amount) <= 0) continue;
+            $ref = trim((isset($c->cus_cheque_num) ? $c->cus_cheque_num : ''));
+            if(isset($c->cus_cheque_bank) && trim($c->cus_cheque_bank) !== ''){
+                $ref = trim($c->cus_cheque_bank.($ref !== '' ? ' - '.$ref : ''));
+            }
+            $rows[] = (object)array(
+                'label' => 'Cheque', 'reference' => $ref,
+                'amount' => floatval($c->cus_cheque_amount), 'is_credit' => false
+            );
+        }
+
+        // Card / third-party methods, each with its card machine reference.
+        if($this->db->table_exists('ezy_pos_sale_payments')){
+            foreach($this->getSalePayments($sale_id) as $sp){
+                if(floatval($sp->sp_amount) <= 0) continue;
+                $rows[] = (object)array(
+                    'label'     => ($sp->pm_name ? $sp->pm_name : 'Card'),
+                    'reference' => (isset($sp->sp_card_ref) && $sp->sp_card_ref !== null) ? trim($sp->sp_card_ref) : '',
+                    'amount'    => floatval($sp->sp_amount),
+                    'is_credit' => false
+                );
+            }
+        }
+
+        return $rows;
+    }
 }
 

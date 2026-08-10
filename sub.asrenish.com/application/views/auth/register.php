@@ -461,15 +461,17 @@
                                 <div class="form-group row">
                                     <label for="E_password" class="col-3 col-form-label">Password</label>
                                     <div class="col-9">
-                                        <input class="form-control" type="password" placeholder="Password" value="<?php echo $user['user_password']?>"
-                                        name="E_password" id="E_password" required data-parsley-minlength="5">
+                                        <!-- Never pre-fill with the stored hash. Blank = keep the current password. -->
+                                        <input class="form-control" type="password" placeholder="Leave blank to keep current password" value=""
+                                        name="E_password" id="E_password" autocomplete="new-password" data-parsley-minlength="5">
+                                        <small class="text-muted">Only type here if you want to change this user's password.</small>
                                     </div>
                                 </div>
                                 <div class="form-group row">
                                     <label for="E_pass2" class="col-3 col-form-label">Confirm Password</label>
                                     <div class="col-9">
-                                        <input class="form-control" type="password" placeholder="Re-Type Password" value="<?php echo $user['user_password']?>"
-                                        name="E_pass2" id="E_pass2" required data-parsley-equalto="#E_password">
+                                        <input class="form-control" type="password" placeholder="Re-Type New Password" value=""
+                                        name="E_pass2" id="E_pass2" autocomplete="new-password" data-parsley-equalto="#E_password">
                                     </div>
                                 </div>
                             <div class="form-group row">

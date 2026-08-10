@@ -98,7 +98,9 @@ class Sales extends CI_Controller {
                         'customer'=> $this->Sales_model->getCustomer($saleID),
                         'paymnt'=> $this->CusPayment_model->getPayment($saleID),
                         'saleitems'=> $this->Sales_model->invoicePreview2($saleID),
-                        'sales'=> $this->Sales_model->saleDetails($saleID)    
+                        'sales'=> $this->Sales_model->saleDetails($saleID),
+                        // Full payment breakdown (cash / cheque no. / card + machine reference)
+                        'payments'=> $this->Sales_model->getPaymentBreakdown($saleID)
                 );
                 $res2=$this->load->view('invoice/invoice',$data);
         }

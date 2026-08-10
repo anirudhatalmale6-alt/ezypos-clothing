@@ -121,24 +121,45 @@
         </table>
         <hr>
 
+        <?php
+            // Payment breakdown: every method used, with its card-machine / cheque reference.
+            $payRows = (isset($payments) && is_array($payments)) ? $payments : array();
+            $paidTotal = 0; $creditTotal = 0;
+            foreach($payRows as $pr){
+                if($pr->is_credit){ $creditTotal += $pr->amount; } else { $paidTotal += $pr->amount; }
+            }
+            // Fall back to the old aggregate record if the breakdown came back empty.
+            if(count($payRows) == 0 && isset($paymnt) && $paymnt){
+                $cash = floatval($paymnt->cus_pay_cash); $credit = floatval($paymnt->cus_pay_credit);
+                $chq  = floatval(isset($paymnt->cheq) ? $paymnt->cheq : 0);
+                if($cash > 0){ $payRows[] = (object)array('label'=>'Cash','reference'=>'','amount'=>$cash,'is_credit'=>false); }
+                if($chq  > 0){ $payRows[] = (object)array('label'=>'Cheque','reference'=>'','amount'=>$chq,'is_credit'=>false); }
+                if($credit > 0){ $payRows[] = (object)array('label'=>'Credit','reference'=>'','amount'=>$credit,'is_credit'=>true); }
+                $paidTotal = $cash + $chq; $creditTotal = $credit;
+            }
+            $multiMethod = count($payRows) > 1;
+        ?>
         <table class="tots">
-            <?php
-                $cash   = $paymnt->cus_pay_cash;
-                $credit = $paymnt->cus_pay_credit;
-                $noChqs = $paymnt->noOfChqs;
-                if($cash > 0){ ?>
-                <tr><td>Cash:</td><td class="r"><?php echo number_format(floatval($cash),2); ?></td></tr>
+            <?php if($multiMethod){ ?>
+            <tr><td colspan="2" style="font-weight:900;">Payments:</td></tr>
             <?php }
-                if($noChqs > 0){ ?>
-                <tr><td>Cheque (No: <?php echo $noChqs; ?>):</td><td class="r"><?php echo number_format(floatval($paymnt->cheq),2); ?></td></tr>
-            <?php }
-                if($credit > 0){ ?>
-                <tr><td>Credit:</td><td class="r"><?php echo number_format(floatval($credit),2); ?></td></tr>
-            <?php }
-                // Balance to Return (change) on a normal cash sale where more than the total was paid.
-                $paidTotal = floatval($cash) + floatval(isset($paymnt->cheq) ? $paymnt->cheq : 0);
-                $changeReturn = $paidTotal - floatval($sales->sale_grandtotal);
-                if($credit <= 0 && $changeReturn > 0.001){ ?>
+            foreach($payRows as $pr){ ?>
+                <tr>
+                    <td><?php echo ($multiMethod ? '&nbsp;&nbsp;' : ''); echo htmlspecialchars($pr->label); ?>:</td>
+                    <td class="r"><?php echo number_format($pr->amount,2); ?></td>
+                </tr>
+                <?php if($pr->reference !== ''){ ?>
+                <tr>
+                    <td colspan="2" style="font-size:11px;">&nbsp;&nbsp;Ref: <?php echo htmlspecialchars($pr->reference); ?></td>
+                </tr>
+                <?php }
+            }
+            // Balance to Return (change) on a normal cash sale where more than the total was paid.
+            // Skipped once the sale has been returned/exchanged: the grand total is reduced
+            // by the refund, which would otherwise show the refund as change owed.
+            $wasReturned  = (isset($sales->sale_return_status) && trim($sales->sale_return_status) !== '');
+            $changeReturn = $paidTotal - floatval($sales->sale_grandtotal);
+            if(!$wasReturned && $creditTotal <= 0 && $changeReturn > 0.001){ ?>
                 <tr><td>Balance to Return:</td><td class="r"><?php echo number_format($changeReturn,2); ?></td></tr>
             <?php } ?>
         </table>

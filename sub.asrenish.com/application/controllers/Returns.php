@@ -18,6 +18,7 @@ class Returns extends CI_Controller {
         $this->load->model('User_model');
         $this->load->model('Items_model');
         $this->load->model('Stores_model');
+        $this->load->model('Sales_model');
     }
 
     // ===================== MAIN PAGE: PROCESS RETURN =====================
@@ -37,7 +38,10 @@ class Returns extends CI_Controller {
         }
         $data = array(
             'items' => $this->Items_model->getItems(),
-            'stores' => $stores ? $stores : array()
+            'stores' => $stores ? $stores : array(),
+            // Same method list as the Sales screen, so an exchange top-up can be
+            // collected by card / cheque / any configured method.
+            'paymentMethods' => $this->Sales_model->getActivePaymentMethods()
         );
         $this->load->view('templates/header', $data1);
         $this->load->view('returns/process_return', $data);
@@ -123,9 +127,16 @@ class Returns extends CI_Controller {
         $store_id = $return_store_id;
 
         // 1. Calculate totals
+        //    The return screen posts each line as 'return_amount'; accept 'total' too
+        //    so older callers keep working. (Reading only 'total' made every return
+        //    record a refund of 0, which is why the reports disagreed.)
         $return_total = 0;
         foreach ($return_items as $ri) {
-            $return_total += floatval($ri['total']);
+            if (isset($ri['return_amount'])) {
+                $return_total += floatval($ri['return_amount']);
+            } elseif (isset($ri['total'])) {
+                $return_total += floatval($ri['total']);
+            }
         }
 
         $exchange_total = 0;
@@ -228,6 +239,36 @@ class Returns extends CI_Controller {
         }
         $this->Returns_model->updateSaleReturnStatus($sale_id, $status, $now);
 
+        // 7. Record how the money moved.
+        //    net_amount > 0  -> refund handed back to the customer  (direction 'out')
+        //    net_amount < 0  -> customer paid the difference        (direction 'in')
+        $direction  = ($net_amount > 0) ? 'out' : 'in';
+        $expected   = abs($net_amount);
+        $payments_raw = $this->input->post('payments');
+        $payments = is_string($payments_raw) ? json_decode($payments_raw, true) : $payments_raw;
+
+        $recorded = 0;
+        if ($payments && is_array($payments)) {
+            foreach ($payments as $p) {
+                $amt = isset($p['amount']) ? floatval($p['amount']) : 0;
+                if ($amt <= 0) continue;
+                $this->Returns_model->addReturnPayment(
+                    $ret_id,
+                    $direction,
+                    isset($p['method']) ? trim($p['method']) : 'Cash',
+                    isset($p['reference']) ? trim($p['reference']) : '',
+                    $amt
+                );
+                $recorded += $amt;
+            }
+        }
+        // Nothing itemised (or short) -> book the remainder as Cash so the Cash Flow
+        // report still balances against the return's net amount.
+        $remainder = round($expected - $recorded, 2);
+        if ($remainder > 0.001) {
+            $this->Returns_model->addReturnPayment($ret_id, $direction, 'Cash', '', $remainder);
+        }
+
         echo json_encode(array(
             'status'         => 'success',
             'return_id'      => $ret_id,
@@ -328,7 +369,9 @@ class Returns extends CI_Controller {
             'user'           => $this->User_model->getUserName($userid),
             'ret'            => $ret,
             'return_items'   => $return_items ? $return_items : array(),
-            'exchange_items' => $exchange_items ? $exchange_items : array()
+            'exchange_items' => $exchange_items ? $exchange_items : array(),
+            // Payment breakdown (method + card/cheque reference) for the bottom of the bill
+            'payments'       => $this->Returns_model->getReturnPayments($ret_id)
         );
 
         $this->load->view('returns/return_invoice', $data);

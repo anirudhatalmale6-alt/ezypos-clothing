@@ -90,9 +90,24 @@
                                             <div class="col-6 col-form-label text-right"><strong style="color:#2e7d32;">LKR <span id="lbl_exchange_total">0.00</span></strong></div>
                                         </div>
                                         <div class="form-group row mb-0">
-                                            <label class="col-6 col-form-label" style="font-size:16px;"><strong>Net Refund:</strong></label>
+                                            <label class="col-6 col-form-label" style="font-size:16px;"><strong id="lbl_net_caption">Net Refund:</strong></label>
                                             <div class="col-6 col-form-label text-right" style="font-size:16px;"><strong>LKR <span id="lbl_net_amount">0.00</span></strong></div>
                                         </div>
+                                    </div>
+
+                                    <!-- Amount the customer still has to pay for the exchange -->
+                                    <div id="collectPaymentBox" style="display:none;background:#e8f5e9;border-radius:4px;padding:10px;margin-bottom:10px;">
+                                        <div class="form-group row mb-1">
+                                            <label class="col-7 col-form-label"><strong>To Collect:</strong></label>
+                                            <div class="col-5 col-form-label text-right"><strong style="color:#2e7d32;">LKR <span id="lbl_to_collect">0.00</span></strong></div>
+                                        </div>
+                                        <div class="form-group row mb-1">
+                                            <label class="col-7 col-form-label">Entered:</label>
+                                            <div class="col-5 col-form-label text-right"><span id="lbl_pay_entered">0.00</span></div>
+                                        </div>
+                                        <button class="btn btn-sm btn-success btn-block" id="btnOpenPayment">
+                                            <i class="fa fa-credit-card"></i> Add / Edit Payment
+                                        </button>
                                     </div>
 
                                     <!-- Process Button -->
@@ -159,8 +174,8 @@
                                                 <tr style="background-color:#d4edda;">
                                                     <th style="font-size:12px;">#</th>
                                                     <th style="font-size:12px;">Item</th>
-                                                    <th style="font-size:12px;text-align:right;">Price</th>
-                                                    <th style="font-size:12px;text-align:right;">Qty</th>
+                                                    <th style="font-size:12px;text-align:right;width:110px;">Price</th>
+                                                    <th style="font-size:12px;text-align:center;width:100px;">Qty</th>
                                                     <th style="font-size:12px;text-align:right;">Total</th>
                                                     <th style="font-size:12px;text-align:center;">Remove</th>
                                                 </tr>
@@ -207,6 +222,43 @@
           </div>
         </div> <!-- container-fluid -->
 
+<!-- ============ EXCHANGE PAYMENT MODAL (same flow as a Sale) ============ -->
+<div class="modal fade" id="returnPaymentModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa fa-credit-card"></i> Collect Exchange Payment</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div style="background:#fff3e0;padding:8px;border-radius:4px;margin-bottom:12px;">
+                    <strong>Amount to collect: LKR <span id="pm_modal_target">0.00</span></strong>
+                </div>
+
+                <div id="rp_rows"></div>
+
+                <button class="btn btn-sm btn-outline-primary" id="btnAddPayRow">
+                    <i class="fa fa-plus"></i> Add another payment method
+                </button>
+
+                <hr>
+                <div class="row">
+                    <div class="col-6"><strong>Entered:</strong></div>
+                    <div class="col-6 text-right"><strong id="pm_modal_entered">0.00</strong></div>
+                </div>
+                <div class="row">
+                    <div class="col-6"><strong>Remaining:</strong></div>
+                    <div class="col-6 text-right"><strong id="pm_modal_remaining">0.00</strong></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-success" id="btnConfirmReturnPayment">Confirm Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 $( function() {
 
@@ -215,6 +267,19 @@ $( function() {
     var loadedSaleItems = [];
     var exchangeItems = [];
     var excCounter = 0;
+
+    // Exchange top-up payment state. Declared here (before any function that reads
+    // them runs) so nothing can throw during page load.
+    var amountToCollect   = 0;    // how much the customer still owes on this exchange
+    var collectedPayments = [];   // [{method, reference, amount}]
+    var payRowCounter     = 0;
+
+    // Cash + Cheque always available, plus every method configured in Settings.
+    var PAYMENT_METHODS = ['Cash', 'Cheque', 'Credit Card'
+        <?php if(isset($paymentMethods) && $paymentMethods){ foreach($paymentMethods as $pm){
+            echo ', "'.addslashes($pm->pm_name).'"';
+        }} ?>
+    ];
 
     // =========== ITEM AUTOCOMPLETE FOR EXCHANGE ===========
     var availableItems = [
@@ -334,10 +399,14 @@ $( function() {
                 $('#noSalePlaceholder').hide();
                 $('#btnProcessReturn').prop('disabled', false);
 
-                // Reset exchange items
+                // Reset exchange items + any payment entered for a previous exchange
                 exchangeItems = [];
                 excCounter = 0;
+                collectedPayments = [];
+                amountToCollect = 0;
                 $('#exchangeItemsBody').html('');
+                $('#collectPaymentBox').hide();
+                $('#lbl_pay_entered').text('0.00');
 
                 // Apply return type
                 $('#return_type').trigger('change');
@@ -412,29 +481,46 @@ $( function() {
             return;
         }
 
-        excCounter++;
-        var total = (price * qty).toFixed(2);
-        // Extract just the item name from the autocomplete label
-        var itemName = itemLabel.split(' - ')[0];
+        // Same item added again -> bump the existing line's quantity instead of
+        // creating a duplicate row.
+        var existing = null;
+        for(var e = 0; e < exchangeItems.length; e++){
+            if(String(exchangeItems[e].item_id) === String(itemId) && parseFloat(exchangeItems[e].price) === price){
+                existing = exchangeItems[e];
+                break;
+            }
+        }
+        if(existing){
+            existing.qty = parseFloat(existing.qty) + qty;
+            existing.total = parseFloat((existing.price * existing.qty).toFixed(2));
+            var $r = $('#exchangeItemsBody tr[data-exc-idx="'+existing.idx+'"]');
+            $r.find('.exc-qty-input').val(existing.qty);
+            $r.find('.exc-total-cell').text(existing.total.toFixed(2));
+        } else {
+            excCounter++;
+            var total = parseFloat((price * qty).toFixed(2));
+            // Extract just the item name from the autocomplete label
+            var itemName = itemLabel.split(' - ')[0];
 
-        exchangeItems.push({
-            idx: excCounter,
-            item_id: itemId,
-            item_name: itemName,
-            price: price,
-            qty: qty,
-            total: parseFloat(total)
-        });
+            exchangeItems.push({
+                idx: excCounter,
+                item_id: itemId,
+                item_name: itemName,
+                price: price,
+                qty: qty,
+                total: total
+            });
 
-        var row = '<tr data-exc-idx="'+excCounter+'">';
-        row += '<td>'+excCounter+'</td>';
-        row += '<td>'+itemName+'</td>';
-        row += '<td style="text-align:right;">'+price.toFixed(2)+'</td>';
-        row += '<td style="text-align:right;">'+qty.toFixed(2)+'</td>';
-        row += '<td style="text-align:right;">'+total+'</td>';
-        row += '<td style="text-align:center;"><a href="javascript:;" class="btn btn-sm btn-danger btn-remove-exc" data-exc-idx="'+excCounter+'"><i class="fa fa-times"></i></a></td>';
-        row += '</tr>';
-        $('#exchangeItemsBody').append(row);
+            var row = '<tr data-exc-idx="'+excCounter+'">';
+            row += '<td class="exc-no">'+excCounter+'</td>';
+            row += '<td>'+itemName+'</td>';
+            row += '<td style="text-align:right;"><input type="number" class="form-control form-control-sm exc-price-input" style="text-align:right;" min="0" step="0.01" value="'+price.toFixed(2)+'"></td>';
+            row += '<td style="text-align:center;"><input type="number" class="form-control form-control-sm exc-qty-input" style="text-align:right;" min="0.01" step="0.01" value="'+qty+'"></td>';
+            row += '<td style="text-align:right;" class="exc-total-cell">'+total.toFixed(2)+'</td>';
+            row += '<td style="text-align:center;"><a href="javascript:;" class="btn btn-sm btn-danger btn-remove-exc" data-exc-idx="'+excCounter+'"><i class="fa fa-times"></i></a></td>';
+            row += '</tr>';
+            $('#exchangeItemsBody').append(row);
+        }
 
         // Clear inputs
         $('#exc_item_auto').val('');
@@ -442,6 +528,29 @@ $( function() {
         $('#exc_qty').val('1');
         $('#exc_price').val('');
 
+        calculateReturnTotals();
+    });
+
+    // Edit quantity / price directly on an exchange line.
+    $(document).on('keyup change', '.exc-qty-input, .exc-price-input', function(){
+        var $row = $(this).closest('tr');
+        var idx  = $row.data('exc-idx');
+        var qty   = parseFloat($row.find('.exc-qty-input').val()) || 0;
+        var price = parseFloat($row.find('.exc-price-input').val()) || 0;
+        if(qty < 0){ qty = 0; $row.find('.exc-qty-input').val(0); }
+        if(price < 0){ price = 0; $row.find('.exc-price-input').val(0); }
+
+        var total = parseFloat((price * qty).toFixed(2));
+        $row.find('.exc-total-cell').text(total.toFixed(2));
+
+        for(var i = 0; i < exchangeItems.length; i++){
+            if(exchangeItems[i].idx === idx){
+                exchangeItems[i].qty   = qty;
+                exchangeItems[i].price = price;
+                exchangeItems[i].total = total;
+                break;
+            }
+        }
         calculateReturnTotals();
     });
 
@@ -473,16 +582,31 @@ $( function() {
         var netAmount = returnTotal - exchangeTotal;
         $('#lbl_return_total').text(returnTotal.toFixed(2));
         $('#lbl_exchange_total').text(exchangeTotal.toFixed(2));
-        $('#lbl_net_amount').text(netAmount.toFixed(2));
+        $('#lbl_net_amount').text(Math.abs(netAmount).toFixed(2));
 
-        // Color the net amount
+        // Color + caption the net amount
         if(netAmount > 0){
+            $('#lbl_net_caption').text('Net Refund:');
             $('#lbl_net_amount').css('color', '#c62828'); // Refund to customer
         } else if(netAmount < 0){
+            $('#lbl_net_caption').text('Customer Pays:');
             $('#lbl_net_amount').css('color', '#2e7d32'); // Customer pays
         } else {
+            $('#lbl_net_caption').text('Net Refund:');
             $('#lbl_net_amount').css('color', '#333');
         }
+
+        // When the new items cost more than the returned ones, the difference has to
+        // be collected before the exchange can be processed.
+        amountToCollect = (netAmount < 0) ? Math.abs(netAmount) : 0;
+        if(amountToCollect > 0.001){
+            $('#lbl_to_collect').text(amountToCollect.toFixed(2));
+            $('#collectPaymentBox').show();
+        } else {
+            $('#collectPaymentBox').hide();
+            collectedPayments = [];
+        }
+        $('#lbl_pay_entered').text(paymentsTotal().toFixed(2));
 
         // Enable/disable process button
         var hasReturnItems = false;
@@ -492,6 +616,141 @@ $( function() {
         });
         $('#btnProcessReturn').prop('disabled', !hasReturnItems);
     }
+
+    // =========== EXCHANGE PAYMENT COLLECTION ===========
+
+    function paymentsTotal(){
+        var t = 0;
+        for(var i = 0; i < collectedPayments.length; i++){
+            t += parseFloat(collectedPayments[i].amount) || 0;
+        }
+        return Math.round(t * 100) / 100;
+    }
+
+    function payRowHtml(method, reference, amount){
+        payRowCounter++;
+        var opts = '';
+        for(var i = 0; i < PAYMENT_METHODS.length; i++){
+            var m = PAYMENT_METHODS[i];
+            opts += '<option value="'+m+'"'+(m === method ? ' selected' : '')+'>'+m+'</option>';
+        }
+        var needsRef = (method && method !== 'Cash');
+        return '<div class="rp-row" data-row="'+payRowCounter+'" style="border:1px solid #eee;border-radius:4px;padding:8px;margin-bottom:8px;">' +
+                 '<div class="row">' +
+                   '<div class="col-6"><label style="font-size:11px;margin-bottom:2px;">Method</label>' +
+                     '<select class="form-control form-control-sm rp-method">'+opts+'</select></div>' +
+                   '<div class="col-6"><label style="font-size:11px;margin-bottom:2px;">Amount</label>' +
+                     '<input type="number" step="0.01" min="0" class="form-control form-control-sm rp-amount" value="'+(amount || '')+'"></div>' +
+                 '</div>' +
+                 '<div class="row rp-ref-wrap" style="margin-top:6px;'+(needsRef ? '' : 'display:none;')+'">' +
+                   '<div class="col-12"><label style="font-size:11px;margin-bottom:2px;">Card Number / Reference No</label>' +
+                     '<input type="text" class="form-control form-control-sm rp-ref" value="'+(reference || '')+'" placeholder="Reference from the card machine"></div>' +
+                 '</div>' +
+                 '<div class="text-right" style="margin-top:4px;">' +
+                   '<a href="javascript:;" class="text-danger rp-remove" style="font-size:11px;">remove</a></div>' +
+               '</div>';
+    }
+
+    function refreshPayModalTotals(){
+        var entered = 0;
+        $('#rp_rows .rp-amount').each(function(){
+            var v = parseFloat($(this).val());
+            if(!isNaN(v) && v > 0) entered += v;
+        });
+        entered = Math.round(entered * 100) / 100;
+        var remaining = Math.round((amountToCollect - entered) * 100) / 100;
+        $('#pm_modal_entered').text(entered.toFixed(2));
+        $('#pm_modal_remaining').text(remaining.toFixed(2))
+            .css('color', Math.abs(remaining) < 0.005 ? '#2e7d32' : '#c62828');
+    }
+
+    $('#btnOpenPayment').click(function(){
+        $('#pm_modal_target').text(amountToCollect.toFixed(2));
+        $('#rp_rows').empty();
+        payRowCounter = 0;
+        if(collectedPayments.length > 0){
+            for(var i = 0; i < collectedPayments.length; i++){
+                $('#rp_rows').append(payRowHtml(collectedPayments[i].method, collectedPayments[i].reference, collectedPayments[i].amount));
+            }
+        } else {
+            // Default to a single Cash line for the full amount.
+            $('#rp_rows').append(payRowHtml('Cash', '', amountToCollect.toFixed(2)));
+        }
+        refreshPayModalTotals();
+        $('#returnPaymentModal').modal('show');
+    });
+
+    $('#btnAddPayRow').click(function(){
+        // Pre-fill the new line with whatever is still outstanding.
+        var entered = 0;
+        $('#rp_rows .rp-amount').each(function(){
+            var v = parseFloat($(this).val());
+            if(!isNaN(v) && v > 0) entered += v;
+        });
+        var remaining = Math.round((amountToCollect - entered) * 100) / 100;
+        if(remaining < 0) remaining = 0;
+        $('#rp_rows').append(payRowHtml('Cash', '', remaining > 0 ? remaining.toFixed(2) : ''));
+        refreshPayModalTotals();
+    });
+
+    // Any non-Cash method needs a reference, same rule as the Sales screen.
+    $(document).on('change', '.rp-method', function(){
+        var $row = $(this).closest('.rp-row');
+        if($(this).val() !== 'Cash'){
+            $row.find('.rp-ref-wrap').show();
+        } else {
+            $row.find('.rp-ref-wrap').hide();
+            $row.find('.rp-ref').val('');
+        }
+    });
+
+    $(document).on('keyup change', '.rp-amount', function(){ refreshPayModalTotals(); });
+
+    $(document).on('click', '.rp-remove', function(){
+        $(this).closest('.rp-row').remove();
+        refreshPayModalTotals();
+    });
+
+    $('#btnConfirmReturnPayment').click(function(){
+        var rows = [];
+        var bad = null;
+        $('#rp_rows .rp-row').each(function(){
+            var method = $(this).find('.rp-method').val();
+            var ref    = $.trim($(this).find('.rp-ref').val() || '');
+            var amt    = parseFloat($(this).find('.rp-amount').val());
+            if(isNaN(amt) || amt <= 0) return;           // skip blank lines
+            if(method !== 'Cash' && ref === ''){
+                bad = method;
+                return;
+            }
+            rows.push({ method: method, reference: ref, amount: Math.round(amt * 100) / 100 });
+        });
+
+        if(bad){
+            swal({type:'error', title:'Reference required', text:'Please enter the card number / reference no for ' + bad + '.'});
+            return;
+        }
+        if(rows.length === 0){
+            swal({type:'error', title:'No payment entered', text:'Enter at least one payment amount.'});
+            return;
+        }
+
+        var total = 0;
+        for(var i = 0; i < rows.length; i++){ total += rows[i].amount; }
+        total = Math.round(total * 100) / 100;
+        if(Math.abs(total - amountToCollect) > 0.01){
+            swal({
+                type: 'error',
+                title: 'Amount does not match',
+                text: 'Payments total LKR ' + total.toFixed(2) + ' but LKR ' + amountToCollect.toFixed(2) + ' has to be collected.'
+            });
+            return;
+        }
+
+        collectedPayments = rows;
+        $('#lbl_pay_entered').text(paymentsTotal().toFixed(2));
+        $('#returnPaymentModal').modal('hide');
+    });
 
     // =========== PROCESS RETURN ===========
     $('#btnProcessReturn').click(function(){
@@ -522,9 +781,10 @@ $( function() {
             return;
         }
 
-        // Collect exchange items
+        // Collect exchange items (skip any line zeroed out by the qty box)
         var excItemsData = [];
         for(var i = 0; i < exchangeItems.length; i++){
+            if(parseFloat(exchangeItems[i].qty) <= 0) continue;
             excItemsData.push({
                 item_id: exchangeItems[i].item_id,
                 price: exchangeItems[i].price,
@@ -533,16 +793,34 @@ $( function() {
             });
         }
 
+        // If the customer owes money on this exchange, the payment must be entered first.
+        if(amountToCollect > 0.001){
+            if(Math.abs(paymentsTotal() - amountToCollect) > 0.01){
+                swal({
+                    type: 'error',
+                    title: 'Payment required',
+                    text: 'This exchange needs LKR ' + amountToCollect.toFixed(2) +
+                          ' collected from the customer. Click "Add / Edit Payment" to enter it.'
+                });
+                return;
+            }
+        }
+
+        // Net amount keeps its sign: positive = refund out, negative = customer paid.
+        var returnTotalVal   = parseFloat($('#lbl_return_total').text()) || 0;
+        var exchangeTotalVal = parseFloat($('#lbl_exchange_total').text()) || 0;
+
         var postData = {
             sale_id: loadedSale.sale_id,
             return_type: $('#return_type').val(),
             reason: $('#return_reason').val(),
             return_store_id: $('#return_store_id').val(),
-            refund_amount: parseFloat($('#lbl_return_total').text()),
-            exchange_amount: parseFloat($('#lbl_exchange_total').text()),
-            net_amount: parseFloat($('#lbl_net_amount').text()),
+            refund_amount: returnTotalVal,
+            exchange_amount: exchangeTotalVal,
+            net_amount: returnTotalVal - exchangeTotalVal,
             return_items: JSON.stringify(returnItems),
-            exchange_items: JSON.stringify(excItemsData)
+            exchange_items: JSON.stringify(excItemsData),
+            payments: JSON.stringify(collectedPayments)
         };
 
         var btn = $(this);

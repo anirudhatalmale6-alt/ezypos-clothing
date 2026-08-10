@@ -89,6 +89,23 @@
     <tr class="grand"><td>Remaining Estimated Balance</td><td class="text-right">LKR <?php echo number_format($balance,2); ?></td></tr>
   </table>
 
+  <div style="clear:both;"></div>
+  <h6 style="margin-top:16px;">Payment Summary</h6>
+  <table class="items">
+    <thead><tr><th>#</th><th>Date</th><th>Method</th><th>Reference</th><th class="text-right">Amount</th></tr></thead>
+    <tbody>
+      <?php $j=0; if(!empty($payments)){ foreach($payments as $p){ $j++; ?>
+      <tr>
+        <td><?php echo $j; ?></td>
+        <td><?php echo isset($p->psp_created_at)?$p->psp_created_at:''; ?></td>
+        <td><?php echo htmlspecialchars($p->psp_method); ?></td>
+        <td><?php echo isset($p->psp_card_ref)?htmlspecialchars($p->psp_card_ref):''; ?></td>
+        <td class="text-right"><?php echo number_format($p->psp_amount,2); ?></td>
+      </tr>
+      <?php }} if($j==0){ echo '<tr><td colspan="5" class="text-center">No payments recorded.</td></tr>'; } ?>
+    </tbody>
+  </table>
+
   <div class="note">
     <?php if(!empty($order->prodsale_notes)): ?><strong>Notes:</strong> <?php echo nl2br(htmlspecialchars($order->prodsale_notes)); ?><br><br><?php endif; ?>
     * This is an estimate. Final charges may vary once the tailor confirms the actual cost.

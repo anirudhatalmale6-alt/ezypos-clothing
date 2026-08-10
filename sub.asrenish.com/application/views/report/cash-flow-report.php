@@ -5,7 +5,7 @@
     <div class="container">
         <!-- Filters Row -->
         <div class="row">
-            <div class="button-list col-4 col-xl-4 col-lg-4 col-md-12 col-sm-12 col-xs-12">
+            <div class="button-list col-2 col-xl-2 col-lg-2 col-md-12 col-sm-12 col-xs-12">
                 <select name="method_select" id="method_select" class="form-control">
                     <option value="all">-- All Payment Methods --</option>
                     <option value="cash">Cash</option>
@@ -13,6 +13,16 @@
                         <option value="<?php echo $pm->pm_id; ?>">
                             <?php echo $pm->pm_name; ?>
                         </option>
+                    <?php }} ?>
+                </select>
+            </div>
+            <div class="button-list col-2 col-xl-2 col-lg-2 col-md-12 col-sm-12 col-xs-12">
+                <select name="store_select" id="store_select" class="form-control">
+                    <option value="all">-- All Branches --</option>
+                    <?php if(isset($storesForFilter) && $storesForFilter){ foreach ($storesForFilter as $st) {
+                        $sid   = is_array($st) ? $st['store_id']   : $st->store_id;
+                        $sname = is_array($st) ? $st['store_name'] : $st->store_name; ?>
+                        <option value="<?php echo $sid; ?>"><?php echo htmlspecialchars($sname); ?></option>
                     <?php }} ?>
                 </select>
             </div>
@@ -57,10 +67,20 @@
                     </div>
                     <hr>
                     <div class="row">
-                        <div class="col-md-6">
-                            <h5>Grand Total: <span class="text-success" id="summaryGrandTotal">0.00</span></h5>
+                        <div class="col-md-4">
+                            <h5>Money In: <span class="text-success" id="summaryTotalIn">0.00</span></h5>
+                        </div>
+                        <div class="col-md-4">
+                            <h5>Money Out: <span class="text-danger" id="summaryTotalOut">0.00</span></h5>
+                        </div>
+                        <div class="col-md-4">
+                            <h5>Net Cash Flow: <span class="text-primary" id="summaryGrandTotal">0.00</span></h5>
                         </div>
                     </div>
+                    <small class="text-muted">
+                        Includes cash, cheque and card taken on sales; all tailoring order payments;
+                        money collected when an exchange costs more than the returned items; and refunds paid out.
+                    </small>
                 </div>
             </div>
         </div>
@@ -85,7 +105,7 @@
                             </button>
                         </div>
                         <div class="text-right">
-                            <h5>Total: <span class="text-success" id="totalAmount">0.00</span></h5>
+                            <h5>Net (In - Out): <span class="text-success" id="totalAmount">0.00</span></h5>
                         </div>
                     </div>
                     <table id="datatable-buttons" class="table table-striped table-bordered" cellspacing="0" width="100%">
@@ -105,16 +125,21 @@ $(document).ready(function () {
         dateFormat: "yy-mm-dd"
     });
 
+    function esc(s){
+        return $('<div>').text(s === null || s === undefined ? '' : s).html();
+    }
+
     function loadReport(){
         var from = $('#datepicFrom').val();
         var to = $('#datepicTo').val();
         var method = $('#method_select').val();
+        var storeId = $('#store_select').val();
 
         // Load detail table
         $.ajax({
             type: 'POST',
             url: '<?php echo base_url()?>Reports/getCashFlowReportData',
-            data: { from: from, to: to, method: method },
+            data: { from: from, to: to, method: method, store_id: storeId },
             dataType: 'json',
             success: function(data){
                 if(!data || data.length === 0){
@@ -124,29 +149,38 @@ $(document).ready(function () {
                     return;
                 }
 
-                var grandTotal = 0;
+                var netTotal = 0;
 
                 var tableHTML = '<thead><tr>' +
                     '<th>#</th>' +
-                    '<th>Sale ID</th>' +
+                    '<th>Source</th>' +
+                    '<th>Ref</th>' +
                     '<th>Date</th>' +
+                    '<th>Branch</th>' +
                     '<th>Customer</th>' +
                     '<th>Payment Method</th>' +
-                    '<th style="text-align:right;">Amount</th>' +
+                    '<th>Card / Cheque Ref</th>' +
+                    '<th style="text-align:right;">In</th>' +
+                    '<th style="text-align:right;">Out</th>' +
                     '</tr></thead><tbody>';
 
                 for(var i = 0; i < data.length; i++){
                     var row = data[i];
                     var amt = parseFloat(row.amount) || 0;
-                    grandTotal += amt;
+                    var isOut = (row.direction === 'out');
+                    netTotal += isOut ? -amt : amt;
 
                     tableHTML += '<tr>' +
                         '<td>' + (i+1) + '</td>' +
-                        '<td>AS00' + row.sale_id + '</td>' +
-                        '<td>' + row.sale_date + '</td>' +
-                        '<td>' + (row.customer_name || 'N/A') + '</td>' +
-                        '<td>' + row.method_name + '</td>' +
-                        '<td style="text-align:right;">' + amt.toFixed(2) + '</td>' +
+                        '<td>' + esc(row.source) + '</td>' +
+                        '<td>' + esc(row.ref) + '</td>' +
+                        '<td>' + esc(row.date) + '</td>' +
+                        '<td>' + esc(row.store_name || '-') + '</td>' +
+                        '<td>' + esc(row.customer_name || 'N/A') + '</td>' +
+                        '<td>' + esc(row.method_name) + '</td>' +
+                        '<td>' + esc(row.reference || '-') + '</td>' +
+                        '<td style="text-align:right;color:#2e7d32;">' + (isOut ? '-' : amt.toFixed(2)) + '</td>' +
+                        '<td style="text-align:right;color:#c62828;">' + (isOut ? amt.toFixed(2) : '-') + '</td>' +
                         '</tr>';
                 }
                 tableHTML += '</tbody>';
@@ -155,10 +189,10 @@ $(document).ready(function () {
                 $('#datatable-buttons').html(tableHTML);
                 $('#datatable-buttons').DataTable({
                     buttons: ['copy', 'excel', 'pdf'],
-                    order: [[1, 'desc']]
+                    order: [[3, 'desc']]
                 });
 
-                $('#totalAmount').text(grandTotal.toFixed(2));
+                $('#totalAmount').text(netTotal.toFixed(2));
             },
             error: function(){
                 alert('Failed to fetch cash flow data.');
@@ -169,32 +203,36 @@ $(document).ready(function () {
         $.ajax({
             type: 'POST',
             url: '<?php echo base_url()?>Reports/getCashFlowSummaryData',
-            data: { from: from, to: to },
+            data: { from: from, to: to, store_id: storeId },
             dataType: 'json',
-            success: function(data){
-                if(!data || data.length === 0){
+            success: function(res){
+                var methods = (res && res.methods) ? res.methods : [];
+                if(methods.length === 0){
                     $('#summaryCards').hide();
                     return;
                 }
 
                 var html = '';
-                var grandTotal = 0;
-
-                for(var i = 0; i < data.length; i++){
-                    var s = data[i];
-                    var amt = parseFloat(s.total_amount) || 0;
-                    grandTotal += amt;
+                for(var i = 0; i < methods.length; i++){
+                    var s = methods[i];
+                    var net = parseFloat(s.total_amount) || 0;
+                    var mIn = parseFloat(s.total_in) || 0;
+                    var mOut = parseFloat(s.total_out) || 0;
 
                     html += '<div class="col-md-3 col-sm-6 mb-2">' +
                         '<div class="card" style="border-left: 4px solid #5b69bc;">' +
                         '<div class="card-body p-2">' +
-                        '<h6 class="m-0">' + s.method_name + '</h6>' +
-                        '<span class="text-primary"><b>LKR ' + amt.toFixed(2) + '</b></span>' +
+                        '<h6 class="m-0">' + esc(s.method_name) + '</h6>' +
+                        '<span class="text-primary"><b>LKR ' + net.toFixed(2) + '</b></span><br>' +
+                        '<small class="text-muted">in ' + mIn.toFixed(2) +
+                        (mOut > 0 ? ' &nbsp;/&nbsp; out ' + mOut.toFixed(2) : '') + '</small>' +
                         '</div></div></div>';
                 }
 
                 $('#summaryContent').html(html);
-                $('#summaryGrandTotal').text('LKR ' + grandTotal.toFixed(2));
+                $('#summaryTotalIn').text('LKR ' + (parseFloat(res.total_in) || 0).toFixed(2));
+                $('#summaryTotalOut').text('LKR ' + (parseFloat(res.total_out) || 0).toFixed(2));
+                $('#summaryGrandTotal').text('LKR ' + (parseFloat(res.net) || 0).toFixed(2));
                 $('#summaryCards').show();
             }
         });
@@ -205,8 +243,8 @@ $(document).ready(function () {
         loadReport();
     });
 
-    // Also load when method changes
-    $('#method_select').change(function(){
+    // Also reload when the method or branch filter changes
+    $('#method_select, #store_select').change(function(){
         var from = $('#datepicFrom').val();
         var to = $('#datepicTo').val();
         if(from && to){
@@ -219,6 +257,7 @@ $(document).ready(function () {
         try{ $('#datatable-buttons').DataTable().destroy(); }catch(e){}
         $('#datatable-buttons').html('<thead><tr><th>Select date range and click Search to view report</th></tr></thead>');
         $('#method_select').val('all');
+        $('#store_select').val('all');
         $('#datepicFrom').val('');
         $('#datepicTo').val('');
         $('#totalAmount').text("0.00");

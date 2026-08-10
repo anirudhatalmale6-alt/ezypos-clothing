@@ -50,11 +50,14 @@
                         <option value="Cash">Cash</option>
                         <option value="Cheque">Cheque</option>
                         <option value="Credit Card">Credit Card</option>
+                        <?php if(isset($paymentMethods) && $paymentMethods){ foreach($paymentMethods as $pm){ ?>
+                        <option value="<?php echo htmlspecialchars($pm->pm_name); ?>"><?php echo htmlspecialchars($pm->pm_name); ?></option>
+                        <?php }} ?>
                     </select>
                 </div>
                 <div class="form-group" id="list_card_ref_group" style="display:none;">
-                    <label>Card Number / Reference</label>
-                    <input type="text" class="form-control" id="list_card_ref" placeholder="Enter card number">
+                    <label>Card Number / Reference No</label>
+                    <input type="text" class="form-control" id="list_card_ref" placeholder="Enter card number / reference no">
                 </div>
                 <div class="form-group">
                     <label>Payment Amount</label>
@@ -80,11 +83,14 @@ var listPayDeliverAfter = false;
 $(function(){
     loadAllProdSales();
 
+    // Any non-Cash method needs a reference (card machine ref / cheque no),
+    // matching the rule used on the Sales and Add Tailoring Order screens.
     $('#list_pm_method').change(function(){
-        if($(this).val() === 'Credit Card'){
+        if($(this).val() !== 'Cash'){
             $('#list_card_ref_group').show();
         } else {
             $('#list_card_ref_group').hide();
+            $('#list_card_ref').val('');
         }
     });
 
@@ -93,8 +99,8 @@ $(function(){
         if(!amt || amt <= 0){ swal({type:'error', title:'Error', text:'Enter valid amount'}); return; }
         var method = $('#list_pm_method').val();
         var cardRef = $('#list_card_ref').val().trim();
-        if(method === 'Credit Card' && !cardRef){
-            swal({type:'error', title:'Error', text:'Please enter the card number'}); return;
+        if(method !== 'Cash' && !cardRef){
+            swal({type:'error', title:'Error', text:'Please enter the card number / reference no for ' + method}); return;
         }
 
         $.post(BASE_URL + 'ProductionSale/addPayment', {
@@ -160,14 +166,13 @@ function loadAllProdSales(){
                         statusCell += '</select>';
                     }
 
-                    // Payment button
-                    var payCell = '';
-                    if(d.prodsale_status !== 'Delivered' && bal > 0){
-                        payCell = '<button class="btn btn-sm btn-warning btn-list-pay" data-id="' + d.prodsale_id + '" data-balance="' + bal + '"><i class="fa fa-money"></i> Pay</button>';
-                    } else if(bal <= 0){
-                        payCell = '<span class="badge badge-success">Paid</span>';
-                    } else {
-                        payCell = '-';
+                    // Payment button - available on EVERY order so a payment can always be
+                    // recorded, whatever the status. Fully-settled orders still show "Paid".
+                    var payCell = '<button class="btn btn-sm ' + (bal > 0 ? 'btn-warning' : 'btn-outline-secondary') +
+                                  ' btn-list-pay" data-id="' + d.prodsale_id + '" data-balance="' + bal +
+                                  '"><i class="fa fa-money"></i> Pay</button>';
+                    if(bal <= 0){
+                        payCell = '<span class="badge badge-success">Paid</span> ' + payCell;
                     }
 
                     // Color balance red if > 0

@@ -328,4 +328,43 @@ class Returns_model extends CI_Model {
         }
         return false;
     }
+
+    // ===================== RETURN / EXCHANGE PAYMENTS =====================
+
+    /**
+     * Record one payment line against a return.
+     * $direction: 'in'  = customer paid the exchange difference
+     *             'out' = refund handed back to the customer
+     */
+    public function addReturnPayment($ret_id, $direction, $method, $reference, $amount)
+    {
+        if (!$this->db->table_exists('ezy_pos_return_payments')) {
+            return false;
+        }
+        $amount = floatval($amount);
+        if ($amount <= 0) return false;
+
+        return $this->db->insert('ezy_pos_return_payments', array(
+            'rp_ret_id'     => intval($ret_id),
+            'rp_direction'  => ($direction === 'out' ? 'out' : 'in'),
+            'rp_method'     => ($method !== '' ? $method : 'Cash'),
+            'rp_reference'  => ($reference !== '' ? $reference : null),
+            'rp_amount'     => $amount,
+            'rp_created_by' => isset($_SESSION['userid']) ? intval($_SESSION['userid']) : 0
+        ));
+    }
+
+    /**
+     * All payment lines recorded against a return, oldest first.
+     */
+    public function getReturnPayments($ret_id)
+    {
+        if (!$this->db->table_exists('ezy_pos_return_payments')) {
+            return array();
+        }
+        return $this->db->query(
+            "SELECT * FROM ezy_pos_return_payments WHERE rp_ret_id = ? ORDER BY rp_id",
+            array($ret_id)
+        )->result();
+    }
 }

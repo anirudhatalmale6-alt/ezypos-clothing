@@ -138,6 +138,42 @@
                                     </div>
                                 </div>
 
+                                <?php if(isset($payments) && is_array($payments) && count($payments) > 0): ?>
+                                <!-- How the money actually moved: method + card/cheque reference -->
+                                <hr>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div style="font-family: arial; font-weight:bold; margin-bottom:5px;">
+                                            <?php echo ($ret->ret_net_amount >= 0) ? 'Refund Paid By:' : 'Payment Received:'; ?>
+                                        </div>
+                                        <table class="table" cellspacing="0" width="100%" style="margin-right:24px;">
+                                            <thead>
+                                                <tr>
+                                                    <th style="margin-right:5px;">#</th>
+                                                    <th>Method</th>
+                                                    <th>Reference</th>
+                                                    <th style="text-align:right;">Amount</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php $z = 0; $payTotal = 0; foreach($payments as $p): $z++; $payTotal += floatval($p->rp_amount); ?>
+                                                <tr style="font-family: arial;">
+                                                    <td><?php echo $z; ?></td>
+                                                    <td><?php echo htmlspecialchars($p->rp_method); ?></td>
+                                                    <td><?php echo htmlspecialchars($p->rp_reference !== null ? $p->rp_reference : ''); ?></td>
+                                                    <td style="text-align:right;"><?php echo number_format(floatval($p->rp_amount), 2); ?></td>
+                                                </tr>
+                                                <?php endforeach; ?>
+                                                <tr style="font-family: arial; font-weight:bold;">
+                                                    <td colspan="3" style="text-align:right;">Total</td>
+                                                    <td style="text-align:right;"><?php echo number_format($payTotal, 2); ?></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
+
                                 <?php if(isset($ret->ret_reason) && trim($ret->ret_reason) !== ''): ?>
                                 <hr>
                                 <div class="row">

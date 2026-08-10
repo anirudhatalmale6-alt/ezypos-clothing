@@ -56,10 +56,11 @@ class Reports extends CI_Controller {
                 $data['title'] = ucfirst($page);
                 $data['config'] = $this->Configs_model->getConfigName();
                 $data['all_customers'] = $this->Report_model->load_all_customers();
-        
-                
+                // Branch filter (admins see every store, staff only their assigned ones)
+                $data['storesForFilter'] = $this->_loadStoresForUser();
+
                 $this->load->view('templates/header', $data);
-                $this->load->view('report/'.$page);
+                $this->load->view('report/'.$page, $data);
                 $this->load->view('templates/footer');
                 $this->load->view('templates/rightslidebar');
                 $this->load->view('templates/footerscripts');
@@ -210,8 +211,12 @@ class Reports extends CI_Controller {
 
                 $data['returns_result'] = $this->Report_model->getReturnsTotalForToday();
 
+                // Cash flow block for today, from the same engine the Cash Flow report uses
+                $data['cashflow_today'] = $this->Report_model->getCashMovementBySource(date('Y-m-d'), date('Y-m-d'));
+                $data['storesForFilter'] = $this->_loadStoresForUser();
+
                 $this->load->view('templates/header',$data);
-                $this->load->view('report/'.$page);
+                $this->load->view('report/'.$page, $data);
                 $this->load->view('templates/footer');
                 $this->load->view('templates/rightslidebar');
                 $this->load->view('templates/footerscripts');
@@ -220,11 +225,12 @@ class Reports extends CI_Controller {
         public function getTodaySummaryByDates(){
                 $from = $this->input->post('from');
                 $to = $this->input->post('to');
+                $storeId = $this->input->post('store_id');
                 if(!$from || !$to){
                     echo json_encode(array('status' => 'error'));
                     return;
                 }
-                $result = $this->Report_model->getTodaySummaryByDates($from, $to);
+                $result = $this->Report_model->getTodaySummaryByDates($from, $to, $storeId);
                 echo json_encode($result);
         }
         
@@ -543,6 +549,8 @@ public function get_overall_expenses() {
         // Pass payment methods for filter dropdown
         $this->load->model('Sales_model');
         $data['paymentMethods'] = $this->Sales_model->getAllPaymentMethods();
+        // Branch filter (admins see every store, staff only their assigned ones)
+        $data['storesForFilter'] = $this->_loadStoresForUser();
         $this->load->view('templates/header', $data);
         $this->load->view('report/'.$page, $data);
         $this->load->view('templates/footer');
@@ -555,8 +563,9 @@ public function get_overall_expenses() {
         $from = $this->input->post('from');
         $to = $this->input->post('to');
         $method = $this->input->post('method');
+        $storeId = $this->input->post('store_id');
         if (!$method) $method = 'all';
-        $result = $this->Report_model->getCashFlowReport($from, $to, $method);
+        $result = $this->Report_model->getCashFlowReport($from, $to, $method, $storeId);
         echo json_encode($result ? $result : array());
     }
 
@@ -564,8 +573,10 @@ public function get_overall_expenses() {
     {
         $from = $this->input->post('from');
         $to = $this->input->post('to');
-        $result = $this->Report_model->getCashFlowSummary($from, $to);
-        echo json_encode($result ? $result : array());
+        $storeId = $this->input->post('store_id');
+        // Full summary: per-method rows plus the in / out / net headline figures.
+        $summary = $this->Report_model->getCashMovementSummary($from, $to, $storeId);
+        echo json_encode($summary);
     }
 
     // ===================== ITEM SALES REPORT =====================

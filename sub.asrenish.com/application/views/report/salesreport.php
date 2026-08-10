@@ -5,7 +5,7 @@
     <div class="container">
         <!-- Filters Row -->
         <div class="row">                    
-            <div class="button-list col-6 col-xl-5 col-lg-5 col-md-12 col-sm-12 col-xs-12">
+            <div class="button-list col-3 col-xl-3 col-lg-3 col-md-12 col-sm-12 col-xs-12">
                 <select name="customer_select" id="customer_select" class="form-control">
                     <option value="all">--Select Customers--</option>
                     <?php foreach ($all_customers as $customer_row) { ?>
@@ -13,6 +13,16 @@
                             <?php echo $customer_row['cus_name']; ?>
                         </option>
                     <?php } ?>
+                </select>
+            </div>
+            <div class="button-list col-3 col-xl-2 col-lg-2 col-md-12 col-sm-12 col-xs-12">
+                <select name="store_select" id="store_select" class="form-control">
+                    <option value="all">-- All Branches --</option>
+                    <?php if(isset($storesForFilter) && $storesForFilter){ foreach ($storesForFilter as $st) {
+                        $sid   = is_array($st) ? $st['store_id']   : $st->store_id;
+                        $sname = is_array($st) ? $st['store_name'] : $st->store_name; ?>
+                        <option value="<?php echo $sid; ?>"><?php echo htmlspecialchars($sname); ?></option>
+                    <?php }} ?>
                 </select>
             </div>
             <div class="col-lg-5 col-lg-6 col-md-10 col-sm-12 col-xs-12">
@@ -119,6 +129,7 @@ $(document).ready(function () {
         $.ajax({
             type: 'POST',
             url: loadUrl,
+            data: { store_id: $('#store_select').val() },
             dataType: 'json',
             success: function (data) {
                 if (data.length === 0) {
@@ -179,19 +190,19 @@ $(document).ready(function () {
         });
     });
 
-    // Datepicker logic (if still required)
-    $(".datepic").datepicker({
-        dateFormat: "yy-mm-dd",
-        onSelect: function () {
+    // Load the date-range report. Shared by the datepicker and the branch filter.
+    function loadSalesByDates() {
             const dateFrom = $('#datepicFrom').val();
             const dateTo = $('#datepicTo').val();
+            if(!dateFrom || !dateTo){ return; }
             const customerId = $('#customer_select').val();
+            const storeId = $('#store_select').val();
             const loadUrl = '<?php echo base_url()?>Reports/sales_log_by_dates';
 
             $.ajax({
                 type: 'POST',
                 url: loadUrl,
-                data: { from: dateFrom, to: dateTo, cus_id: customerId },
+                data: { from: dateFrom, to: dateTo, cus_id: customerId, store_id: storeId },
                 dataType: 'json',
                 success: function (data) {
                     if (data.length === 0) {
@@ -245,6 +256,21 @@ $(document).ready(function () {
                     alert('Error fetching data.');
                 }
             });
+    }
+
+    $(".datepic").datepicker({
+        dateFormat: "yy-mm-dd",
+        onSelect: function () { loadSalesByDates(); }
+    });
+
+    // Branch filter: re-run whichever view is active.
+    $('#store_select').change(function () {
+        const dateFrom = $('#datepicFrom').val();
+        const dateTo = $('#datepicTo').val();
+        if (dateFrom && dateTo) {
+            loadSalesByDates();
+        } else {
+            $('#customer_select').trigger('change');
         }
     });
 
@@ -253,6 +279,7 @@ $(document).ready(function () {
         $('#datatable-buttons').DataTable().destroy();
         $('#datatable-buttons').html('<thead><tr><th>No Data Available</th></tr></thead>');
         $('#customer_select').val('all');
+        $('#store_select').val('all');
         $('#datepicFrom').val('');
         $('#datepicTo').val('');
         $('#totalGrandTotal').text("0.00");

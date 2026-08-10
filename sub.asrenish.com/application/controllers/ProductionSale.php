@@ -249,6 +249,9 @@ class ProductionSale extends CI_Controller {
         }
         $data['title'] = ucfirst($page);
         $data['config'] = $this->Configs_model->getConfigName();
+        // Same payment method list the Sales screen uses, so the Pay button on the
+        // listing offers every configured method (not just Cash/Cheque/Credit Card).
+        $data['paymentMethods'] = $this->Sales_model->getActivePaymentMethods();
 
         $this->load->view('templates/header', $data);
         $this->load->view('listing/' . $page, $data);
