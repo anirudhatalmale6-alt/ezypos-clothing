@@ -34,7 +34,7 @@
                                     ?>
                                     <tr>
                                         <td><?php echo $ret->ret_id; ?></td>
-                                        <td>AS00<?php echo $ret->ret_sale_id; ?></td>
+                                        <td><?php echo bill_no_by_id($ret->ret_sale_id); ?></td>
                                         <td><?php echo $typeLabel; ?></td>
                                         <td><?php echo isset($ret->cus_name) ? $ret->cus_name : 'N/A'; ?></td>
                                         <td style="text-align:right;"><?php echo number_format($ret->ret_refund_amount, 2); ?></td>
@@ -169,7 +169,7 @@ $(document).ready(function(){
 
                 // Populate header
                 $('#modal_ret_id').text('RET-' + ret.ret_id);
-                $('#modal_sale_id').text('AS00' + ret.ret_sale_id);
+                $('#modal_sale_id').text(ret.sale_bill_no ? ret.sale_bill_no : ret.ret_sale_id);
                 var typeLabels = {full_return:'Full Return', partial_return:'Partial Return', exchange:'Exchange'};
                 $('#modal_ret_type').text(typeLabels[ret.ret_type] || ret.ret_type);
                 $('#modal_customer').text(ret.cus_name || 'N/A');

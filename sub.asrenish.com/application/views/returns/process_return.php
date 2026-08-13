@@ -27,7 +27,7 @@
                                     <div style="background:#f8f9fa;border-radius:4px;padding:10px;margin-bottom:10px;">
                                         <div class="form-group row mb-1">
                                             <label class="col-5 col-form-label">Invoice No:</label>
-                                            <div class="col-7 col-form-label text-right"><strong>AS00<span id="lbl_sale_id"></span></strong></div>
+                                            <div class="col-7 col-form-label text-right"><strong><span id="lbl_sale_id"></span></strong></div>
                                         </div>
                                         <div class="form-group row mb-1">
                                             <label class="col-5 col-form-label">Date:</label>
@@ -92,6 +92,17 @@
                                         <div class="form-group row mb-0">
                                             <label class="col-6 col-form-label" style="font-size:16px;"><strong id="lbl_net_caption">Net Refund:</strong></label>
                                             <div class="col-6 col-form-label text-right" style="font-size:16px;"><strong>LKR <span id="lbl_net_amount">0.00</span></strong></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- How the refund leaves: cash over the counter, or left on the bill -->
+                                    <div id="refundModeBox" style="display:none;background:#fff8e1;border-radius:4px;padding:10px;margin-bottom:10px;">
+                                        <div class="checkbox checkbox-primary mb-1">
+                                            <input id="cash_returned" name="cash_returned" type="checkbox" value="1" checked>
+                                            <label for="cash_returned"><strong>Cash returned to customer</strong></label>
+                                        </div>
+                                        <div style="font-size:12px;color:#795548;" id="refundModeHint">
+                                            Ticked: LKR <span id="lbl_refund_amt">0.00</span> is paid out now and shows in the Cash Flow report.
                                         </div>
                                     </div>
 
@@ -270,6 +281,7 @@ $( function() {
 
     // Exchange top-up payment state. Declared here (before any function that reads
     // them runs) so nothing can throw during page load.
+    var refundDue         = 0;    // how much is owed back to the customer
     var amountToCollect   = 0;    // how much the customer still owes on this exchange
     var collectedPayments = [];   // [{method, reference, amount}]
     var payRowCounter     = 0;
@@ -332,9 +344,9 @@ $( function() {
     });
 
     function loadSale(){
-        var saleId = $('#sale_id_input').val().trim();
-        // Strip common prefixes like AS00, AS, #
-        saleId = saleId.replace(/^(AS00|AS0|AS|#)/i, '');
+        // Send whatever was typed - the server accepts the printed bill number
+        // (HG1-0007), an old AS00 number, or a bare sale id.
+        var saleId = $('#sale_id_input').val().trim().replace(/^#/, '');
         if(!saleId){
             swal({type:'error', title:'Error', text:'Please enter an invoice number.'});
             return;
@@ -353,7 +365,7 @@ $( function() {
                 loadedSaleItems = data.items || [];
 
                 // Populate sale info
-                $('#lbl_sale_id').text(loadedSale.sale_id);
+                $('#lbl_sale_id').text(loadedSale.sale_bill_no ? loadedSale.sale_bill_no : loadedSale.sale_id);
                 $('#lbl_sale_date').text(loadedSale.sale_createdat);
                 $('#lbl_customer').text(loadedSale.cus_name || 'N/A');
                 $('#lbl_grand_total').text(parseFloat(loadedSale.sale_grandtotal).toFixed(2));
@@ -406,6 +418,9 @@ $( function() {
                 amountToCollect = 0;
                 $('#exchangeItemsBody').html('');
                 $('#collectPaymentBox').hide();
+                $('#refundModeBox').hide();
+                $('#cash_returned').prop('checked', true);
+                refundDue = 0;
                 $('#lbl_pay_entered').text('0.00');
 
                 // Apply return type
@@ -596,6 +611,17 @@ $( function() {
             $('#lbl_net_amount').css('color', '#333');
         }
 
+        // Money owed back to the customer: ask whether it is being paid out in
+        // cash or left on the bill as store credit.
+        refundDue = (netAmount > 0) ? netAmount : 0;
+        if(refundDue > 0.001){
+            $('#lbl_refund_amt').text(refundDue.toFixed(2));
+            $('#refundModeBox').show();
+            updateRefundModeHint();
+        } else {
+            $('#refundModeBox').hide();
+        }
+
         // When the new items cost more than the returned ones, the difference has to
         // be collected before the exchange can be processed.
         amountToCollect = (netAmount < 0) ? Math.abs(netAmount) : 0;
@@ -616,6 +642,21 @@ $( function() {
         });
         $('#btnProcessReturn').prop('disabled', !hasReturnItems);
     }
+
+    // =========== REFUND: CASH OR STORE CREDIT ===========
+
+    function updateRefundModeHint(){
+        var amt = refundDue.toFixed(2);
+        if($('#cash_returned').is(':checked')){
+            $('#refundModeHint').html('Ticked: LKR <span id="lbl_refund_amt">' + amt +
+                '</span> is paid out now and shows in the Cash Flow report.');
+        } else {
+            $('#refundModeHint').html('Unticked: LKR <span id="lbl_refund_amt">' + amt +
+                '</span> stays on the bill as store credit for this customer. No cash leaves the till, ' +
+                'so it does not appear in the Cash Flow report.');
+        }
+    }
+    $(document).on('change', '#cash_returned', updateRefundModeHint);
 
     // =========== EXCHANGE PAYMENT COLLECTION ===========
 
@@ -820,7 +861,10 @@ $( function() {
             net_amount: returnTotalVal - exchangeTotalVal,
             return_items: JSON.stringify(returnItems),
             exchange_items: JSON.stringify(excItemsData),
-            payments: JSON.stringify(collectedPayments)
+            payments: JSON.stringify(collectedPayments),
+            // 'cash' = handed over the counter, 'store_credit' = left on the bill
+            refund_mode: (refundDue > 0.001 && !$('#cash_returned').is(':checked'))
+                         ? 'store_credit' : 'cash'
         };
 
         var btn = $(this);

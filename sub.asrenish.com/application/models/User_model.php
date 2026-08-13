@@ -186,7 +186,19 @@ class User_model extends CI_Model {
             'priv_stocktransfer'=> 'stocktransfer',
             'priv_loyalty'      => 'loyalty',
             'priv_promotions'   => 'promotions',
-            'priv_labeljoy'     => 'labeljoy'
+            'priv_labeljoy'     => 'labeljoy',
+            'priv_cusreturn'       => 'cusreturn',
+            'priv_supreturn'       => 'supreturn',
+            'priv_paymentmethods'  => 'paymentmethods',
+            'priv_deliverycompany' => 'deliverycompany',
+            'priv_warehouse'       => 'warehouse',
+            'priv_storeitems'      => 'storeitems',
+            'priv_retailpos'       => 'retailpos',
+            'priv_gatepass'        => 'gatepass',
+            'priv_re_commission'   => 're_commission',
+            'priv_re_cashflow'     => 're_cashflow',
+            'priv_re_itemsales'    => 're_itemsales',
+            'priv_re_production'   => 're_production'
         );
         foreach($extraPrivs as $col => $postKey){
             if(in_array($col, $fields)){
@@ -423,7 +435,19 @@ class User_model extends CI_Model {
             'priv_stocktransfer'=> 'E_stocktransfer',
             'priv_loyalty'      => 'E_loyalty',
             'priv_promotions'   => 'E_promotions',
-            'priv_labeljoy'     => 'E_labeljoy'
+            'priv_labeljoy'     => 'E_labeljoy',
+            'priv_cusreturn'       => 'E_cusreturn',
+            'priv_supreturn'       => 'E_supreturn',
+            'priv_paymentmethods'  => 'E_paymentmethods',
+            'priv_deliverycompany' => 'E_deliverycompany',
+            'priv_warehouse'       => 'E_warehouse',
+            'priv_storeitems'      => 'E_storeitems',
+            'priv_retailpos'       => 'E_retailpos',
+            'priv_gatepass'        => 'E_gatepass',
+            'priv_re_commission'   => 'E_re_commission',
+            'priv_re_cashflow'     => 'E_re_cashflow',
+            'priv_re_itemsales'    => 'E_re_itemsales',
+            'priv_re_production'   => 'E_re_production'
         );
         foreach($extraPrivs as $col => $postKey){
             if(in_array($col, $fields)){

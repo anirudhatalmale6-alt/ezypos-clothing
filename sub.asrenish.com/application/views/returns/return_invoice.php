@@ -42,7 +42,7 @@
                                                 <table cellspacing="0" width="100%" style="font-family: arial;">
                                                     <tbody>
                                                         <tr><td>Return ID: RET-<?php echo $ret->ret_id; ?></td></tr>
-                                                        <tr><td>Inv No: AS00<?php echo $ret->ret_sale_id; ?></td></tr>
+                                                        <tr><td>Inv No: <?php echo bill_no_by_id($ret->ret_sale_id); ?></td></tr>
                                                         <?php if(isset($ret->cus_name)): ?>
                                                         <tr><td>Customer: <?php echo $ret->cus_name; ?></td></tr>
                                                         <?php endif; ?>
@@ -143,8 +143,16 @@
                                 <hr>
                                 <div class="row">
                                     <div class="col-12">
+                                        <?php
+                                            // A store-credit refund leaves nothing in the till - say so on
+                                            // the bill so the customer knows what they are holding.
+                                            $isStoreCredit = (isset($ret->ret_refund_mode) && $ret->ret_refund_mode === 'store_credit');
+                                            if($isStoreCredit){ $payHeading = 'Left On Account As Store Credit:'; }
+                                            elseif($ret->ret_net_amount >= 0){ $payHeading = 'Refund Paid By:'; }
+                                            else { $payHeading = 'Payment Received:'; }
+                                        ?>
                                         <div style="font-family: arial; font-weight:bold; margin-bottom:5px;">
-                                            <?php echo ($ret->ret_net_amount >= 0) ? 'Refund Paid By:' : 'Payment Received:'; ?>
+                                            <?php echo $payHeading; ?>
                                         </div>
                                         <table class="table" cellspacing="0" width="100%" style="margin-right:24px;">
                                             <thead>
@@ -170,6 +178,12 @@
                                                 </tr>
                                             </tbody>
                                         </table>
+                                        <?php if($isStoreCredit): ?>
+                                        <div style="font-family: arial; font-size:12px;">
+                                            No cash was paid out. This amount is held on the customer's account
+                                            and can be used against a future purchase.
+                                        </div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                                 <?php endif; ?>

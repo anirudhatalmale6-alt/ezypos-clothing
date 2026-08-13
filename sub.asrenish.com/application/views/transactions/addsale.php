@@ -411,14 +411,10 @@
                     <label>Phone<span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="nc_phone" placeholder="Phone number">
                 </div>
-                <div class="form-group">
-                    <label>Address</label>
-                    <input type="text" class="form-control" id="nc_address" placeholder="Address">
-                </div>
-                <div class="form-group">
-                    <label>Credit Limit</label>
-                    <input type="number" class="form-control" id="nc_creditlimit" value="0" min="0">
-                </div>
+                <!-- Address and credit limit are no longer asked for on the customer
+                     screens, so the quick-add box does not ask for them either. -->
+                <input type="hidden" id="nc_address" value="">
+                <input type="hidden" id="nc_creditlimit" value="0">
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
@@ -1179,7 +1175,23 @@ var chequeHTML ='<div id="chequeDIV">'+
 
         //insert sales to DB with for loop
         var sale_ID = 0;
+        // Guard against the same sale being saved twice. Every request below runs
+        // synchronously, so a second click landing while the first is still going
+        // used to create a duplicate bill. The flag blocks re-entry and the button
+        // is disabled so the operator can see the sale is already going through.
+        var saleSaveInProgress = false;
+        function lockSaveButton(){
+            saleSaveInProgress = true;
+            $('#save').prop('disabled', true);
+            $('#btnConfirmCardRefs').prop('disabled', true);
+        }
+        function unlockSaveButton(){
+            saleSaveInProgress = false;
+            $('#save').prop('disabled', false);
+            $('#btnConfirmCardRefs').prop('disabled', false);
+        }
         $('#save').click(function(){
+            if(saleSaveInProgress){ return; }
             if ($("#cheque").is(':checked')) {
                     $("#chequeform").submit();
             }
@@ -1242,6 +1254,7 @@ var chequeHTML ='<div id="chequeDIV">'+
 
                 if($("#cheque").is(':checked')) {
                     if(ChqFormsubmittd==true){
+                        lockSaveButton();
                         saveSale();
                         ChqFormsubmittd=false;
                     }
@@ -1250,6 +1263,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                     }
                 }
                 else{
+                    lockSaveButton();
                     saveSale();
                 }
                 ///
@@ -1615,6 +1629,10 @@ var chequeHTML ='<div id="chequeDIV">'+
                         } else {
                             location.reload();
                         }
+                    }
+                    else {
+                        // Nothing was written - release the button so it can be retried.
+                        unlockSaveButton();
                     }
                 }//end saveSale
   
@@ -2174,6 +2192,9 @@ var chequeHTML ='<div id="chequeDIV">'+
 
     // =========== CARD REF CONFIRM HANDLER ===========
     $('#btnConfirmCardRefs').click(function(){
+        // The save handler disables #save the moment a sale starts going through.
+        // Checking it here stops a second click on Confirm creating a second bill.
+        if($('#save').prop('disabled')){ return; }
         var allFilled = true;
         $('.card-ref-input').each(function(){
             var idx = $(this).data('idx');

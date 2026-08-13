@@ -874,6 +874,15 @@ class Report_model extends CI_Model {
         $wantCash  = ($wantAll || $method === 'cash');
         $wantPmId  = (!$wantAll && $method !== 'cash') ? intval($method) : 0;
 
+        // Bills print a per-store number (HG1-0001). Older databases that have not
+        // run the v9 migration yet have no such column, so fall back to the sale id.
+        $hasBillNo = in_array('sale_bill_no', $this->db->list_fields('ezy_pos_sale'));
+        $billCol   = $hasBillNo ? 's.sale_bill_no' : "'' AS sale_bill_no";
+        $billOf    = function($r){
+            return (isset($r->sale_bill_no) && trim($r->sale_bill_no) !== '')
+                 ? $r->sale_bill_no : bill_prefix().str_pad($r->sale_id, 4, '0', STR_PAD_LEFT);
+        };
+
         $mk = function($date, $source, $ref, $customer, $methodName, $reference, $direction, $amount, $store){
             $o = new stdClass();
             $o->date          = $date;
@@ -898,7 +907,7 @@ class Report_model extends CI_Model {
         // ------------------------------------------------------------------
         if($wantCash){
             $sf = $this->_storeFilterFor('s.sale_location', $storeId);
-            $str = "SELECT s.sale_id, s.sale_date, c.cus_name, cp.cus_pay_cash, st.store_name
+            $str = "SELECT s.sale_id, s.sale_date, c.cus_name, cp.cus_pay_cash, st.store_name, ".$billCol."
                     FROM ezy_pos_cus_payment cp
                     INNER JOIN ezy_pos_sale s ON s.sale_id = cp.cus_pay_saleid
                     LEFT JOIN ezy_pos_customers c ON c.cus_id = s.sale_cus_id
@@ -909,7 +918,7 @@ class Report_model extends CI_Model {
                     .$sf.
                     " ORDER BY s.sale_id DESC";
             foreach($this->db->query($str, array($start, $end))->result() as $r){
-                $rows[] = $mk($r->sale_date, 'Sale', 'AS00'.$r->sale_id, $r->cus_name,
+                $rows[] = $mk($r->sale_date, 'Sale', $billOf($r), $r->cus_name,
                               'Cash', '', 'in', $r->cus_pay_cash, $r->store_name);
             }
         }
@@ -919,7 +928,7 @@ class Report_model extends CI_Model {
         // ------------------------------------------------------------------
         if($wantAll && $this->db->table_exists('ezy_pos_cus_cheque')){
             $sf = $this->_storeFilterFor('s.sale_location', $storeId);
-            $str = "SELECT s.sale_id, s.sale_date, c.cus_name, st.store_name,
+            $str = "SELECT s.sale_id, s.sale_date, c.cus_name, st.store_name, ".$billCol.",
                            ch.cus_cheque_amount, ch.cus_cheque_num, ch.cus_cheque_bank
                     FROM ezy_pos_cus_cheque ch
                     INNER JOIN ezy_pos_sale s ON s.sale_id = ch.cus_cheque_saleid
@@ -935,7 +944,7 @@ class Report_model extends CI_Model {
                 if(trim($r->cus_cheque_bank) !== ''){
                     $ref = trim($r->cus_cheque_bank.($ref !== '' ? ' - '.$ref : ''));
                 }
-                $rows[] = $mk($r->sale_date, 'Sale', 'AS00'.$r->sale_id, $r->cus_name,
+                $rows[] = $mk($r->sale_date, 'Sale', $billOf($r), $r->cus_name,
                               'Cheque', $ref, 'in', $r->cus_cheque_amount, $r->store_name);
             }
         }
@@ -948,7 +957,7 @@ class Report_model extends CI_Model {
            && $this->db->table_exists('ezy_pos_payment_methods')){
             $sf = $this->_storeFilterFor('s.sale_location', $storeId);
             $str = "SELECT sp.sp_amount, sp.sp_card_ref, pm.pm_name,
-                           s.sale_id, s.sale_date, c.cus_name, st.store_name
+                           s.sale_id, s.sale_date, c.cus_name, st.store_name, ".$billCol."
                     FROM ezy_pos_sale_payments sp
                     INNER JOIN ezy_pos_sale s ON s.sale_id = sp.sp_sale_id
                     LEFT JOIN ezy_pos_payment_methods pm ON pm.pm_id = sp.sp_pm_id
@@ -965,7 +974,7 @@ class Report_model extends CI_Model {
             }
             $str .= " ORDER BY s.sale_id DESC";
             foreach($this->db->query($str, $params)->result() as $r){
-                $rows[] = $mk($r->sale_date, 'Sale', 'AS00'.$r->sale_id, $r->cus_name,
+                $rows[] = $mk($r->sale_date, 'Sale', $billOf($r), $r->cus_name,
                               ($r->pm_name ? $r->pm_name : 'Card'), $r->sp_card_ref,
                               'in', $r->sp_amount, $r->store_name);
             }
@@ -1014,8 +1023,9 @@ class Report_model extends CI_Model {
             $sf         = $hasStore ? $this->_storeFilterFor('r.ret_store_id', $storeId) : '';
             $hasPayTbl  = $this->db->table_exists('ezy_pos_return_payments');
 
+            $modeCol = in_array('ret_refund_mode', $retFields) ? 'r.ret_refund_mode' : "'cash' AS ret_refund_mode";
             $str = "SELECT r.ret_id, r.ret_type, r.ret_net_amount, r.ret_created_at,
-                           c.cus_name, st.store_name
+                           c.cus_name, st.store_name, ".$modeCol."
                     FROM ezy_pos_returns r
                     LEFT JOIN ezy_pos_sale s ON s.sale_id = r.ret_sale_id
                     LEFT JOIN ezy_pos_customers c ON c.cus_id = s.sale_cus_id
@@ -1032,13 +1042,21 @@ class Report_model extends CI_Model {
                 $net   = floatval($r->ret_net_amount);
 
                 // Prefer the payment lines actually recorded against this return.
+                // Lines flagged rp_in_cashflow = 0 (store credit left on the bill)
+                // are deliberately excluded: no money moved.
                 $payRows = array();
                 if($hasPayTbl){
+                    $cfFilter = in_array('rp_in_cashflow', $this->db->list_fields('ezy_pos_return_payments'))
+                              ? ' AND rp_in_cashflow = 1' : '';
                     $payRows = $this->db->query(
-                        "SELECT * FROM ezy_pos_return_payments WHERE rp_ret_id = ? AND rp_amount > 0 ORDER BY rp_id",
+                        "SELECT * FROM ezy_pos_return_payments WHERE rp_ret_id = ? AND rp_amount > 0".$cfFilter." ORDER BY rp_id",
                         array($r->ret_id)
                     )->result();
                 }
+                // A store-credit refund has payment lines, they are just all
+                // excluded above - so it must not fall through to the net-amount
+                // fallback and get counted as cash after all.
+                $isStoreCredit = (isset($r->ret_refund_mode) && $r->ret_refund_mode === 'store_credit');
 
                 if(count($payRows) > 0){
                     foreach($payRows as $p){
@@ -1056,6 +1074,7 @@ class Report_model extends CI_Model {
                 } else {
                     // Older return with no payment lines: fall back to its net amount,
                     // booked as cash so the totals still balance.
+                    if($isStoreCredit) continue;
                     if(abs($net) < 0.005) continue;
                     if(!$wantCash) continue;
                     $rows[] = $mk($date, $label, 'RET-'.$r->ret_id, $r->cus_name, 'Cash', '',

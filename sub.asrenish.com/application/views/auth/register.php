@@ -267,6 +267,58 @@
                                                     </div>
                                                 </td>
                                             </tr>
+                                            <tr>
+                                                <th><b><u> Other Pages </u></b></th>
+                                                <th></th>
+                                                <th></th>
+                                                <th></th>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="paymentmethods" name="paymentmethods" type="checkbox" value=1>
+                                                    <label for="paymentmethods">Payment Methods</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="deliverycompany" name="deliverycompany" type="checkbox" value=1>
+                                                    <label for="deliverycompany">Delivery Companies</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="storeitems" name="storeitems" type="checkbox" value=1>
+                                                    <label for="storeitems">Store Items</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="retailpos" name="retailpos" type="checkbox" value=1>
+                                                    <label for="retailpos">Retail POS</label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="cusreturn" name="cusreturn" type="checkbox" value=1>
+                                                    <label for="cusreturn">Customer Return</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="supreturn" name="supreturn" type="checkbox" value=1>
+                                                    <label for="supreturn">Supplier Return</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="gatepass" name="gatepass" type="checkbox" value=1>
+                                                    <label for="gatepass">Gate Pass</label>
+                                                    </div>
+                                                </td>
+                                            </tr>
 											<tr>
                                                 <th><b><u> Listing </u></b></th>
                                                 <th> </th>
@@ -391,6 +443,46 @@
                                                     </div>
                                                 </td>
 
+                                            </tr>
+                                            <tr>
+                                                <th><b><u> More Reports </u></b></th>
+                                                <th></th>
+                                                <th></th>
+                                                <th></th>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="re_commission" name="re_commission" type="checkbox" value=1>
+                                                    <label for="re_commission">Commission Report</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="re_cashflow" name="re_cashflow" type="checkbox" value=1>
+                                                    <label for="re_cashflow">Cash Flow Report</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="re_itemsales" name="re_itemsales" type="checkbox" value=1>
+                                                    <label for="re_itemsales">Item Sales Report</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="re_production" name="re_production" type="checkbox" value=1>
+                                                    <label for="re_production">Production & Tailoring Report</label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="warehouse" name="warehouse" type="checkbox" value=1>
+                                                    <label for="warehouse">Warehouse Stock</label>
+                                                    </div>
+                                                </td>
                                             </tr>
 											<tr>
                                                 <th><b><u> Payments </u></b></th>
@@ -710,6 +802,65 @@
                                                 <td></td><td></td><td></td>
                                             </tr>
                                             <tr>
+                                                <th><b><u> Other Pages </u></b></th>
+                                                <th></th>
+                                                <th></th>
+                                                <th></th>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_paymentmethods" name="E_paymentmethods" type="checkbox"
+                                                    <?php echo (isset($user['priv_paymentmethods']) && $user['priv_paymentmethods']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_paymentmethods">Payment Methods</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_deliverycompany" name="E_deliverycompany" type="checkbox"
+                                                    <?php echo (isset($user['priv_deliverycompany']) && $user['priv_deliverycompany']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_deliverycompany">Delivery Companies</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_storeitems" name="E_storeitems" type="checkbox"
+                                                    <?php echo (isset($user['priv_storeitems']) && $user['priv_storeitems']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_storeitems">Store Items</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_retailpos" name="E_retailpos" type="checkbox"
+                                                    <?php echo (isset($user['priv_retailpos']) && $user['priv_retailpos']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_retailpos">Retail POS</label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_cusreturn" name="E_cusreturn" type="checkbox"
+                                                    <?php echo (isset($user['priv_cusreturn']) && $user['priv_cusreturn']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_cusreturn">Customer Return</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_supreturn" name="E_supreturn" type="checkbox"
+                                                    <?php echo (isset($user['priv_supreturn']) && $user['priv_supreturn']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_supreturn">Supplier Return</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_gatepass" name="E_gatepass" type="checkbox"
+                                                    <?php echo (isset($user['priv_gatepass']) && $user['priv_gatepass']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_gatepass">Gate Pass</label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
                                                 <th><b><u> Listing </u></b></th>
                                                 <th> </th>
                                                 <th></th>
@@ -846,6 +997,51 @@
                                                     </div>
                                                 </td>
 
+                                            </tr>
+                                            <tr>
+                                                <th><b><u> More Reports </u></b></th>
+                                                <th></th>
+                                                <th></th>
+                                                <th></th>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_re_commission" name="E_re_commission" type="checkbox"
+                                                    <?php echo (isset($user['priv_re_commission']) && $user['priv_re_commission']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_re_commission">Commission Report</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_re_cashflow" name="E_re_cashflow" type="checkbox"
+                                                    <?php echo (isset($user['priv_re_cashflow']) && $user['priv_re_cashflow']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_re_cashflow">Cash Flow Report</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_re_itemsales" name="E_re_itemsales" type="checkbox"
+                                                    <?php echo (isset($user['priv_re_itemsales']) && $user['priv_re_itemsales']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_re_itemsales">Item Sales Report</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_re_production" name="E_re_production" type="checkbox"
+                                                    <?php echo (isset($user['priv_re_production']) && $user['priv_re_production']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_re_production">Production & Tailoring Report</label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_warehouse" name="E_warehouse" type="checkbox"
+                                                    <?php echo (isset($user['priv_warehouse']) && $user['priv_warehouse']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_warehouse">Warehouse Stock</label>
+                                                    </div>
+                                                </td>
                                             </tr>
 											<tr>
                                                 <th><b><u> Payments </u></b></th>

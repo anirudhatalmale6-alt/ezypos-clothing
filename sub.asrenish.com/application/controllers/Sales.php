@@ -233,6 +233,7 @@ class Sales extends CI_Controller {
 
     // Payment Methods Master Page
     public function paymentMethods() {
+        require_priv('privPaymentmethods');
         $data1['title'] = 'Payment Methods';
         $data1['config'] = $this->Configs_model->getConfigName();
         $data = array(

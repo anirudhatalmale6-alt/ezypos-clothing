@@ -6,7 +6,11 @@ class Payment_model extends CI_Model {
             $this->load->database();
     }
     public function getCustomerPayments($cusid){
-        $str ="SELECT sale_grandtotal,cus_name,sale_id,cashAmnt,paidDate,ChqAmnt,ChqGivenDate
+        // The printed bill number (HG1-0007) if this database has been migrated,
+        // otherwise an empty string and the screen falls back to the sale id.
+        $billCol = in_array('sale_bill_no', $this->db->list_fields('ezy_pos_sale'))
+                 ? 'sale_bill_no' : "'' AS sale_bill_no";
+        $str ="SELECT sale_grandtotal,cus_name,sale_id,".$billCol.",cashAmnt,paidDate,ChqAmnt,ChqGivenDate
         FROM ezy_pos_customers
         LEFT JOIN ezy_pos_sale ON ezy_pos_sale.sale_cus_id=ezy_pos_customers.cus_id
         LEFT JOIN (

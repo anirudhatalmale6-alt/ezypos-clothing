@@ -19,13 +19,9 @@
                                         name="name" id="customerid" required>
                                     </div>
                                 </div>
-                                <div class="form-group row">
-                                    <label for="addressid" class="col-3 col-form-label">Address<span class="text-danger">*</span></label>
-                                    <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Address" 
-                                        name="address" id="addressid" required>
-                                    </div>
-                                </div>
+                                <!-- Address is not collected at the counter any more; the field is kept
+                                     hidden so the existing save/update code carries on unchanged. -->
+                                <input type="hidden" name="address" id="addressid" value="">
                                 <div class="form-group row">
                                     <label for="contactid" class="col-3 col-form-label">Contact<span class="text-danger">*</span></label>
                                     <div class="col-9">
@@ -35,22 +31,10 @@
                                 </div>
                                 
                     
-                                <div class="form-group row">
-                                    <label for="balanceid" class="col-3 col-form-label">Balance<span class="text-danger">*</span></label>
-                                    <div class="col-9">
-                                        <input class="form-control DecimalFix" type="text" placeholder="Enter Balance 0.00" 
-                                        name="balance" id="balanceid" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$" 
-                                        data-parsley-maxlength="21">
-                                    </div>
-                                </div>
-                                <div class="form-group row">
-                                    <label for="creditlimitid" class="col-3 col-form-label">Credit Limit<span class="text-danger">*</span></label>
-                                    <div class="col-9">
-                                        <input class="form-control DecimalFix" type="text" placeholder="Enter Credit Limit 0.00" 
-                                        name="creditlimit" id="creditlimitid" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$" 
-                                        data-parsley-maxlength="21">
-                                    </div>
-                                </div>
+                                <!-- Opening balance and credit limit start at zero and are no longer
+                                     asked for when adding a customer. -->
+                                <input type="hidden" name="balance" id="balanceid" value="0.00">
+                                <input type="hidden" name="creditlimit" id="creditlimitid" value="0.00">
                                 
                     
                                 <button type="submit" id="add" class="btn btn-primary waves-effect">Add</button>
@@ -70,7 +54,6 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Name</th>
-                                    <th>Address</th>
                                     <th>Contact</th>
                                     <?php if ($this->session->userdata('userrole') == 1): ?>
                                     <th>Balance</th>
@@ -107,13 +90,7 @@
                                         name="edit_name" id="edit_customerid" required>
                                     </div>
                                 </div>
-                                <div class="form-group row">
-                                    <label for="edit_addressid" class="col-3 col-form-label">Address</label>
-                                    <div class="col-9">
-                                        <input class="form-control" type="text" placeholder="Enter Address" 
-                                        name="edit_address" id="edit_addressid" required>
-                                    </div>
-                                </div>
+                                <input type="hidden" name="edit_address" id="edit_addressid" value="">
                                 <div class="form-group row">
                                     <label for="edit_contactid" class="col-3 col-form-label">Contact</label>
                                     <div class="col-9">
@@ -121,31 +98,12 @@
                                         name="edit_contact" id="edit_contactid" required data-parsley-minlength="10">
                                     </div>
                                 </div>
-                                <div class="form-group row">
-                                    <label for="edit_balanceid" class="col-3 col-form-label">Starting Balance</label>
-                                    <div class="col-9">
-                                        <input class="form-control DecimalFix" type="text" placeholder="Enter Balance 0.00" 
-                                        name="edit_balance" id="edit_balanceid" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$" 
-                                        data-parsley-maxlength="21">
-                                    </div>
-                                </div>
-                                
-                                <div class="form-group row">
-                                    <label for="edit_balanceid" class="col-3 col-form-label" title="Total balance= Starting balance+Current bill balance">Total Balance</label>
-                                    <div class="col-9">
-                                        <input class="form-control DecimalFix" type="text" placeholder="Enter Balance 0.00" 
-                                        name="edit_total_balance" id="edit_total_balanceid" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$" 
-                                        data-parsley-maxlength="21" readonly>
-                                    </div>
-                                </div>
-                                <div class="form-group row">
-                                    <label for="edit_creditlimitid" class="col-3 col-form-label">Credit Limit</label>
-                                    <div class="col-9">
-                                        <input class="form-control DecimalFix" type="text" placeholder="Enter Credit Limit 0.00" 
-                                        name="edit_creditlimit" id="edit_creditlimitid" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$" 
-                                        data-parsley-maxlength="21">
-                                    </div>
-                                </div>                             
+                                <!-- Balance and credit limit are hidden on this screen. They still hold
+                                     the customer's real figures and are posted back untouched, so editing
+                                     a name or phone number can never wipe an outstanding balance. -->
+                                <input type="hidden" name="edit_balance" id="edit_balanceid" value="0.00">
+                                <input type="hidden" name="edit_total_balance" id="edit_total_balanceid" value="0.00">
+                                <input type="hidden" name="edit_creditlimit" id="edit_creditlimitid" value="0.00">
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
@@ -219,7 +177,6 @@ function showAllCustomers(){
                 rows += '<tr>' +
                     '<td>' + data[i].cus_id + '</td>' +
                     '<td>' + data[i].cus_name + '</td>' +
-                    '<td>' + data[i].cus_address + '</td>' +
                     '<td>' + data[i].cus_contact + '</td>' +
                     totalBalanceColumn +  // Add total balance column only if userRole is 1
                     creditLimitColumn +  // Add credit limit column only if userRole is 1

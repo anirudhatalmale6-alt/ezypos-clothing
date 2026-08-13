@@ -12,6 +12,7 @@ class RetailPosController extends CI_Controller {
     }
 
     public function index() {
+        require_priv('privRetailpos');
         // Load only the retail POS view without the header and footer
         $this->load->view('pages/retail_pos');
     }

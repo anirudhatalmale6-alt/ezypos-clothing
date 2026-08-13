@@ -57,7 +57,44 @@ class Sales_model extends CI_Model {
         }
         $this->db->insert('ezy_pos_sale', $data);
         $sale_id = $this->db->insert_id();
+        // Give the bill its per-store number (HG1-0001, HG2-0001 ...).
+        $this->assignBillNumber($sale_id, $this->input->post('store'));
         return $sale_id;
+    }
+
+    /**
+     * Allocate the next bill number for a store and stamp it on the sale.
+     *
+     * Each store counts on its own, so Main Store and Branch Store both start
+     * at 1. The counter lives in its own table and is bumped with MySQL's
+     * LAST_INSERT_ID(expr) trick, which is atomic - two tills saving at the
+     * same instant can never be handed the same number.
+     */
+    public function assignBillNumber($sale_id, $store_id)
+    {
+        $fields = $this->db->list_fields('ezy_pos_sale');
+        if (!in_array('sale_bill_no', $fields)) { return null; }   // migration not run yet
+
+        $store_id = intval($store_id);
+        $seq = null;
+
+        if ($this->db->table_exists('ezy_pos_bill_counters')) {
+            $this->db->query("INSERT IGNORE INTO ezy_pos_bill_counters (bc_store_id, bc_last_no) VALUES (?, 0)", array($store_id));
+            $this->db->query("UPDATE ezy_pos_bill_counters SET bc_last_no = LAST_INSERT_ID(bc_last_no + 1) WHERE bc_store_id = ?", array($store_id));
+            $row = $this->db->query("SELECT LAST_INSERT_ID() AS n")->row();
+            if ($row) { $seq = intval($row->n); }
+        }
+        if (!$seq) {
+            // No counter table: fall back to counting what this store already has.
+            $row = $this->db->query("SELECT COALESCE(MAX(sale_bill_seq),0) + 1 AS n FROM ezy_pos_sale WHERE sale_location = ?", array($store_id))->row();
+            $seq = $row ? intval($row->n) : 1;
+        }
+
+        $billNo = bill_prefix().$store_id.'-'.str_pad($seq, 4, '0', STR_PAD_LEFT);
+        $update = array('sale_bill_no' => $billNo);
+        if (in_array('sale_bill_seq', $fields)) { $update['sale_bill_seq'] = $seq; }
+        $this->db->where('sale_id', $sale_id)->update('ezy_pos_sale', $update);
+        return $billNo;
     }
     public function addSaleItemPOST(){
         $data = array(
@@ -159,7 +196,13 @@ class Sales_model extends CI_Model {
         }
     }
     public function getInvoices(){
-        $this->db->select('sale_id');
+        // sale_location + sale_bill_no let bill_no() print the real bill number
+        // in the invoice picker instead of a bare id.
+        $cols = array('sale_id');
+        $fields = $this->db->list_fields('ezy_pos_sale');
+        if(in_array('sale_location', $fields)) $cols[] = 'sale_location';
+        if(in_array('sale_bill_no', $fields))  $cols[] = 'sale_bill_no';
+        $this->db->select(implode(',', $cols));
         $this->db->from('ezy_pos_sale');
         $query = $this->db->get();
         if($query->num_rows()>0){

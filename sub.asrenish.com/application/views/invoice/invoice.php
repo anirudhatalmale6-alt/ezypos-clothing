@@ -53,7 +53,7 @@
         <table class="meta">
             <tr>
                 <td>Customer: <?php echo $customer->cus_name; ?></td>
-                <td class="r">Inv No: AS00<?php echo $sales->sale_id; ?></td>
+                <td class="r">Inv No: <?php echo bill_no($sales); ?></td>
             </tr>
             <tr>
                 <td>Address: <?php echo $customer->cus_address; ?></td>

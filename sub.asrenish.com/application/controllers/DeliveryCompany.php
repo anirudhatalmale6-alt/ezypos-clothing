@@ -11,6 +11,7 @@ class DeliveryCompany extends CI_Controller {
     }
 
     public function manage() {
+        require_priv('privDeliverycompany');
         $data1['title'] = 'Delivery Companies';
         $data1['config'] = $this->Configs_model->getConfigName();
         $data = array(

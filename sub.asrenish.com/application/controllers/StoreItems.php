@@ -21,6 +21,7 @@ class StoreItems extends CI_Controller
 
 
     public function storeItem($page = 'index'){
+        require_priv('privStoreitems');
         if ( ! file_exists(APPPATH.'views/pages/'.$page.'.php'))
         {
                 // Whoops, we don't have a page for that!
@@ -37,6 +38,8 @@ class StoreItems extends CI_Controller
 }
 
     public function warehouse($page = 'warehouse'){
+        // Warehouse Stock also opens for anyone who can see the Stock listing.
+        if(!user_can('privWarehouse') && !user_can('privL_stock')) { show_404(); }
         if ( ! file_exists(APPPATH.'views/pages/'.$page.'.php'))
         {
                 // Whoops, we don't have a page for that!

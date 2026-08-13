@@ -59,13 +59,16 @@ class Returns extends CI_Controller {
      */
     public function getSaleDetails()
     {
-        $sale_id = $this->input->post('sale_id');
-        if (!$sale_id) {
+        $entered = $this->input->post('sale_id');
+        if (!$entered) {
             echo json_encode(array('status' => 'error', 'message' => 'Sale ID is required'));
             return;
         }
+        // Counter staff type whatever is printed on the bill - HG1-0007, an old
+        // AS00 number, or a bare id. Resolve all three to the real sale id.
+        $sale_id = bill_no_to_sale_id($entered);
 
-        $sale = $this->Returns_model->getSaleWithCustomer($sale_id);
+        $sale = $sale_id ? $this->Returns_model->getSaleWithCustomer($sale_id) : false;
         if (!$sale) {
             echo json_encode(array('status' => 'error', 'message' => 'Sale not found or inactive'));
             return;
@@ -149,6 +152,13 @@ class Returns extends CI_Controller {
         // Net amount: positive = refund to customer, negative = customer pays difference
         $net_amount = $return_total - $exchange_total;
 
+        // Refund mode. Only meaningful when money is owed back to the customer
+        // (net_amount > 0): either cash was handed over the counter, or the value
+        // was left on the bill as store credit for them to spend later.
+        $refund_mode = $this->input->post('refund_mode');
+        if ($refund_mode !== 'store_credit') { $refund_mode = 'cash'; }
+        if ($net_amount <= 0) { $refund_mode = 'cash'; }   // customer paid us; nothing to leave as credit
+
         // 2. Create the return record
         $ret_data = array(
             'sale_id'         => $sale_id,
@@ -157,7 +167,8 @@ class Returns extends CI_Controller {
             'exchange_amount' => $exchange_total,
             'net_amount'      => $net_amount,
             'reason'          => $reason ? $reason : '',
-            'return_store_id' => $return_store_id
+            'return_store_id' => $return_store_id,
+            'refund_mode'     => $refund_mode
         );
         $ret_id = $this->Returns_model->createReturn($ret_data);
         if (!$ret_id) {
@@ -244,29 +255,38 @@ class Returns extends CI_Controller {
         //    net_amount < 0  -> customer paid the difference        (direction 'in')
         $direction  = ($net_amount > 0) ? 'out' : 'in';
         $expected   = abs($net_amount);
-        $payments_raw = $this->input->post('payments');
-        $payments = is_string($payments_raw) ? json_decode($payments_raw, true) : $payments_raw;
 
-        $recorded = 0;
-        if ($payments && is_array($payments)) {
-            foreach ($payments as $p) {
-                $amt = isset($p['amount']) ? floatval($p['amount']) : 0;
-                if ($amt <= 0) continue;
-                $this->Returns_model->addReturnPayment(
-                    $ret_id,
-                    $direction,
-                    isset($p['method']) ? trim($p['method']) : 'Cash',
-                    isset($p['reference']) ? trim($p['reference']) : '',
-                    $amt
-                );
-                $recorded += $amt;
+        if ($refund_mode === 'store_credit') {
+            // No money leaves the till. Record one line so the bill and the
+            // return history still show what happened, flagged so the Cash Flow
+            // report ignores it, and put the value on the customer's account.
+            $this->Returns_model->addReturnPayment($ret_id, 'out', 'Store Credit', '', $expected, 0);
+            $this->Returns_model->addCustomerCredit($sale_id, $expected);
+        } else {
+            $payments_raw = $this->input->post('payments');
+            $payments = is_string($payments_raw) ? json_decode($payments_raw, true) : $payments_raw;
+
+            $recorded = 0;
+            if ($payments && is_array($payments)) {
+                foreach ($payments as $p) {
+                    $amt = isset($p['amount']) ? floatval($p['amount']) : 0;
+                    if ($amt <= 0) continue;
+                    $this->Returns_model->addReturnPayment(
+                        $ret_id,
+                        $direction,
+                        isset($p['method']) ? trim($p['method']) : 'Cash',
+                        isset($p['reference']) ? trim($p['reference']) : '',
+                        $amt
+                    );
+                    $recorded += $amt;
+                }
             }
-        }
-        // Nothing itemised (or short) -> book the remainder as Cash so the Cash Flow
-        // report still balances against the return's net amount.
-        $remainder = round($expected - $recorded, 2);
-        if ($remainder > 0.001) {
-            $this->Returns_model->addReturnPayment($ret_id, $direction, 'Cash', '', $remainder);
+            // Nothing itemised (or short) -> book the remainder as Cash so the Cash Flow
+            // report still balances against the return's net amount.
+            $remainder = round($expected - $recorded, 2);
+            if ($remainder > 0.001) {
+                $this->Returns_model->addReturnPayment($ret_id, $direction, 'Cash', '', $remainder);
+            }
         }
 
         echo json_encode(array(
@@ -275,6 +295,7 @@ class Returns extends CI_Controller {
             'return_total'   => $return_total,
             'exchange_total' => $exchange_total,
             'net_amount'     => $net_amount,
+            'refund_mode'    => $refund_mode,
             'message'        => 'Return processed successfully'
         ));
     }
@@ -319,6 +340,8 @@ class Returns extends CI_Controller {
         }
         $return_items   = $this->Returns_model->getReturnItems($ret_id);
         $exchange_items = $this->Returns_model->getExchangeItems($ret_id);
+        // Printed bill number of the original sale, for the modal heading.
+        $ret->sale_bill_no = bill_no_by_id($ret->ret_sale_id);
 
         echo json_encode(array(
             'status'         => 'success',

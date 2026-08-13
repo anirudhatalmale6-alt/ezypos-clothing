@@ -288,12 +288,12 @@ class CustomerPayment extends CI_Controller {
     
     public function newProcessCashPayment()
     {
-        $invoiceID = $this->input->post('invoice_id'); // Get the entered invoice ID (AS00+sale_id)
+        $invoiceID = $this->input->post('invoice_id'); // Printed bill number, e.g. HG1-0007
         $cashValue = $this->input->post('cash_value'); // Get the entered cash value
     
         if (!empty($invoiceID) && isset($cashValue)) {
-            // Remove "AS00" prefix to get the sale ID
-            $saleID = str_replace("AS00", "", $invoiceID);
+            // Accepts the printed bill number, an old AS00 number, or a bare sale id.
+            $saleID = bill_no_to_sale_id($invoiceID);
     
             $this->load->model('CusPayment_model'); // Load the model
     
@@ -320,12 +320,12 @@ class CustomerPayment extends CI_Controller {
     
     public function newProcessChequePayment()
 {
-    $invoiceID = $this->input->post('invoice_id'); // Get the entered invoice ID (AS00+sale_id)
+    $invoiceID = $this->input->post('invoice_id'); // Printed bill number, e.g. HG1-0007
     $chequeValue = $this->input->post('cheque_value'); // Get the entered cheque value
 
     if (!empty($invoiceID) && isset($chequeValue)) {
-        // Remove "AS00" prefix to get the sale ID
-        $saleID = str_replace("AS00", "", $invoiceID);
+        // Accepts the printed bill number, an old AS00 number, or a bare sale id.
+        $saleID = bill_no_to_sale_id($invoiceID);
 
         $this->load->model('CusPayment_model'); // Load the model
 

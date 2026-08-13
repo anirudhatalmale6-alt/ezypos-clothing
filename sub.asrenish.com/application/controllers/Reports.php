@@ -146,6 +146,7 @@ class Reports extends CI_Controller {
         
        public function payment_methods_report($page = 'index')
         {
+                require_priv('privRe_commission');
                 if ( ! file_exists(APPPATH.'views/report/'.$page.'.php'))
                 {
                         show_404();
@@ -540,6 +541,7 @@ public function get_overall_expenses() {
 
     public function cash_flow_report($page = 'index')
     {
+        require_priv('privRe_cashflow');
         if ( ! file_exists(APPPATH.'views/report/'.$page.'.php'))
         {
             show_404();
@@ -583,6 +585,7 @@ public function get_overall_expenses() {
 
     public function item_sales_report($page = 'index')
     {
+        require_priv('privRe_itemsales');
         if ( ! file_exists(APPPATH.'views/report/'.$page.'.php'))
         {
             show_404();
@@ -629,6 +632,7 @@ public function get_overall_expenses() {
 
     public function production_report($page = 'index')
     {
+        require_priv('privRe_production');
         if ( ! file_exists(APPPATH.'views/report/'.$page.'.php'))
         {
             show_404();

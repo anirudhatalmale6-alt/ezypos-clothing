@@ -114,6 +114,18 @@ class Userauthentication extends CI_Controller {
                 $promotions_p  = isset($user_info[0]['priv_promotions'])    ? $user_info[0]['priv_promotions']    : 0;
                 $labeljoy_p    = isset($user_info[0]['priv_labeljoy'])      ? $user_info[0]['priv_labeljoy']      : 0;
 
+                // Remaining pages, each with its own checkbox on the user form.
+                $pagePrivs = array(
+                    'cusreturn', 'supreturn', 'paymentmethods', 'deliverycompany',
+                    'warehouse', 'storeitems', 'retailpos', 'gatepass',
+                    're_commission', 're_cashflow', 're_itemsales', 're_production'
+                );
+                $pagePrivValues = array();
+                foreach($pagePrivs as $pp){
+                    $pagePrivValues['priv'.ucfirst($pp)] =
+                        isset($user_info[0]['priv_'.$pp]) ? $user_info[0]['priv_'.$pp] : 0;
+                }
+
                 $Master=$itm+$cat+$cus+$sup+$store+$staff+$tax+$expense_cat;
                 $User=$register;
 
@@ -161,7 +173,9 @@ class Userauthentication extends CI_Controller {
                     'privPromotions'=>$promotions_p,
                     'privLabeljoy'=>$labeljoy_p
                 );
-                        
+                // privCusreturn, privSupreturn, privRe_cashflow, ... (see $pagePrivs above)
+                $session_data = array_merge($session_data, $pagePrivValues);
+
                 $this->session->set_userdata($session_data);
                 // Store user's assigned store IDs in session
                 $user_stores = array();

@@ -114,6 +114,10 @@ class Returns_model extends CI_Model {
         if(in_array('ret_store_id', $fields) && isset($data['return_store_id'])){
             $insert['ret_store_id'] = $data['return_store_id'];
         }
+        // 'cash' = money handed back, 'store_credit' = left on the customer's account
+        if(in_array('ret_refund_mode', $fields) && isset($data['refund_mode'])){
+            $insert['ret_refund_mode'] = $data['refund_mode'];
+        }
         $this->db->insert('ezy_pos_returns', $insert);
         $insert_id = $this->db->insert_id();
         return $insert_id;
@@ -336,7 +340,7 @@ class Returns_model extends CI_Model {
      * $direction: 'in'  = customer paid the exchange difference
      *             'out' = refund handed back to the customer
      */
-    public function addReturnPayment($ret_id, $direction, $method, $reference, $amount)
+    public function addReturnPayment($ret_id, $direction, $method, $reference, $amount, $inCashflow = 1)
     {
         if (!$this->db->table_exists('ezy_pos_return_payments')) {
             return false;
@@ -344,14 +348,45 @@ class Returns_model extends CI_Model {
         $amount = floatval($amount);
         if ($amount <= 0) return false;
 
-        return $this->db->insert('ezy_pos_return_payments', array(
+        $row = array(
             'rp_ret_id'     => intval($ret_id),
             'rp_direction'  => ($direction === 'out' ? 'out' : 'in'),
             'rp_method'     => ($method !== '' ? $method : 'Cash'),
             'rp_reference'  => ($reference !== '' ? $reference : null),
             'rp_amount'     => $amount,
             'rp_created_by' => isset($_SESSION['userid']) ? intval($_SESSION['userid']) : 0
-        ));
+        );
+        // Store credit is not money moving, so it must not reach the Cash Flow report.
+        if (in_array('rp_in_cashflow', $this->db->list_fields('ezy_pos_return_payments'))) {
+            $row['rp_in_cashflow'] = $inCashflow ? 1 : 0;
+        }
+        return $this->db->insert('ezy_pos_return_payments', $row);
+    }
+
+    /**
+     * Put a refund on the customer's account instead of handing cash back.
+     *
+     * ezy_pos_cus_balnce.bal_amount holds credit as a positive figure (a credit
+     * sale subtracts from it), so store credit is added on.
+     */
+    public function addCustomerCredit($sale_id, $amount)
+    {
+        $amount = floatval($amount);
+        if ($amount <= 0) return false;
+
+        $sale = $this->db->select('sale_cus_id')
+                         ->get_where('ezy_pos_sale', array('sale_id' => $sale_id))->row();
+        if (!$sale || !$sale->sale_cus_id) return false;
+        $cus_id = intval($sale->sale_cus_id);
+
+        $existing = $this->db->get_where('ezy_pos_cus_balnce', array('bal_cusid' => $cus_id))->row();
+        if ($existing) {
+            $this->db->query("UPDATE ezy_pos_cus_balnce SET bal_amount = bal_amount + ? WHERE bal_cusid = ?",
+                             array($amount, $cus_id));
+        } else {
+            $this->db->insert('ezy_pos_cus_balnce', array('bal_cusid' => $cus_id, 'bal_amount' => $amount));
+        }
+        return true;
     }
 
     /**

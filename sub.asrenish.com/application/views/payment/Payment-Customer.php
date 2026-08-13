@@ -204,7 +204,7 @@
                 if (cashAmnt) {
                     firstRow = '<tr>' +
                         '<td>' + data[0][i].cus_name + '</td>' +
-                        '<td>' + "AS00" + data[0][i].sale_id + '</td>' +
+                        '<td>' + (data[0][i].sale_bill_no ? data[0][i].sale_bill_no : data[0][i].sale_id) + '</td>' +
                         '<td>Cash</td>' +
                         '<td>' + paidDate_array[0] + '</td>' +
                         '<td style="text-align: right;">' + cashAmnt_array[0] + '</td>' +
@@ -335,7 +335,7 @@
                         var totalPaid=(paidOfCash+chqtotal).toFixed(2);
                         var frstRow='<tr>'+
                                         '<td>'+data[0][0].cus_name+'</td>'+
-                                        '<td>'+"AS00"+invid+'</td>'+                                    
+                                        '<td>'+(data[0][0].sale_bill_no ? data[0][0].sale_bill_no : invid)+'</td>'+                                    
                                         '<td>'+"Cash"+'</td>'+
                                         '<td>'+data[0][0].pymntlog_date+'</td>'+
                                         '<td style="Text-align: right;">'+data[0][0].pymntlog_amount+'</td>'+
@@ -424,7 +424,7 @@
         <?php
          foreach ($invoices as $invoice)
         {
-           echo '{ label: "'."AS00".$invoice->sale_id.'", value:"'.$invoice->sale_id.'" },';
+           echo '{ label: "'.bill_no($invoice).'", value:"'.$invoice->sale_id.'" },';
         }
         ?>
         ];

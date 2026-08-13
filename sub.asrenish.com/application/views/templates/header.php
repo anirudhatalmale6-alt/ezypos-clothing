@@ -206,45 +206,52 @@
                             </li> 
                             <?php
                             $isAdmin = (isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1);
+                            // One place to ask "may this user see page X?". Admins always may.
+                            if(!function_exists('nav_can')){
+                                function nav_can($key){
+                                    if(isset($_SESSION['userrole']) && $_SESSION['userrole'] == 1) return true;
+                                    return isset($_SESSION[$key]) && $_SESSION[$key] == 1;
+                                }
+                            }
+                            $canPaymentMethods  = nav_can('privPaymentmethods');
+                            $canDeliveryCompany = nav_can('privDeliverycompany');
+                            $canWarehouse       = nav_can('privWarehouse') || (isset($_SESSION['privL_stock']) && $_SESSION['privL_stock']==1);
+                            $canReCommission    = nav_can('privRe_commission');
+                            $canReCashflow      = nav_can('privRe_cashflow');
+                            $canReItemsales     = nav_can('privRe_itemsales');
+                            $canReProduction    = nav_can('privRe_production');
                             $canPromotions = $isAdmin || (isset($_SESSION['privPromotions']) && $_SESSION['privPromotions']==1);
                             $canLoyalty    = $isAdmin || (isset($_SESSION['privLoyalty']) && $_SESSION['privLoyalty']==1);
                             $canLabeljoy   = $isAdmin || (isset($_SESSION['privLabeljoy']) && $_SESSION['privLabeljoy']==1);
                             $showMasters = (isset($_SESSION['privMasters']) && $_SESSION['privMasters'] >= 1)
-                                || $isAdmin || $canPromotions || $canLoyalty || $canLabeljoy;
+                                || $isAdmin || $canPromotions || $canLoyalty || $canLabeljoy
+                                || $canPaymentMethods || $canDeliveryCompany;
                             if($showMasters){ ?>
                             <li class="has-submenu">
                                 <a href="#"><i class="zmdi zmdi-album"></i> <span> Masters </span> </a>
                                 <ul class="submenu">
-                                    <?php if(isset($_SESSION['privitem']))
-                                    {
-                                    if($_SESSION['privitem'] == 1)
-                                    { ?> 
-                                    
+                                    <?php if(nav_can('privitem')){ ?>
                                     <li><a href="<?php echo base_url('add-item')?>">Item</a></li>
-                                    <?php 
-                                        
-                                    }
-                                        
-                                    }
-                                    
-                                    
-                                    if(isset($_SESSION['privcategory'])){if($_SESSION['privcategory'] == 1){  ?>
+                                    <?php } if(nav_can('privcategory')){ ?>
                                     <li><a href="<?php echo base_url('add-category')?>">Category</a></li>
-                                    <?php }} if(isset($_SESSION['privcustomer'])){if($_SESSION['privcustomer'] == 1){  ?>
+                                    <?php } if(nav_can('privcustomer')){ ?>
                                     <li><a href="<?php echo base_url('add-customer')?>">Customer</a></li>
-                                    <?php }} if(isset($_SESSION['privsupplier'])){if($_SESSION['privsupplier'] == 1){  ?>
+                                    <?php } if(nav_can('privsupplier')){ ?>
                                     <li><a href="<?php echo base_url('add-supplier')?>">Supplier</a> </li> 
-                                    <?php }} if(isset($_SESSION['privtax'])){if($_SESSION['privtax'] == 1){  ?>
+                                    <?php } if(nav_can('privtax')){ ?>
                                     <li><a href="<?php echo base_url('add-tax')?>">Tax</a></li>
-                                    <?php }} if(isset($_SESSION['privstore'])){if($_SESSION['privstore'] == 1){  ?>
+                                    <?php } if(nav_can('privstore')){ ?>
                                     <li><a href="<?php echo base_url('add-store')?>">Store</a></li> 
-                                    <?php }} if(isset($_SESSION['privstaff'])){if($_SESSION['privstaff'] == 1){  ?>
+                                    <?php } if(nav_can('privstaff')){ ?>
                                     <li><a href="<?php echo base_url('add-staff')?>">Staff</a></li>
-                                    <?php }} if(isset($_SESSION['priv_bank'])){if($_SESSION['priv_bank'] == 1){  ?>
+                                    <?php } if(nav_can('priv_bank')){ ?>
                                     <li><a href="<?php echo base_url('add-bankacc')?>">Bank Account</a></li>
-                                    <?php  }}?>
+                                    <?php } ?>
+                                    <?php if($canPaymentMethods){ ?>
                                     <li><a href="<?php echo base_url('payment-methods')?>"><i class="fa fa-credit-card"></i> Payment Methods</a></li>
+                                    <?php } if($canDeliveryCompany){ ?>
                                     <li><a href="<?php echo base_url('delivery-companies')?>"><i class="fa fa-truck"></i> Delivery Companies</a></li>
+                                    <?php } ?>
                                     <?php if($canPromotions || $canLoyalty || $canLabeljoy){ ?>
                                     <li class="divider"></li>
                                     <?php } if($canPromotions){ ?>
@@ -258,16 +265,16 @@
                                 </ul>
                             </li>
                             <?php } ?>
-                            <?php if(isset($_SESSION['privUsers'])){if($_SESSION['privUsers'] >= 1){?>
+                            <?php if($isAdmin || (isset($_SESSION['privUsers']) && $_SESSION['privUsers'] >= 1)){ ?>
                             <li class="has-submenu">
                                 <a href="#"><i class="zmdi zmdi-album"></i> <span>Users </span> </a>
                                 <ul class="submenu">
-                                    <?php if(isset($_SESSION['privregister'])){if($_SESSION['privregister'] == 1){  ?>
+                                    <?php if(nav_can('privregister')){ ?>
                                     <li><a href="<?php echo base_url('register')?>">New User</a></li>
-                                    <?php }} ?>                                
+                                    <?php } ?>                                
                                 </ul>
                             </li>
-                            <?php }} ?>
+                            <?php } ?>
                             <?php
                             // Per-module transaction privileges (admins always allowed)
                             $canProduction    = $isAdmin || (isset($_SESSION['privProduction']) && $_SESSION['privProduction']==1);
@@ -292,11 +299,11 @@
                             <li class="has-submenu">
                                 <a href="#"><i class="zmdi zmdi-album"></i> <span>Transactions </span> </a>
                                 <ul class="submenu">
-                                    <?php if(isset($_SESSION['privGrn'])){if($_SESSION['privGrn'] == 1){?>
+                                    <?php if(nav_can('privGrn')){ ?>
                                     <li><a href="<?php echo base_url('add-grn')?>">GRN</a></li>
-                                    <?php }} if(isset($_SESSION['privExpense'])){if($_SESSION['privExpense'] == 1){  ?>
+                                    <?php } if(nav_can('privExpense')){ ?>
                                     <li><a href="<?php echo base_url('add-expense')?>">Expense</a></li>
-                                    <?php }} ?>
+                                    <?php } ?>
                                     <?php if($canProduction){ ?>
                                     <li><a href="<?php echo base_url('add-production')?>"><i class="fa fa-industry"></i> Production</a></li>
                                     <li><a href="<?php echo base_url('show-all-productions')?>"><i class="fa fa-list"></i> All Productions</a></li>
@@ -320,15 +327,21 @@
                             </li>
                             <?php endif; ?>
                             <?php ?>
+                            <?php
+                            // The group heading used to depend on one child privilege, so a user
+                            // with (say) only Stocklog saw an unopenable menu. Show it if ANY
+                            // child page is allowed.
+                            $showListing = nav_can('privL_allGrn') || nav_can('privL_stock')
+                                        || nav_can('privL_stockSupplierWise') || nav_can('privL_stockLog')
+                                        || nav_can('privL_cheque') || nav_can('privStoreitems');
+                            if($showListing){ ?>
                             <li class="has-submenu">
-                                 <?php if(isset($_SESSION['privL_allGrn'])){if($_SESSION['privL_allGrn'] == 1){?> 
                                 <a href="#"><i class="zmdi zmdi-album"></i> <span>Listing </span> </a>
-                                 <?php }}?>
                                 <ul class="submenu">
-                                    <?php if(isset($_SESSION['privL_allGrn'])){if($_SESSION['privL_allGrn'] == 1){?> 
+                                    <?php if(nav_can('privL_allGrn')){ ?> 
                                     <li class=""><a href="<?php echo base_url('show-all-grn')?>">All GRN</a></li>
                                     
-                                    <?php }} if(isset($_SESSION['privL_stock'])){if($_SESSION['privL_stock'] == 1){  ?>
+                                    <?php } if(nav_can('privL_stock')){  ?>
                                     <li class=""><a href="<?php echo base_url('show-stock-list')?>">Stock</a>
                                     
                                     
@@ -338,85 +351,99 @@
                                                 <li><a class="has-submenu" href=""><span> Add </span> </a></li>
                                             </ul> -->
                                     </li>
-                                    <?php }} if(isset($_SESSION['privL_stockSupplierWise'])){if($_SESSION['privL_stockSupplierWise'] == 1){  ?>
+                                    <?php } if(nav_can('privL_stockSupplierWise')){  ?>
                                     <li class=""><a href="<?php echo base_url('stock-supplier')?>">Stock Supplier Wise</a>
                                            <!--  <ul class="submenu open">
                                                 <li><a class="has-submenu" href="<?php echo base_url('#')?>"><span> Add </span> </a></li>
                                             </ul> -->
                                     </li>
-                                    <?php }} if(isset($_SESSION['privL_stockLog'])){if($_SESSION['privL_stockLog'] == 1){  ?>
+                                    <?php } if(nav_can('privL_stockLog')){  ?>
                                     <li class=""><a href="<?php echo base_url('stock-log')?>">Stocklog</a>
                                            <!--  <ul class="submenu open">
                                                 <li><a class="has-submenu" href="<?php //echo base_url('#')?>"><span> Add </span> </a></li>
                                             </ul> -->
                                     </li>
-                                    <?php }} if(isset($_SESSION['privL_cheque'])){if($_SESSION['privL_cheque'] == 1){  ?>
+                                    <?php } if(nav_can('privL_cheque')){  ?>
                                     <li class="has-submenu"><a href="#">Cheque</a>
                                              <ul class="submenu open">
                                                 <li><a class="has-submenu" href="<?php echo base_url('cus-cheque')?>"><span>Customer Cheque</span> </a></li>
                                                 <li><a class="has-submenu" href="<?php echo base_url('our-cheque')?>"><span>Our Cheque</span> </a></li>
                                             </ul>                                            
                                     </li>
-                                    <?php }} ?> 
+                                    <?php } if(nav_can('privStoreitems')){ ?>
+                                    <li class=""><a href="<?php echo base_url('store_items')?>">Store Items</a></li>
+                                    <?php } ?> 
                                 </ul>
                             </li>
-                            <?php ?>
+                            <?php } ?>
 
-                            <?php ?>
+                            <?php
+                            $showReports = nav_can('privRe_stock') || nav_can('privRe_stockLog')
+                                        || nav_can('privRe_salesReport') || nav_can('privRe_monthlySalesReport')
+                                        || nav_can('privRe_purchaseReport') || nav_can('privRe_expenseReport')
+                                        || nav_can('privRe_todaySummary') || nav_can('privRe_profitLossReport')
+                                        || $canWarehouse || $canReCommission || $canReCashflow
+                                        || $canReItemsales || $canReProduction;
+                            if($showReports){ ?>
                             <li class="has-submenu">
-                                   <?php if(isset($_SESSION['privRe_stock'])){if($_SESSION['privRe_stock'] == 1){?> 
                                 <a href="#"><i class="zmdi zmdi-album"></i> <span>Reports</span> </a>
-                                   <?php }} ?> <!--Hari did this to hide the title for privilege less users-->
                                 
                                 <ul class="submenu">
-                                    <?php if(isset($_SESSION['privRe_stock'])){if($_SESSION['privRe_stock'] == 1){?> 
+                                    <?php if(nav_can('privRe_stock')){ ?>
                                      <li><a href="<?php echo base_url('show-stock')?>"> Stock </a></li>
-                                    <?php }} if(isset($_SESSION['privRe_stockLog'])){if($_SESSION['privRe_stockLog'] == 1){  ?>
+                                    <?php } if(nav_can('privRe_stockLog')){ ?>
                                      <li><a href="<?php echo base_url('show-stocklog')?>">Stock Log </a></li>
-                                    <?php }} if(isset($_SESSION['privRe_salesReport'])){if($_SESSION['privRe_salesReport'] == 1){  ?>
+                                    <?php } if(nav_can('privRe_salesReport')){ ?>
                                     <li><a  href="<?php echo base_url('sales-report')?>"> Sales Report </a></li>
-                                    <?php }} if(isset($_SESSION['privL_stock'])){if($_SESSION['privL_stock'] == 1){  ?>
-                                    <li class=""><a href="<?php echo base_url('warehouse')?>">Warehouse Stock</a>
-                                    <?php }} if(isset($_SESSION['privRe_monthlySalesReport'])){if($_SESSION['privRe_monthlySalesReport'] == 1){  ?>
+                                    <?php } if($canWarehouse){ ?>
+                                    <li class=""><a href="<?php echo base_url('warehouse')?>">Warehouse Stock</a></li>
+                                    <?php } if(nav_can('privRe_monthlySalesReport')){ ?>
                                     <li><a  href="<?php echo base_url('monthly-sales-report')?>">Monthly Sales Report </a></li>
-                                    <?php }} if(isset($_SESSION['privRe_purchaseReport'])){if($_SESSION['privRe_purchaseReport'] == 1){  ?>
+                                    <?php } if(nav_can('privRe_purchaseReport')){ ?>
                                     <li><a  href="<?php echo base_url('purchase-report')?>">Purchase Report </a></li>
-                                    <?php }} if(isset($_SESSION['privRe_expenseReport'])){if($_SESSION['privRe_expenseReport'] == 1){  ?>
+                                    <?php } if(nav_can('privRe_expenseReport')){ ?>
                                     <li><a  href="<?php echo base_url('expense-report')?>">Expense Report </a></li>
-                                    <?php }} if(isset($_SESSION['privRe_todaySummary'])){if($_SESSION['privRe_todaySummary'] == 1){  ?>
+                                    <?php } if(nav_can('privRe_todaySummary')){ ?>
                                     <li><a  href="<?php echo base_url('today-summary')?>">Today’s Summary</a></li>
-                                    <?php }} if(isset($_SESSION['privRe_profitLossReport'])){if($_SESSION['privRe_profitLossReport'] == 1){  ?>
+                                    <?php } if(nav_can('privRe_profitLossReport')){ ?>
                                     <li><a  href="<?php echo base_url('profit-loss-report')?>">Profit/Loss Report</a></li>
-                                    <?php }}?>
+                                    <?php } ?>
+                                    <?php if($canReCommission){ ?>
                                     <li><a href="<?php echo base_url('payment-methods-report')?>">Commission Report</a></li>
+                                    <?php } if($canReCashflow){ ?>
                                     <li><a href="<?php echo base_url('cash-flow-report')?>"><i class="fa fa-money"></i> Cash Flow Report</a></li>
+                                    <?php } if($canReItemsales){ ?>
                                     <li><a href="<?php echo base_url('item-sales-report')?>"><i class="fa fa-cubes"></i> Item Sales Report</a></li>
+                                    <?php } if($canReProduction){ ?>
                                     <li><a href="<?php echo base_url('production-report')?>"><i class="fa fa-industry"></i> Production & Tailoring Report</a></li>
+                                    <?php } ?>
                                     <!--<li><a  href="<?php //echo base_url('backup')?>">Back Up </a></li>-->
                                     <?php  ?>
                                 </ul>
                             </li>
-                            <?php ?>
-                            
-                            <?php ?>
+                            <?php } ?>
+
+                            <?php if(nav_can('privPy_customerPayment') || nav_can('privPy_supplierPayment')){ ?>
                             <li class="has-submenu">
-                                 <?php if(isset($_SESSION['privPy_customerPayment'])){if($_SESSION['privPy_customerPayment'] == 1){?>
                                 <a href="#"><i class="zmdi zmdi-album"></i> <span>Payments </span> </a>
-                                 <?php }} ?> <!--Hari did this to hide the title for privilege less users-->
                                 <ul class="submenu">
-                                    <?php if(isset($_SESSION['privPy_customerPayment'])){if($_SESSION['privPy_customerPayment'] == 1){?>
+                                    <?php if(nav_can('privPy_customerPayment')){ ?>
                                     <li><a href="<?php echo base_url('cus-payment')?>">Customer Payment</a></li>
-                                    <?php }} if(isset($_SESSION['privPy_supplierPayment'])){if($_SESSION['privPy_supplierPayment'] == 1){ ?>
+                                    <?php } if(nav_can('privPy_supplierPayment')){ ?>
                                     <li><a href="<?php echo base_url('sup-payment')?>">Supplier Payment</a></li>
-                                    <?php }}?>                              
+                                    <?php }?>                              
                                 </ul>
                             </li>
-                            <?php if ($this->session->userdata('userrole') == 1): ?>
+                            <?php } ?>
+                            <?php // Returns buttons: admin, or anyone given the matching permission. ?>
+                            <?php if (nav_can('privCusreturn')): ?>
                            <li class=""  style="float:right;margin-top: 10px;">
                                 <ul>
                                     <button id="Cus_Rtn_btn" class="btn btn-purple waves-effect waves-light" style ="box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);">Customer Return</button>
                                 </ul>
                             </li>
+                            <?php endif; ?>
+                            <?php if (nav_can('privSupreturn')): ?>
                             <li class=""  style="float:right;margin-top: 10px;">
                                 <ul>
                                     <button id="Sup_Rtn_btn" class="btn btn-purple waves-effect waves-light"style ="box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);">Supplier Return</button>
