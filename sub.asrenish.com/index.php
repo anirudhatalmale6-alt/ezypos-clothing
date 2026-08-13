@@ -57,7 +57,10 @@ ini_set('memory_limit', '2048M');     // 2GB of memory
  *
  * NOTE: If you change these, also change the error_reporting() code below
  */
-	define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : 'development');
+	// Live shop: never print PHP warnings onto a customer's bill. They are
+	// written to application/logs instead. Set CI_ENV=development on a test
+	// copy if you need to see them on screen.
+	define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : 'production');
 
 /*
  *---------------------------------------------------------------

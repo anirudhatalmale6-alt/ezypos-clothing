@@ -4,17 +4,21 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 /**
  * Bill number helpers.
  *
- * Every store keeps its own running sequence, so Main Store and Branch Store
- * both start at 1 and never share a number. The printed form is
+ * Printed form:
  *
- *      <prefix><store id>-<4 digit sequence>        e.g.  HG1-0001
+ *      <prefix>-<store letter>-<number>        e.g.  HG-B-001
+ *
+ * The store letter is the first letter of the store name (Battaramulla -> B).
+ * If a second store starts with the same letter it gets a digit after it
+ * (B, B2, B3...). Codes are worked out once and saved in
+ * ezy_pos_stores.store_bill_code, so they never drift and can be edited by
+ * hand later.
+ *
+ * Every store counts from 1 on its own, so two branches both start at 001
+ * and can never produce the same bill number.
  *
  * The prefix lives in ezy_pos_config2 under the key 'bill_prefix' (default
  * 'HG'), so it can be renamed without touching any code.
- *
- * Sales saved before this went live have their number backfilled by the v9
- * migration; anything still without one falls back to the raw sale id so a
- * bill can never print blank.
  */
 
 if ( ! function_exists('bill_prefix'))
@@ -36,6 +40,94 @@ if ( ! function_exists('bill_prefix'))
     }
 }
 
+if ( ! function_exists('store_bill_codes'))
+{
+    /**
+     * All store letter codes, keyed by store id.
+     *
+     * Any store without a saved code gets one worked out here and written
+     * back, so this settles itself the first time a bill is printed and never
+     * changes afterwards - even if someone renames the store.
+     *
+     * @return array  array(store_id => 'B', ...)
+     */
+    function store_bill_codes()
+    {
+        static $codes = null;
+        if ($codes !== null) { return $codes; }
+
+        $codes = array();
+        $CI =& get_instance();
+        if ( ! isset($CI->db) || ! $CI->db->table_exists('ezy_pos_stores')) { return $codes; }
+
+        $fields = $CI->db->list_fields('ezy_pos_stores');
+        $hasCol = in_array('store_bill_code', $fields);
+
+        $stores = $CI->db->select('store_id, store_name'.($hasCol ? ', store_bill_code' : ''))
+                         ->order_by('store_id', 'asc')
+                         ->get('ezy_pos_stores')->result();
+
+        // Codes already saved are kept exactly as they are.
+        $taken = array();
+        $todo  = array();
+        foreach ($stores as $s) {
+            $saved = $hasCol && isset($s->store_bill_code) ? trim((string)$s->store_bill_code) : '';
+            if ($saved !== '') {
+                $codes[$s->store_id] = strtoupper($saved);
+                $taken[strtoupper($saved)] = true;
+            } else {
+                $todo[] = $s;
+            }
+        }
+
+        // Work out a code for anything left: first letter of the name, with a
+        // digit appended when that letter is already spoken for.
+        foreach ($todo as $s) {
+            $letter = strtoupper(preg_replace('/[^A-Za-z]/', '', $s->store_name));
+            $letter = ($letter === '') ? 'S' : substr($letter, 0, 1);
+
+            $code = $letter;
+            $n = 1;
+            while (isset($taken[$code])) {
+                $n++;
+                $code = $letter.$n;
+            }
+            $taken[$code] = true;
+            $codes[$s->store_id] = $code;
+
+            if ($hasCol) {
+                $CI->db->where('store_id', $s->store_id)
+                       ->update('ezy_pos_stores', array('store_bill_code' => $code));
+            }
+        }
+
+        return $codes;
+    }
+}
+
+if ( ! function_exists('store_bill_code'))
+{
+    function store_bill_code($store_id)
+    {
+        $codes = store_bill_codes();
+        $store_id = intval($store_id);
+        // Unknown store (deleted, or id 0): fall back to the id so the number
+        // is still unique rather than colliding with a real branch.
+        return isset($codes[$store_id]) ? $codes[$store_id] : 'S'.$store_id;
+    }
+}
+
+if ( ! function_exists('format_bill_no'))
+{
+    /**
+     * Build the printed number from its parts: HG-B-001
+     */
+    function format_bill_no($store_id, $seq)
+    {
+        return bill_prefix().'-'.store_bill_code($store_id).'-'.str_pad($seq, 3, '0', STR_PAD_LEFT);
+    }
+}
+
 if ( ! function_exists('bill_no'))
 {
     /**
@@ -47,48 +139,54 @@ if ( ! function_exists('bill_no'))
      */
     function bill_no($sale, $storeId = null)
     {
+        $get = function($key) use ($sale) {
+            if (is_object($sale) && isset($sale->$key))  { return $sale->$key; }
+            if (is_array($sale)  && isset($sale[$key]))  { return $sale[$key]; }
+            return null;
+        };
+
         // Already stored on the row: use it verbatim, so a reprint years later
         // shows exactly what the customer was handed.
-        if (is_object($sale) && isset($sale->sale_bill_no) && trim($sale->sale_bill_no) !== '') {
-            return $sale->sale_bill_no;
+        $stored = $get('sale_bill_no');
+        if ($stored !== null && trim($stored) !== '') { return $stored; }
+
+        $id  = $get('sale_id');
+        if ($id === null && ! is_object($sale) && ! is_array($sale)) { $id = $sale; }
+        if ($storeId === null) { $storeId = $get('sale_location'); }
+        $seq = $get('sale_bill_seq');
+
+        // Sale from before the change: build it from the store's running
+        // number, which the migration filled in.
+        if ($seq !== null && $seq !== '' && $storeId !== null && $storeId !== '') {
+            return format_bill_no($storeId, $seq);
         }
-        if (is_array($sale) && isset($sale['sale_bill_no']) && trim($sale['sale_bill_no']) !== '') {
-            return $sale['sale_bill_no'];
-        }
-
-        // Fall back to the sale id so nothing ever prints empty.
-        $id = $sale;
-        if (is_object($sale)) { $id = isset($sale->sale_id) ? $sale->sale_id : 0; }
-        elseif (is_array($sale)) { $id = isset($sale['sale_id']) ? $sale['sale_id'] : 0; }
-
-        if ($storeId === null && is_object($sale) && isset($sale->sale_location)) { $storeId = $sale->sale_location; }
-        if ($storeId === null && is_array($sale) && isset($sale['sale_location'])) { $storeId = $sale['sale_location']; }
-
         if ($storeId !== null && $storeId !== '') {
-            return bill_prefix().intval($storeId).'-'.str_pad($id, 4, '0', STR_PAD_LEFT);
+            return format_bill_no($storeId, $id);
         }
-        return bill_prefix().str_pad($id, 4, '0', STR_PAD_LEFT);
+        // Last resort, so a bill can never print blank.
+        return bill_prefix().'-'.str_pad($id, 3, '0', STR_PAD_LEFT);
     }
 }
 
 if ( ! function_exists('bill_no_by_id'))
 {
     /**
-     * Look the stored bill number up by sale id. Used by screens that only
-     * have the id to hand (returns list, customer payments, reports).
+     * Look the bill number up by sale id. Used by screens that only have the
+     * id to hand (returns list, customer payments, reports).
      */
     function bill_no_by_id($sale_id)
     {
         $CI =& get_instance();
         if (isset($CI->db)) {
             $fields = $CI->db->list_fields('ezy_pos_sale');
-            if (in_array('sale_bill_no', $fields)) {
-                $row = $CI->db->select('sale_bill_no, sale_id, sale_location')
-                              ->get_where('ezy_pos_sale', array('sale_id' => $sale_id))->row();
-                if ($row) { return bill_no($row); }
-            }
+            $cols = array('sale_id', 'sale_location');
+            if (in_array('sale_bill_no', $fields))  { $cols[] = 'sale_bill_no'; }
+            if (in_array('sale_bill_seq', $fields)) { $cols[] = 'sale_bill_seq'; }
+            $row = $CI->db->select(implode(',', $cols))
+                          ->get_where('ezy_pos_sale', array('sale_id' => $sale_id))->row();
+            if ($row) { return bill_no($row); }
         }
-        return bill_prefix().str_pad($sale_id, 4, '0', STR_PAD_LEFT);
+        return bill_prefix().'-'.str_pad($sale_id, 3, '0', STR_PAD_LEFT);
     }
 }
 
@@ -96,8 +194,9 @@ if ( ! function_exists('bill_no_to_sale_id'))
 {
     /**
      * Reverse lookup: accept anything the counter staff might type - the full
-     * printed number (HG1-0001), the old AS00 form, or a bare sale id - and
-     * return the sale id it belongs to, or 0 when there is no such bill.
+     * printed number (HG-B-001), the older HG1-0001 form, the original AS00
+     * form, or a bare sale id - and return the sale id it belongs to, or 0
+     * when there is no such bill.
      */
     function bill_no_to_sale_id($entered)
     {
@@ -105,22 +204,41 @@ if ( ! function_exists('bill_no_to_sale_id'))
         if ($entered === '') { return 0; }
 
         $CI =& get_instance();
+        if ( ! isset($CI->db)) { return 0; }
+        $fields = $CI->db->list_fields('ezy_pos_sale');
 
-        // Exact match on the stored bill number first.
-        if (isset($CI->db) && in_array('sale_bill_no', $CI->db->list_fields('ezy_pos_sale'))) {
+        // 1. Exact match on the stored bill number.
+        if (in_array('sale_bill_no', $fields)) {
             $row = $CI->db->select('sale_id')
                           ->get_where('ezy_pos_sale', array('sale_bill_no' => $entered))->row();
             if ($row) { return intval($row->sale_id); }
         }
 
-        // Legacy AS00 numbers, a bare id, or "HG1-0007" typed against a database
-        // that has not been backfilled: strip the letters and any store part.
-        $stripped = preg_replace('/^[A-Za-z]+/', '', $entered);   // HG1-0007 -> 1-0007
-        if (strpos($stripped, '-') !== false) {
-            $parts = explode('-', $stripped);
-            $stripped = end($parts);                              // 1-0007 -> 0007
+        // 2. <prefix>-<store code>-<number>: find the store by its code, then
+        //    the sale holding that running number in that store.
+        if (in_array('sale_bill_seq', $fields) && preg_match('/^[A-Za-z]+[-]([A-Za-z][0-9]*)[-]0*([0-9]+)$/', $entered, $m)) {
+            $code = strtoupper($m[1]);
+            $seq  = intval($m[2]);
+            foreach (store_bill_codes() as $storeId => $storeCode) {
+                if ($storeCode === $code) {
+                    $row = $CI->db->select('sale_id')
+                                  ->get_where('ezy_pos_sale', array('sale_location' => $storeId,
+                                                                    'sale_bill_seq' => $seq))->row();
+                    if ($row) { return intval($row->sale_id); }
+                }
+            }
         }
-        $stripped = preg_replace('/[^0-9]/', '', $stripped);
+
+        // 3. Older HG<store id>-<number> form.
+        if (in_array('sale_bill_seq', $fields) && preg_match('/^[A-Za-z]+([0-9]+)[-]0*([0-9]+)$/', $entered, $m)) {
+            $row = $CI->db->select('sale_id')
+                          ->get_where('ezy_pos_sale', array('sale_location' => intval($m[1]),
+                                                            'sale_bill_seq' => intval($m[2])))->row();
+            if ($row) { return intval($row->sale_id); }
+        }
+
+        // 4. Legacy AS00 numbers, "#7", or a bare sale id.
+        $stripped = preg_replace('/[^0-9]/', '', $entered);
         return $stripped === '' ? 0 : intval(ltrim($stripped, '0'));
     }
 }

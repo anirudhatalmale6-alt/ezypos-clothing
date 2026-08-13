@@ -876,12 +876,11 @@ class Report_model extends CI_Model {
 
         // Bills print a per-store number (HG1-0001). Older databases that have not
         // run the v9 migration yet have no such column, so fall back to the sale id.
-        $hasBillNo = in_array('sale_bill_no', $this->db->list_fields('ezy_pos_sale'));
-        $billCol   = $hasBillNo ? 's.sale_bill_no' : "'' AS sale_bill_no";
-        $billOf    = function($r){
-            return (isset($r->sale_bill_no) && trim($r->sale_bill_no) !== '')
-                 ? $r->sale_bill_no : bill_prefix().str_pad($r->sale_id, 4, '0', STR_PAD_LEFT);
-        };
+        $saleFields = $this->db->list_fields('ezy_pos_sale');
+        $billCol    = (in_array('sale_bill_no', $saleFields) ? 's.sale_bill_no' : "'' AS sale_bill_no")
+                    .', s.sale_location'
+                    .(in_array('sale_bill_seq', $saleFields) ? ', s.sale_bill_seq' : ', NULL AS sale_bill_seq');
+        $billOf    = function($r){ return bill_no($r); };
 
         $mk = function($date, $source, $ref, $customer, $methodName, $reference, $direction, $amount, $store){
             $o = new stdClass();

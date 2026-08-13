@@ -38,7 +38,7 @@
     <body>
     <div class="rcpt">
         <div class="center">
-            <div class="shopname"><?php foreach($comName as $nme){ echo $nme->config_value;} ?></div>
+            <div class="shopname"><?php if(is_array($comName)){ foreach($comName as $nme){ echo $nme->config_value; } } ?></div>
             <div class="shopinfo">
                 <?php echo $sales->store_name; ?><br>
                 <?php echo $sales->store_address; ?><?php echo ($sales->store_address2 ? ', '.$sales->store_address2 : ''); ?><br>
@@ -78,7 +78,10 @@
                 </tr>
             </thead>
             <tbody>
-                <?php $totalQty = 0; foreach($saleitems as $saleitem){ $totalQty += floatval($saleitem->saleitem_quantity); ?>
+                <?php
+                    $itemRows = (isset($saleitems) && is_array($saleitems)) ? $saleitems : array();
+                    $totalQty = 0;
+                    foreach($itemRows as $saleitem){ $totalQty += floatval($saleitem->saleitem_quantity); ?>
                 <tr>
                     <td colspan="4"><?php echo (isset($saleitem->itm_code) && $saleitem->itm_code) ? '['.$saleitem->itm_code.'] ' : ''; ?><?php echo $saleitem->itm_name; ?></td>
                 </tr>
@@ -88,6 +91,9 @@
                     <td class="r"><?php echo number_format(floatval($saleitem->saleitem_price),2); ?></td>
                     <td class="r"><?php echo number_format(floatval($saleitem->saleitem_total),2); ?></td>
                 </tr>
+                <?php }
+                if(count($itemRows) == 0){ ?>
+                <tr><td colspan="4" style="text-align:center;">No items recorded on this bill</td></tr>
                 <?php } ?>
             </tbody>
         </table>

@@ -10,6 +10,8 @@ class Payment_model extends CI_Model {
         // otherwise an empty string and the screen falls back to the sale id.
         $billCol = in_array('sale_bill_no', $this->db->list_fields('ezy_pos_sale'))
                  ? 'sale_bill_no' : "'' AS sale_bill_no";
+        // sale_id is already selected below; the screen falls back to it when
+        // a pre-migration bill has no stored number.
         $str ="SELECT sale_grandtotal,cus_name,sale_id,".$billCol.",cashAmnt,paidDate,ChqAmnt,ChqGivenDate
         FROM ezy_pos_customers
         LEFT JOIN ezy_pos_sale ON ezy_pos_sale.sale_cus_id=ezy_pos_customers.cus_id

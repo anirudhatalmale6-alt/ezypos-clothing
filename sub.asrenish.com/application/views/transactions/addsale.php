@@ -1427,6 +1427,11 @@ var chequeHTML ='<div id="chequeDIV">'+
 
                     var itemid1,price,quantity,total,itmDis;      
                     var itemAdded = false;
+                    // Count what actually reached the database. A bill printed with a
+                    // total but no lines on it means these did not all save, and the
+                    // cashier needs to know at the counter, not a week later.
+                    var itemsExpected = rows - 1;
+                    var itemsSaved = 0;
                     for (var i = 1; i < rows; i++) { 
                         itemid1=$("#datatable").find("tr").eq(i).find("td").eq(1).text();
                     // iName=$("#datatable").find("tr").eq(i).find("td").eq(2).text();
@@ -1456,8 +1461,8 @@ var chequeHTML ='<div id="chequeDIV">'+
                             data: {sale_ID:sale_ID,itemid1:itemid1,price:price,quantity:quantity,total:total,itmDis:itmDis,itmDisType:itmDisType},
                             async: false,
                             dataType: "json",
-                            success: function () {
-                                itemAdded = true;
+                            success: function (res) {
+                                if(res){ itemsSaved++; itemAdded = true; }
                             },
                             error: function (err) {
                                 alert("error");
@@ -1613,6 +1618,14 @@ var chequeHTML ='<div id="chequeDIV">'+
                     // $("#customer-auto").html('<input class="form-control"  id="customer-auto" placeholder="Select" >');
                     $("#chequeDIV").remove();
                     pendingCardRefs = [];
+                    if(itemsSaved < itemsExpected){
+                        swal({
+                            type: 'error',
+                            title: 'Sale lines did not all save',
+                            text: 'Only ' + itemsSaved + ' of ' + itemsExpected + ' items were saved against bill ' +
+                                  sale_ID + '. Do not hand over the goods - check the bill and tell your administrator.'
+                        });
+                    }
                     if(itemAdded==true)
                     {  // get the print window
                         var horizontal = Math.floor(window.innerWidth/2);

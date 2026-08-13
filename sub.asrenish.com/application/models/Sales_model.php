@@ -90,21 +90,27 @@ class Sales_model extends CI_Model {
             $seq = $row ? intval($row->n) : 1;
         }
 
-        $billNo = bill_prefix().$store_id.'-'.str_pad($seq, 4, '0', STR_PAD_LEFT);
+        $billNo = format_bill_no($store_id, $seq);   // e.g. HG-B-001
         $update = array('sale_bill_no' => $billNo);
         if (in_array('sale_bill_seq', $fields)) { $update['sale_bill_seq'] = $seq; }
         $this->db->where('sale_id', $sale_id)->update('ezy_pos_sale', $update);
         return $billNo;
     }
     public function addSaleItemPOST(){
+        // Every numeric column here is NOT NULL, so an empty box (a blank
+        // discount, most often) has to become 0 rather than ''.
+        $num = function($v){ return ($v === null || trim((string)$v) === '') ? 0 : floatval($v); };
         $data = array(
-            'saleitem_sale_id' => $this->input->post('sale_ID'),
-            'saleitem_item_id' => $this->input->post('itemid1'),
-            'saleitem_price' => $this->input->post('price'),
-            'saleitem_quantity' => $this->input->post('quantity'),
-            'saleitem_total' => $this->input->post('total'),
-            'saleitem_discount' => $this->input->post('itmDis')
+            'saleitem_sale_id' => intval($this->input->post('sale_ID')),
+            'saleitem_item_id' => intval($this->input->post('itemid1')),
+            'saleitem_price' => $num($this->input->post('price')),
+            'saleitem_quantity' => $num($this->input->post('quantity')),
+            'saleitem_total' => $num($this->input->post('total')),
+            'saleitem_discount' => $num($this->input->post('itmDis'))
         );
+        if($data['saleitem_sale_id'] <= 0 || $data['saleitem_item_id'] <= 0){
+            return false;   // nothing sensible to save
+        }
         $fields = $this->db->list_fields('ezy_pos_sale_item');
         if (in_array('saleitem_discount_type', $fields)) {
             $data['saleitem_discount_type'] = ($this->input->post('itmDisType') ? $this->input->post('itmDisType') : 'percentage');
@@ -113,17 +119,19 @@ class Sales_model extends CI_Model {
     }
     //get sale items details for a spesific sale
     public function invoicePreview2($saleid){
-        $str ="SELECT itm_code,itm_name,saleitem_price,saleitem_quantity,saleitem_discount,saleitem_total
-                FROM ezy_pos_items
-                INNER JOIN ezy_pos_sale_item ON ezy_pos_items.itm_id = ezy_pos_sale_item.saleitem_item_id
-                WHERE saleitem_sale_id = '".$saleid."'";
-                $query = $this->db->query($str);
-                if($query->num_rows()>0){
-                    return $query->result();
-                }
-                else{
-                    return false;
-                }
+        // Driven from the SALE, with a LEFT JOIN to the item master. The old
+        // version started from ezy_pos_items with an INNER JOIN, so as soon as
+        // an item was deleted or its id changed, every past bill containing it
+        // printed with no lines at all (and the view then failed on foreach).
+        $str ="SELECT i.itm_code, COALESCE(i.itm_name, CONCAT('Item #', si.saleitem_item_id)) AS itm_name,
+                      si.saleitem_price, si.saleitem_quantity, si.saleitem_discount, si.saleitem_total
+                FROM ezy_pos_sale_item si
+                LEFT JOIN ezy_pos_items i ON i.itm_id = si.saleitem_item_id
+                WHERE si.saleitem_sale_id = ?
+                ORDER BY si.saleitem_id";
+        $query = $this->db->query($str, array($saleid));
+        // Always an array - the bill view must never be handed a false.
+        return $query->num_rows() > 0 ? $query->result() : array();
     }
     public function getCustomer($saleid){
         $str ="SELECT cus_name, cus_address
@@ -202,6 +210,7 @@ class Sales_model extends CI_Model {
         $fields = $this->db->list_fields('ezy_pos_sale');
         if(in_array('sale_location', $fields)) $cols[] = 'sale_location';
         if(in_array('sale_bill_no', $fields))  $cols[] = 'sale_bill_no';
+        if(in_array('sale_bill_seq', $fields)) $cols[] = 'sale_bill_seq';
         $this->db->select(implode(',', $cols));
         $this->db->from('ezy_pos_sale');
         $query = $this->db->get();
