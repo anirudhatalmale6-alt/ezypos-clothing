@@ -69,6 +69,15 @@ class Sales extends CI_Controller {
                 $sale_id = $this->Sales_model->addSalePOST(); 
                 echo json_encode($sale_id);
         }
+        /**
+         * Called by the sales screen when a bill ended up with no lines on it,
+         * so a half-made bill is not left behind. Refuses if anything at all
+         * did save - see Sales_model::discardEmptySale().
+         */
+        public function discardEmptySale(){
+                $ok = $this->Sales_model->discardEmptySale($this->input->post('sale_id'));
+                echo json_encode($ok);
+        }
         public function addSaleItemPOST(){
                 $response = $this->Sales_model->addSaleItemPOST();
                 echo json_encode($response);
@@ -99,6 +108,10 @@ class Sales extends CI_Controller {
                         'paymnt'=> $this->CusPayment_model->getPayment($saleID),
                         'saleitems'=> $this->Sales_model->invoicePreview2($saleID),
                         'sales'=> $this->Sales_model->saleDetails($saleID),
+                        // Gift vouchers sold on this bill (they are not sale lines)
+                        // and any voucher used to pay for it.
+                        'vouchers'=> $this->Sales_model->getSoldVouchers($saleID),
+                        'vouchersRedeemed'=> $this->Sales_model->getRedeemedVouchers($saleID),
                         // Full payment breakdown (cash / cheque no. / card + machine reference)
                         'payments'=> $this->Sales_model->getPaymentBreakdown($saleID)
                 );

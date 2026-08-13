@@ -1268,6 +1268,16 @@ var chequeHTML ='<div id="chequeDIV">'+
                 }
                 ///
                 function saveSale(){
+                    // Read the branch here rather than relying on the add-item form
+                    // having run. A voucher-only sale never adds a stock line, so
+                    // `store` stayed empty and the bill was filed against no branch
+                    // at all - invisible to every branch filter in the reports.
+                    store = $('#storeLoctn').val();
+                    if(!store || store == 0){
+                        swal({type:'error',title:'Oops...',text:'You must select a sale location!'});
+                        unlockSaveButton();
+                        return;
+                    }
                     var totalcheq=0;
                     if(moreChqs==true){
                         var chqv =$("input[name='amount[]']").map(function(){
@@ -1440,6 +1450,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                         total=$("#datatable").find("tr").eq(i).find("td").eq(5).text();
                         itmDis=$("#datatable").find("tr").eq(i).find("td").eq(6).find('input[type=text]').val();
                         var itmDisType=$("#datatable").find("tr").eq(i).find("td").eq(6).find('select.itm_dis_type').val() || 'percentage';
+                        var lineSaved = false;
 
                     /* $.ajax({
                             type: "Post",
@@ -1462,13 +1473,18 @@ var chequeHTML ='<div id="chequeDIV">'+
                             async: false,
                             dataType: "json",
                             success: function (res) {
-                                if(res){ itemsSaved++; itemAdded = true; }
+                                if(res){ itemsSaved++; itemAdded = true; lineSaved = true; }
                             },
                             error: function (err) {
                                 alert("error");
                                 itemAdded = false;
                             }
                         });
+
+                        // Stock is only moved for a line that actually stored. Otherwise
+                        // a rejected line would still take the goods out of stock, and
+                        // there would be nothing on the bill to put them back against.
+                        if(lineSaved){
 
                         // to change crrent qty -
                         $.ajax({
@@ -1526,6 +1542,8 @@ var chequeHTML ='<div id="chequeDIV">'+
                                 console.log(err);
                             }
                         });
+
+                        } // end if(lineSaved)
                     }
 
                     // ===== Loyalty accrual + redemption (Point 8) =====
@@ -1619,12 +1637,36 @@ var chequeHTML ='<div id="chequeDIV">'+
                     $("#chequeDIV").remove();
                     pendingCardRefs = [];
                     if(itemsSaved < itemsExpected){
-                        swal({
-                            type: 'error',
-                            title: 'Sale lines did not all save',
-                            text: 'Only ' + itemsSaved + ' of ' + itemsExpected + ' items were saved against bill ' +
-                                  sale_ID + '. Do not hand over the goods - check the bill and tell your administrator.'
-                        });
+                        if(itemsSaved === 0){
+                            // Nothing stored at all, so no stock moved either. Take the
+                            // empty bill away rather than leave a total with no goods on
+                            // it, and let the cashier simply ring it up again.
+                            var discarded = false;
+                            $.ajax({
+                                type: "Post",
+                                url: "<?php echo base_url('Sales/discardEmptySale'); ?>",
+                                data: { sale_id: sale_ID },
+                                async: false,
+                                dataType: "json",
+                                success: function(res){ discarded = !!res; }
+                            });
+                            swal({
+                                type: 'error',
+                                title: 'Bill was not saved',
+                                text: discarded
+                                    ? 'None of the items could be saved, so this bill has been removed. Nothing was charged and no stock was taken. Please enter the sale again.'
+                                    : 'None of the items could be saved. Do not hand over the goods - tell your administrator, quoting bill ' + sale_ID + '.'
+                            });
+                            itemAdded = false;   // no bill to print
+                        } else {
+                            swal({
+                                type: 'error',
+                                title: 'Sale lines did not all save',
+                                text: 'Only ' + itemsSaved + ' of ' + itemsExpected + ' items were saved on this bill. ' +
+                                      'Do not hand over the goods and do not make a second bill for the rest - ' +
+                                      'tell your administrator, quoting bill ' + sale_ID + '.'
+                            });
+                        }
                     }
                     if(itemAdded==true)
                     {  // get the print window

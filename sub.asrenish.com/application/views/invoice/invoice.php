@@ -92,7 +92,21 @@
                     <td class="r"><?php echo number_format(floatval($saleitem->saleitem_total),2); ?></td>
                 </tr>
                 <?php }
-                if(count($itemRows) == 0){ ?>
+                // Gift vouchers sold on this bill. They are not stock items, so
+                // they are held against the sale separately and printed here with
+                // their card number, clearly marked as vouchers.
+                $voucherRows = (isset($vouchers) && is_array($vouchers)) ? $vouchers : array();
+                foreach($voucherRows as $gv){ $totalQty += 1; ?>
+                <tr>
+                    <td colspan="4">GIFT VOUCHER<?php echo ($gv->vcat_name ? ' - '.$gv->vcat_name : ''); ?></td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="font-size:11px;">Card: <?php echo htmlspecialchars($gv->gc_card_number); ?></td>
+                    <td class="r">1</td>
+                    <td class="r"><?php echo number_format(floatval($gv->gc_original_value),2); ?></td>
+                </tr>
+                <?php }
+                if(count($itemRows) == 0 && count($voucherRows) == 0){ ?>
                 <tr><td colspan="4" style="text-align:center;">No items recorded on this bill</td></tr>
                 <?php } ?>
             </tbody>
@@ -133,6 +147,19 @@
             $paidTotal = 0; $creditTotal = 0;
             foreach($payRows as $pr){
                 if($pr->is_credit){ $creditTotal += $pr->amount; } else { $paidTotal += $pr->amount; }
+            }
+            // A gift voucher used to pay is a payment method, not a discount - the
+            // grand total stays the full value of the goods and the voucher is
+            // listed here with cash/card so the bill adds up.
+            $redeemedRows = (isset($vouchersRedeemed) && is_array($vouchersRedeemed)) ? $vouchersRedeemed : array();
+            foreach($redeemedRows as $rv){
+                $payRows[] = (object)array(
+                    'label'     => 'Gift Voucher',
+                    'reference' => ($rv->gc_card_number ? $rv->gc_card_number : ''),
+                    'amount'    => floatval($rv->vr_amount),
+                    'is_credit' => false
+                );
+                $paidTotal += floatval($rv->vr_amount);
             }
             // Fall back to the old aggregate record if the breakdown came back empty.
             if(count($payRows) == 0 && isset($paymnt) && $paymnt){

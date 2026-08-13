@@ -133,6 +133,79 @@ class Sales_model extends CI_Model {
         // Always an array - the bill view must never be handed a false.
         return $query->num_rows() > 0 ? $query->result() : array();
     }
+    /**
+     * Remove a sale that ended up with nothing on it.
+     *
+     * Only ever runs when NOT ONE line and NOT ONE voucher stored, which means
+     * no stock was moved either (stock is only touched for a line that saved).
+     * So there is nothing to reverse - the header and its money records are
+     * simply taken away, and the cashier enters the bill again.
+     *
+     * Deliberately refuses if anything at all is attached to the sale.
+     */
+    public function discardEmptySale($sale_id)
+    {
+        $sale_id = intval($sale_id);
+        if ($sale_id <= 0) { return false; }
+
+        $lines = $this->db->where('saleitem_sale_id', $sale_id)
+                          ->count_all_results('ezy_pos_sale_item');
+        if ($lines > 0) { return false; }
+
+        if ($this->db->table_exists('ezy_pos_gift_cards')) {
+            $cards = $this->db->where('gc_sold_sale_id', $sale_id)
+                              ->count_all_results('ezy_pos_gift_cards');
+            if ($cards > 0) { return false; }
+        }
+
+        // Money records written before the lines were attempted.
+        $this->db->where('cus_pay_saleid', $sale_id)->delete('ezy_pos_cus_payment');
+        if ($this->db->table_exists('ezy_pos_cus_paymnt_log')) {
+            $this->db->where('pymntlog_saleid', $sale_id)->delete('ezy_pos_cus_paymnt_log');
+        }
+        if ($this->db->table_exists('ezy_pos_cus_cheque')) {
+            $this->db->where('cus_cheque_saleid', $sale_id)->delete('ezy_pos_cus_cheque');
+        }
+        if ($this->db->table_exists('ezy_pos_sale_payments')) {
+            $this->db->where('sp_sale_id', $sale_id)->delete('ezy_pos_sale_payments');
+        }
+        $this->db->where('sale_id', $sale_id)->delete('ezy_pos_sale');
+        return true;
+    }
+
+    /**
+     * Gift vouchers SOLD on this sale.
+     *
+     * Selling a voucher never writes a normal sale line - the card is simply
+     * marked Sold against the sale id - so a bill made up only of vouchers had
+     * no lines on it at all. The bill has to pick them up from here.
+     */
+    public function getSoldVouchers($saleid){
+        if(!$this->db->table_exists('ezy_pos_gift_cards')){ return array(); }
+        $str = "SELECT gc.gc_card_number, gc.gc_original_value, vc.vcat_name
+                FROM ezy_pos_gift_cards gc
+                LEFT JOIN ezy_pos_voucher_categories vc ON vc.vcat_id = gc.gc_vcat_id
+                WHERE gc.gc_sold_sale_id = ?
+                ORDER BY gc.gc_id";
+        $query = $this->db->query($str, array($saleid));
+        return $query->num_rows() > 0 ? $query->result() : array();
+    }
+
+    /**
+     * Gift vouchers USED as payment on this sale. The grand total is already
+     * net of these, so the bill shows them as a deduction and adds up.
+     */
+    public function getRedeemedVouchers($saleid){
+        if(!$this->db->table_exists('ezy_pos_voucher_redemptions')){ return array(); }
+        $str = "SELECT vr.vr_amount, gc.gc_card_number
+                FROM ezy_pos_voucher_redemptions vr
+                LEFT JOIN ezy_pos_gift_cards gc ON gc.gc_id = vr.vr_gc_id
+                WHERE vr.vr_sale_id = ?
+                ORDER BY vr.vr_id";
+        $query = $this->db->query($str, array($saleid));
+        return $query->num_rows() > 0 ? $query->result() : array();
+    }
+
     public function getCustomer($saleid){
         $str ="SELECT cus_name, cus_address
                 FROM ezy_pos_sale
