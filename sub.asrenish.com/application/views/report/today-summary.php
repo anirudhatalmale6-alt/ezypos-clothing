@@ -147,6 +147,10 @@
             <td style="text-align:left">Refunds paid out on returns / exchanges</td>
             <td id="td_cf_return_out" style="color:#c62828;">-<?php echo number_format($cf['return_out'] + $cf['exchange_out'],2); ?></td>
         </tr>
+        <tr>
+            <td style="text-align:left">Change handed back to customers</td>
+            <td id="td_cf_change_out" style="color:#c62828;">-<?php echo number_format(isset($cf['change_out']) ? $cf['change_out'] : 0,2); ?></td>
+        </tr>
         <tr style="background-color:#e8f5e9;font-weight:bold;">
             <td style="text-align:left">NET CASH FLOW</td>
             <td id="td_cf_net"><?php echo number_format($cf['net'],2); ?></td>
@@ -239,6 +243,7 @@ $( function() {
                 $('#td_cf_tailoring_in').text(fmt(d.cf_tailoring_in));
                 $('#td_cf_exchange_in').text(fmt(d.cf_exchange_in));
                 $('#td_cf_return_out').text('-' + fmt(parseFloat(d.cf_return_out || 0) + parseFloat(d.cf_exchange_out || 0)));
+                $('#td_cf_change_out').text('-' + fmt(d.cf_change_out || 0));
                 $('#td_cf_net').text(fmt(d.cf_net));
                 $('#td_cf_cash_net').text(fmt(d.cf_cash_net));
             }

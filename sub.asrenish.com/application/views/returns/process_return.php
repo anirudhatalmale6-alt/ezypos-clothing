@@ -29,6 +29,10 @@
                                             <label class="col-5 col-form-label">Invoice No:</label>
                                             <div class="col-7 col-form-label text-right"><strong><span id="lbl_sale_id"></span></strong></div>
                                         </div>
+                                        <div class="form-group row mb-1" id="saleStoreRow" style="display:none;">
+                                            <label class="col-5 col-form-label">Sold At:</label>
+                                            <div class="col-7 col-form-label text-right"><span id="lbl_sale_store"></span></div>
+                                        </div>
                                         <div class="form-group row mb-1">
                                             <label class="col-5 col-form-label">Date:</label>
                                             <div class="col-7 col-form-label text-right"><span id="lbl_sale_date"></span></div>
@@ -369,6 +373,17 @@ $( function() {
                 $('#lbl_sale_date').text(loadedSale.sale_createdat);
                 $('#lbl_customer').text(loadedSale.cus_name || 'N/A');
                 $('#lbl_grand_total').text(parseFloat(loadedSale.sale_grandtotal).toFixed(2));
+
+                // Default "Return At" to the branch that issued the bill. It was
+                // left on whatever happened to be first in the list, so returns
+                // were being recorded - and refunded - against the wrong branch.
+                // Still changeable, for a genuine cross-branch return.
+                var saleStore = loadedSale.store_id || loadedSale.sale_location;
+                if(saleStore && $('#return_store_id option[value="' + saleStore + '"]').length){
+                    $('#return_store_id').val(saleStore);
+                }
+                $('#lbl_sale_store').text(loadedSale.store_name || '');
+                $('#saleStoreRow').toggle(!!loadedSale.store_name);
 
                 // Return status
                 if(loadedSale.sale_return_status){

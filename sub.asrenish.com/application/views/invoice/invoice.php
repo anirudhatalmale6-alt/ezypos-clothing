@@ -22,6 +22,7 @@
         .rcpt .doctitle { font-size:14px; font-weight:900; margin:4px 0; letter-spacing:1px; }
         .rcpt .meta { width:100%; font-size:12px; margin:2px 0; }
         .rcpt .meta td { padding:0; vertical-align:top; }
+        .rcpt .meta td.r { text-align:right; }
         .rcpt hr { border:none; border-top:1px dashed #000; margin:4px 0; }
         table.items { width:100%; border-collapse:collapse; font-size:12px; }
         table.items th { border-bottom:1px solid #000; padding:2px 1px; text-align:left; font-weight:900; }
@@ -56,7 +57,8 @@
                 <td class="r">Inv No: <?php echo bill_no($sales); ?></td>
             </tr>
             <tr>
-                <td>Address: <?php echo $customer->cus_address; ?></td>
+                <td><?php $cusAddr = trim((string)$customer->cus_address);
+                    echo ($cusAddr !== '' && $cusAddr !== '0') ? 'Address: '.$cusAddr : ''; ?></td>
                 <td class="r">Bill By: <?php echo $user; ?></td>
             </tr>
             <tr>

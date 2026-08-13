@@ -576,8 +576,11 @@ public function get_overall_expenses() {
         $from = $this->input->post('from');
         $to = $this->input->post('to');
         $storeId = $this->input->post('store_id');
-        // Full summary: per-method rows plus the in / out / net headline figures.
-        $summary = $this->Report_model->getCashMovementSummary($from, $to, $storeId);
+        // Honour the same method filter the table below uses, otherwise the
+        // headline totals disagree with the rows they sit on top of.
+        $method = $this->input->post('method');
+        if (!$method) $method = 'all';
+        $summary = $this->Report_model->getCashMovementSummary($from, $to, $storeId, $method);
         echo json_encode($summary);
     }
 

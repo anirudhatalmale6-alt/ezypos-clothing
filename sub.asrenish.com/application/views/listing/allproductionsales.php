@@ -97,6 +97,19 @@ $(function(){
     $('#list_btn_confirm_payment').click(function(){
         var amt = parseFloat($('#list_pm_amount').val());
         if(!amt || amt <= 0){ swal({type:'error', title:'Error', text:'Enter valid amount'}); return; }
+        // Nothing was stopping more than the balance being entered here. That extra
+        // money is recorded as taken in but never handed back anywhere, so the till
+        // would not tally against the Cash Flow report.
+        var balDue = parseFloat($('#list_pm_balance').text().replace(/,/g, '')) || 0;
+        if(balDue > 0 && amt > balDue + 0.01){
+            swal({
+                type: 'error',
+                title: 'More than the balance',
+                text: 'Only LKR ' + balDue.toFixed(2) + ' is outstanding on this order. ' +
+                      'Enter that amount and hand back any extra as change.'
+            });
+            return;
+        }
         var method = $('#list_pm_method').val();
         var cardRef = $('#list_card_ref').val().trim();
         if(method !== 'Cash' && !cardRef){

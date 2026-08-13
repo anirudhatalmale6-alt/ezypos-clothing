@@ -96,7 +96,11 @@
                 }
             });
          });
-        showAllStock();
+        // Was showAllStock(), which only exists on the OTHER stock page - it threw,
+        // which killed the rest of this script (including the DataTable set-up
+        // below, so there were no search or export buttons). Loading through the
+        // same handler shows every item as soon as the page opens.
+        $('#item_select').trigger('change');
 
          //Buttons examples
          var table = $('#datatable-buttons').DataTable({

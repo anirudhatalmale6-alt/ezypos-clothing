@@ -158,6 +158,9 @@ class Stocks_model extends CI_Model {
         $item_id=$this->input->post('item_id');
         $store_id=$this->input->post('storeid');
         if($store_id == '' || $store_id == null){ $store_id = 0; }
+        // 'all' (or nothing) means every item, not an item literally called "all".
+        $itemFilter = ($item_id === null || $item_id === '' || $item_id === 'all')
+                    ? '' : ' AND itm_id = '.intval($item_id);
         if($store_id > 0){
             $str="SELECT itm_id,itm_code,itm_name,itm_reorderlevel,itm_uom,stock_qty,
              SUM(c.cur_grnPrice*c.cur_currentQTY) AS grnValue,
@@ -169,8 +172,8 @@ class Stocks_model extends CI_Model {
             LEFT JOIN ezy_pos_stores st ON st.store_id=ezy_pos_stock.stock_store_id
             WHERE stock_status=1
             AND itm_status=1
-            AND itm_id =".$item_id."
-            AND stock_store_id='".$store_id."'
+            AND stock_store_id='".$store_id."'"
+            .$itemFilter."
             GROUP BY itm_id";
         } else {
             $str="SELECT itm_id,itm_code,itm_name,itm_reorderlevel,itm_uom,
@@ -181,8 +184,8 @@ class Stocks_model extends CI_Model {
             INNER JOIN ezy_pos_stock ON ezy_pos_stock.stock_itm_id=ezy_pos_items.itm_id
             LEFT JOIN ezy_pos_currentqtywithgrn c ON c.cur_itmID=ezy_pos_items.itm_id
             WHERE stock_status=1
-            AND itm_status=1
-            AND itm_id =".$item_id."
+            AND itm_status=1"
+            .$itemFilter."
             GROUP BY itm_id";
         }
         $query = $this->db->query($str);

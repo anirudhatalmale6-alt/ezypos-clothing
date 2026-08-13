@@ -22,6 +22,50 @@ class Report_model extends CI_Model {
      * A chosen branch always narrows further - a non-admin can never widen their
      * access by picking a store they are not assigned to.
      */
+    /**
+     * Change handed back to the customer on a cash sale.
+     *
+     * Everything the customer put on the counter (cash, cheque, card, gift
+     * voucher) minus what the bill came to. Anything left over went back to
+     * them as cash out of the till.
+     *
+     * Returns 0 for a credit sale (nothing was overpaid, the balance is owed)
+     * and for any bill that has since been returned or exchanged, because a
+     * return lowers sale_grandtotal and the difference would look like change
+     * that was never actually given.
+     */
+    protected function _changeGivenOnSale($r)
+    {
+        if(isset($r->cus_pay_credit) && floatval($r->cus_pay_credit) > 0.004){ return 0; }
+        if(isset($r->sale_return_status) && trim((string)$r->sale_return_status) !== ''){ return 0; }
+
+        $grand = isset($r->sale_grandtotal) ? floatval($r->sale_grandtotal) : 0;
+        if($grand <= 0){ return 0; }
+
+        $paid = floatval($r->cus_pay_cash);
+
+        if($this->db->table_exists('ezy_pos_cus_cheque')){
+            $q = $this->db->query("SELECT COALESCE(SUM(cus_cheque_amount),0) AS t
+                                   FROM ezy_pos_cus_cheque WHERE cus_cheque_saleid = ?", array($r->sale_id))->row();
+            if($q){ $paid += floatval($q->t); }
+        }
+        if($this->db->table_exists('ezy_pos_sale_payments')){
+            $q = $this->db->query("SELECT COALESCE(SUM(sp_amount),0) AS t
+                                   FROM ezy_pos_sale_payments WHERE sp_sale_id = ?", array($r->sale_id))->row();
+            if($q){ $paid += floatval($q->t); }
+        }
+        if($this->db->table_exists('ezy_pos_voucher_redemptions')){
+            $q = $this->db->query("SELECT COALESCE(SUM(vr_amount),0) AS t
+                                   FROM ezy_pos_voucher_redemptions WHERE vr_sale_id = ?", array($r->sale_id))->row();
+            if($q){ $paid += floatval($q->t); }
+        }
+
+        $change = round($paid - $grand, 2);
+        // Never report more change than there was cash to give it from.
+        if($change > floatval($r->cus_pay_cash)){ $change = floatval($r->cus_pay_cash); }
+        return $change > 0 ? $change : 0;
+    }
+
     protected function _storeFilterFor($column, $storeId = null){
         $base = $this->_storeFilter($column);
         if($storeId !== null && $storeId !== '' && $storeId !== 'all' && intval($storeId) > 0){
@@ -906,7 +950,14 @@ class Report_model extends CI_Model {
         // ------------------------------------------------------------------
         if($wantCash){
             $sf = $this->_storeFilterFor('s.sale_location', $storeId);
-            $str = "SELECT s.sale_id, s.sale_date, c.cus_name, cp.cus_pay_cash, st.store_name, ".$billCol."
+            // cus_pay_cash is what the customer HANDED OVER, not what the bill
+            // came to. On a 4,900 bill paid with 5,000 it holds 5,000, and the
+            // 100 handed back as change was never recorded anywhere - so cash in
+            // was overstated and the till could not tally. The change is worked
+            // out here and shown as its own Cash OUT line:
+            //     in 5,000  -  out 100  =  4,900 actually in the drawer.
+            $str = "SELECT s.sale_id, s.sale_date, s.sale_grandtotal, s.sale_return_status,
+                           c.cus_name, cp.cus_pay_cash, cp.cus_pay_credit, st.store_name, ".$billCol."
                     FROM ezy_pos_cus_payment cp
                     INNER JOIN ezy_pos_sale s ON s.sale_id = cp.cus_pay_saleid
                     LEFT JOIN ezy_pos_customers c ON c.cus_id = s.sale_cus_id
@@ -919,6 +970,12 @@ class Report_model extends CI_Model {
             foreach($this->db->query($str, array($start, $end))->result() as $r){
                 $rows[] = $mk($r->sale_date, 'Sale', $billOf($r), $r->cus_name,
                               'Cash', '', 'in', $r->cus_pay_cash, $r->store_name);
+
+                $change = $this->_changeGivenOnSale($r);
+                if($change > 0.004){
+                    $rows[] = $mk($r->sale_date, 'Change Given', $billOf($r), $r->cus_name,
+                                  'Cash', '', 'out', $change, $r->store_name);
+                }
             }
         }
 
@@ -1095,8 +1152,8 @@ class Report_model extends CI_Model {
      * Per-method totals for the same period, derived from getCashMovement()
      * so the summary cards can never disagree with the table below them.
      */
-    public function getCashMovementSummary($from, $to, $storeId = null){
-        $rows    = $this->getCashMovement($from, $to, 'all', $storeId);
+    public function getCashMovementSummary($from, $to, $storeId = null, $method = 'all'){
+        $rows    = $this->getCashMovement($from, $to, $method, $storeId);
         $byMethod = array();
         $in = 0; $out = 0;
 
@@ -1148,6 +1205,8 @@ class Report_model extends CI_Model {
         $out = array(
             'sale_in' => 0, 'tailoring_in' => 0, 'return_out' => 0,
             'exchange_in' => 0, 'exchange_out' => 0,
+            // Change handed back to customers - money out, but not a refund.
+            'change_out' => 0,
             'total_in' => 0, 'total_out' => 0, 'net' => 0,
             // Split of the sale money by tender, so Today's Summary shows exactly
             // the same Cash / Cheque figures the Cash Flow report does.
@@ -1163,8 +1222,9 @@ class Report_model extends CI_Model {
             if($r->direction === 'out'){
                 $out['total_out'] += $r->amount;
                 if($isCash) $out['cash_out'] += $r->amount;
-                if($r->source === 'Exchange') $out['exchange_out'] += $r->amount;
-                else                          $out['return_out']   += $r->amount;
+                if($r->source === 'Change Given')  $out['change_out']   += $r->amount;
+                elseif($r->source === 'Exchange')  $out['exchange_out'] += $r->amount;
+                else                               $out['return_out']   += $r->amount;
             } else {
                 $out['total_in'] += $r->amount;
                 if($isCash) $out['cash_in'] += $r->amount;
@@ -1199,8 +1259,8 @@ class Report_model extends CI_Model {
     /**
      * Cash flow summary rows (one per payment method).
      */
-    public function getCashFlowSummary($from, $to, $storeId = null){
-        $summary = $this->getCashMovementSummary($from, $to, $storeId);
+    public function getCashFlowSummary($from, $to, $storeId = null, $method = 'all'){
+        $summary = $this->getCashMovementSummary($from, $to, $storeId, $method);
         return count($summary['methods']) > 0 ? $summary['methods'] : false;
     }
 
@@ -1594,6 +1654,7 @@ class Report_model extends CI_Model {
         $result['cf_return_out']   = $cf['return_out'];
         $result['cf_exchange_in']  = $cf['exchange_in'];
         $result['cf_exchange_out'] = $cf['exchange_out'];
+        $result['cf_change_out']   = $cf['change_out'];
         $result['cf_total_in']     = $cf['total_in'];
         $result['cf_total_out']    = $cf['total_out'];
         $result['cf_net']          = $cf['net'];
