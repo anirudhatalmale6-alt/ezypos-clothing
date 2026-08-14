@@ -925,6 +925,10 @@ class Report_model extends CI_Model {
                     .', s.sale_location'
                     .(in_array('sale_bill_seq', $saleFields) ? ', s.sale_bill_seq' : ', NULL AS sale_bill_seq');
         $billOf    = function($r){ return bill_no($r); };
+        // Same story for sale_return_status: some installs never got it, and
+        // naming a column that is not there would break the whole report.
+        $retStatCol = in_array('sale_return_status', $saleFields)
+                    ? 's.sale_return_status' : "'' AS sale_return_status";
 
         $mk = function($date, $source, $ref, $customer, $methodName, $reference, $direction, $amount, $store){
             $o = new stdClass();
@@ -956,7 +960,7 @@ class Report_model extends CI_Model {
             // was overstated and the till could not tally. The change is worked
             // out here and shown as its own Cash OUT line:
             //     in 5,000  -  out 100  =  4,900 actually in the drawer.
-            $str = "SELECT s.sale_id, s.sale_date, s.sale_grandtotal, s.sale_return_status,
+            $str = "SELECT s.sale_id, s.sale_date, s.sale_grandtotal, ".$retStatCol.",
                            c.cus_name, cp.cus_pay_cash, cp.cus_pay_credit, st.store_name, ".$billCol."
                     FROM ezy_pos_cus_payment cp
                     INNER JOIN ezy_pos_sale s ON s.sale_id = cp.cus_pay_saleid

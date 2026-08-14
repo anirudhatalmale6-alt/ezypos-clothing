@@ -279,6 +279,8 @@ function status_checks($conn)
     $rows[] = array('Store credit on returns (ret_refund_mode)', $hasCol('ezy_pos_returns', 'ret_refund_mode'));
     $rows[] = array('Cash flow flag on refunds (rp_in_cashflow)', $hasCol('ezy_pos_return_payments', 'rp_in_cashflow'));
     $rows[] = array('New page permissions (priv_gatepass)', $hasCol('ezy_pos_privileges', 'priv_gatepass'));
+    $rows[] = array('Branch on returns (ret_store_id)', $hasCol('ezy_pos_returns', 'ret_store_id'));
+    $rows[] = array('Return tracking on sales (sale_return_status)', $hasCol('ezy_pos_sale', 'sale_return_status'));
 
     echo '<div class="box"><h3>What is already in place</h3><table class="data">';
     foreach ($rows as $r) {

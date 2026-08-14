@@ -14,6 +14,62 @@
 
 
 -- ---------------------------------------------------------------------
+-- 0. CATCHING UP ON EARLIER MIGRATIONS
+--
+-- The older migration files were run through phpMyAdmin, and phpMyAdmin
+-- STOPS at the first error. Those files begin with columns that already
+-- existed, so the run stopped there and everything after it was silently
+-- skipped - which is why ezy_pos_returns.ret_store_id was never created
+-- even though it appears in both v4 and v8.
+--
+-- Everything here is repeated from v4 and v8. Anything already in place
+-- reports "Duplicate column name" and is skipped, which is harmless.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ezy_pos_returns (
+    ret_id INT AUTO_INCREMENT PRIMARY KEY,
+    ret_sale_id INT NOT NULL,
+    ret_type ENUM('full_return','partial_return','exchange') NOT NULL DEFAULT 'partial_return',
+    ret_refund_amount DECIMAL(12,2) DEFAULT 0,
+    ret_exchange_amount DECIMAL(12,2) DEFAULT 0,
+    ret_net_amount DECIMAL(12,2) DEFAULT 0,
+    ret_reason TEXT,
+    ret_created_by INT,
+    ret_created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    ret_status TINYINT DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS ezy_pos_return_items (
+    ri_id INT AUTO_INCREMENT PRIMARY KEY,
+    ri_return_id INT NOT NULL,
+    ri_item_id INT NOT NULL,
+    ri_item_name VARCHAR(255),
+    ri_qty DECIMAL(12,2) NOT NULL,
+    ri_price DECIMAL(12,2),
+    ri_discount DECIMAL(12,2) DEFAULT 0,
+    ri_total DECIMAL(12,2) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS ezy_pos_exchange_items (
+    ei_id INT AUTO_INCREMENT PRIMARY KEY,
+    ei_return_id INT NOT NULL,
+    ei_item_id INT NOT NULL,
+    ei_item_name VARCHAR(255),
+    ei_qty DECIMAL(12,2) NOT NULL,
+    ei_price DECIMAL(12,2) NOT NULL,
+    ei_discount DECIMAL(12,2) DEFAULT 0,
+    ei_total DECIMAL(12,2) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Which branch handled the return. Without it a refund cannot be tied to a
+-- branch at all, and the Cash Flow branch filter has nothing to work with.
+ALTER TABLE ezy_pos_returns ADD COLUMN ret_store_id INT DEFAULT 0;
+
+-- Return tracking on the sale itself.
+ALTER TABLE ezy_pos_sale ADD COLUMN sale_return_status VARCHAR(20) DEFAULT NULL;
+ALTER TABLE ezy_pos_sale ADD COLUMN sale_last_modified DATETIME DEFAULT NULL;
+
+
+-- ---------------------------------------------------------------------
 -- 1. PER-STORE BILL NUMBERS
 --
 --    Printed form:  <prefix>-<store letter>-<number>     e.g.  HG-B-001
