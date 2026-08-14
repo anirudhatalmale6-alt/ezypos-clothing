@@ -416,8 +416,17 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
         }
         elseif ($action === 'part4') {
             $check = @$conn->query("SELECT ret_total_adjusted FROM ezy_pos_returns LIMIT 1");
-            if (trim((string)(isset($_POST['confirm']) ? $_POST['confirm'] : '')) !== 'RUN PART 4') {
-                echo '<div class="box"><p class="warn">Not run - the confirmation text did not match.</p></div>';
+
+            // Accept it in any case, with any spacing. The grey wording inside the
+            // box is only a hint - it has to actually be typed.
+            $typed = strtoupper(preg_replace('/\s+/', ' ',
+                        trim((string)(isset($_POST['confirm']) ? $_POST['confirm'] : ''))));
+
+            if ($typed !== 'RUN PART 4') {
+                echo '<div class="box"><p class="warn">Not run. Nothing has been changed.<br><br>'
+                   . 'To confirm, click inside the box next to the Run part 4 button and type '
+                   . '<b>RUN PART 4</b> yourself, then press the button. The grey wording you can '
+                   . 'see in the box is only a hint - it is not typed in.</p></div>';
             } elseif ($check === false) {
                 echo '<div class="box"><p class="warn">Not run - please do step 3 first. '
                    . 'Part 4 needs the marker column that step 3 adds.</p></div>';
@@ -498,11 +507,11 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
        original bill, so those bills still show their full value in the Sales Report.
        This corrects them - which means your past sales totals will go down by the amount
        that was refunded.</p>
-    <p class="note">Step 3 above prints the list of bills this would affect. Look at that list first.
-       Type <b>RUN PART 4</b> in the box to confirm.</p>
+    <p class="note">Step 3 above prints the list of bills this would affect. Look at that list first.</p>
     <form method="post" onsubmit="return confirm('This changes past sales totals. Continue?');">
       <input type="hidden" name="action" value="part4">
-      <input type="text" name="confirm" placeholder="RUN PART 4" size="18">
+      <p style="font-size:13px;margin:0 0 6px">Type <b>RUN PART 4</b> in this box, then press the button:</p>
+      <input type="text" name="confirm" placeholder="type it here" size="18">
       <button type="submit" class="grey">Run part 4</button>
     </form>
   </div>
