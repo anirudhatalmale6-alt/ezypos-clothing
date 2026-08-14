@@ -1,0 +1,102 @@
+HOW TO UPDATE EZYPOS ON cPANEL (no SSH needed)
+==============================================
+
+Everything below is done from the browser and the cPanel File Manager.
+Set aside about 15 minutes. Do it outside shop hours if you can.
+
+
+BEFORE YOU START - BACK UP
+--------------------------
+1. cPanel > phpMyAdmin > click your database on the left.
+2. Export tab > Go. Keep the .sql file it downloads somewhere safe.
+3. cPanel > File Manager > select your site folder > Compress > download the zip.
+
+If anything at all goes wrong, these two files put you back exactly where
+you started.
+
+
+STEP 1 - PUT THE NEW FILES ON THE SERVER
+----------------------------------------
+1. Download the code as a zip from GitHub (green "Code" button > Download ZIP).
+2. cPanel > File Manager > open your site folder.
+3. Upload the zip, then right click it > Extract.
+4. Copy the contents of the extracted sub.asrenish.com folder over your live
+   folder, replacing the files when it asks.
+
+Do NOT replace application/config/database.php. That file holds your database
+login and is different on every server. If you overwrite it by accident, put
+your hostname / username / password / database name back into it.
+
+
+STEP 2 - SET A PASSWORD ON THE UPDATE TOOL
+------------------------------------------
+1. In File Manager, find migrate.php in the site folder.
+2. Right click > Edit.
+3. Find this line near the top:
+
+       define('MIGRATE_PASSWORD', 'CHANGE-ME');
+
+4. Replace CHANGE-ME with any password you like, and save.
+
+The tool refuses to open until you do this, so nobody who stumbles across the
+address can run it.
+
+
+STEP 3 - RUN THE DATABASE UPDATES
+---------------------------------
+1. Open  https://your-site-address/migrate.php  in your browser.
+2. Type the password you just set.
+3. The page shows what is already in place and what still needs repairing.
+4. Press "Run step 2" - this adds the new columns and tables. It only adds
+   things. No sale, item, customer, payment or stock figure is touched.
+5. Press "Run step 3" - this repairs the records that were saved wrong:
+      - the returns that recorded a refund of 0
+        (the 5,250 returned against a 7,250 exchange now reads 5,250 / 7,250
+         / 2,000 as it should)
+      - returns that were saved without a branch
+      - the gift voucher bills that were saved without a branch, which go to
+        Ethulkotte and get their branch bill number
+6. Check the "Records still needing repair" boxes now read 0.
+
+Every line is shown with a green "done" or an amber "already there". If
+anything comes up red, stop and send me a screenshot of the page - do not
+restore the backup yet, red lines are almost always harmless and I would
+rather look first.
+
+Running a step twice does no harm. Anything already in place is skipped.
+
+
+STEP 4 - OPTIONAL, ONLY IF YOU WANT IT
+--------------------------------------
+Part 4 on the same page corrects one more old fault: when a customer returned
+goods without exchanging them, the old program never took that value off the
+original bill, so those bills still show their full value in the Sales Report.
+
+This changes your past sales totals, which is why it is not part of step 3.
+Step 3 prints the list of bills it would affect - look at that list first,
+and only then type RUN PART 4 and press the button.
+
+It cannot be applied twice. Each return it uses is stamped as done.
+
+
+STEP 5 - REMOVE THE TOOL
+------------------------
+Press "Delete this tool" at the bottom of the page. It removes itself from
+the server. If it cannot, delete migrate.php in File Manager yourself.
+
+Leaving it there with a password on it is not dangerous, but there is no
+reason to keep it.
+
+
+AFTER THE UPDATE - QUICK CHECKS
+-------------------------------
+- Print any old bill. The number should read HG-B-001 style, with the first
+  letter of the branch name in the middle.
+- Make one small sale and print it. The number should carry on from the last
+  one for that branch.
+- Reports > Cash Flow for today. A bill of 4,900 paid with 5,000 should show
+  5,000 in and 100 out.
+- Open the return you know about. Return total, exchange total and the amount
+  due should now read 5,250 / 7,250 / 2,000.
+
+If any of those look wrong, tell me what you see and I will sort it.

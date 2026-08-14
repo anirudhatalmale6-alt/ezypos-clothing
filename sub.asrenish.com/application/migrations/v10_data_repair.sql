@@ -40,6 +40,23 @@ GROUP BY r.ret_id, r.ret_sale_id, r.ret_type, r.ret_refund_amount,
          r.ret_exchange_amount, r.ret_net_amount
 HAVING stored_refund_wrong <> real_refund;
 
+-- A marker so Part 4 can never be applied twice to the same return.
+--   1 = the refund has already been taken off the original bill
+--   0 = it has not
+-- Everything the new program writes counts as 1, which is why that is the
+-- default. The statement after it flags the old broken ones as 0.
+ALTER TABLE ezy_pos_returns ADD COLUMN ret_total_adjusted TINYINT(1) NOT NULL DEFAULT 1;
+
+UPDATE ezy_pos_returns r
+JOIN (
+    SELECT ri_return_id, COALESCE(SUM(ri_total), 0) AS real_refund
+    FROM ezy_pos_return_items
+    GROUP BY ri_return_id
+) t ON t.ri_return_id = r.ret_id
+SET r.ret_total_adjusted = 0
+WHERE r.ret_refund_amount <> t.real_refund
+  AND r.ret_type <> 'exchange';
+
 -- Apply the correction.
 UPDATE ezy_pos_returns r
 JOIN (
@@ -106,6 +123,9 @@ SELECT sale_location, MAX(sale_bill_seq) FROM ezy_pos_sale
 WHERE sale_location = @st
 GROUP BY sale_location
 ON DUPLICATE KEY UPDATE bc_last_no = VALUES(bc_last_no);
+
+-- Drop the leftover counter for "branch 0", which no longer has any bills.
+DELETE FROM ezy_pos_bill_counters WHERE bc_store_id = 0;
 -- sale_bill_no is left empty on purpose: the bill number is then rebuilt from
 -- the branch letter and the running number whenever the bill is opened, so it
 -- comes out as HG-E-001 and so on.
@@ -124,7 +144,13 @@ ON DUPLICATE KEY UPDATE bc_last_no = VALUES(bc_last_no);
 --
 -- It only touches bills where the whole refund is still sitting in the
 -- grand total, and never takes a bill below zero.
+--
+-- It also cannot be applied twice. Each return it uses is stamped with
+-- ret_total_adjusted = 1, and returns taken from now on are stamped that way
+-- by the program itself, so running this again later does nothing.
 -- ---------------------------------------------------------------------
+
+-- Look first: these are the bills that would change.
 SELECT s.sale_id, s.sale_bill_no, s.sale_date,
        s.sale_grandtotal        AS current_total,
        SUM(r.ret_refund_amount) AS refunded,
@@ -132,15 +158,30 @@ SELECT s.sale_id, s.sale_bill_no, s.sale_date,
 FROM ezy_pos_sale s
 JOIN ezy_pos_returns r ON r.ret_sale_id = s.sale_id AND r.ret_status = 1
 WHERE r.ret_type <> 'exchange'
+  AND r.ret_total_adjusted = 0
 GROUP BY s.sale_id, s.sale_bill_no, s.sale_date, s.sale_grandtotal
 HAVING refunded > 0 AND total_after >= 0;
 
--- UPDATE ezy_pos_sale s
--- JOIN (
+-- DROP TEMPORARY TABLE IF EXISTS tmp_part4_sales;
+--
+-- CREATE TEMPORARY TABLE tmp_part4_sales AS
+-- SELECT t.ret_sale_id AS sale_id, t.refunded
+-- FROM (
 --     SELECT ret_sale_id, SUM(ret_refund_amount) AS refunded
 --     FROM ezy_pos_returns
---     WHERE ret_status = 1 AND ret_type <> 'exchange'
+--     WHERE ret_status = 1 AND ret_type <> 'exchange' AND ret_total_adjusted = 0
 --     GROUP BY ret_sale_id
--- ) t ON t.ret_sale_id = s.sale_id
--- SET s.sale_grandtotal = s.sale_grandtotal - t.refunded
--- WHERE s.sale_grandtotal - t.refunded >= 0;
+-- ) t
+-- JOIN ezy_pos_sale s ON s.sale_id = t.ret_sale_id
+-- WHERE t.refunded > 0 AND s.sale_grandtotal - t.refunded >= 0;
+--
+-- UPDATE ezy_pos_sale s
+-- JOIN tmp_part4_sales p ON p.sale_id = s.sale_id
+-- SET s.sale_grandtotal = s.sale_grandtotal - p.refunded;
+--
+-- UPDATE ezy_pos_returns r
+-- JOIN tmp_part4_sales p ON p.sale_id = r.ret_sale_id
+-- SET r.ret_total_adjusted = 1
+-- WHERE r.ret_total_adjusted = 0 AND r.ret_type <> 'exchange';
+--
+-- DROP TEMPORARY TABLE IF EXISTS tmp_part4_sales;
