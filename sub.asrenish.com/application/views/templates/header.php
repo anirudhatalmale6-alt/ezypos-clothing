@@ -223,9 +223,10 @@
                             $canPromotions = $isAdmin || (isset($_SESSION['privPromotions']) && $_SESSION['privPromotions']==1);
                             $canLoyalty    = $isAdmin || (isset($_SESSION['privLoyalty']) && $_SESSION['privLoyalty']==1);
                             $canLabeljoy   = $isAdmin || (isset($_SESSION['privLabeljoy']) && $_SESSION['privLabeljoy']==1);
+                            $canExpenseCat      = nav_can('privExpense_cat');
                             $showMasters = (isset($_SESSION['privMasters']) && $_SESSION['privMasters'] >= 1)
                                 || $isAdmin || $canPromotions || $canLoyalty || $canLabeljoy
-                                || $canPaymentMethods || $canDeliveryCompany;
+                                || $canPaymentMethods || $canDeliveryCompany || $canExpenseCat;
                             if($showMasters){ ?>
                             <li class="has-submenu">
                                 <a href="#"><i class="zmdi zmdi-album"></i> <span> Masters </span> </a>
@@ -251,6 +252,8 @@
                                     <li><a href="<?php echo base_url('payment-methods')?>"><i class="fa fa-credit-card"></i> Payment Methods</a></li>
                                     <?php } if($canDeliveryCompany){ ?>
                                     <li><a href="<?php echo base_url('delivery-companies')?>"><i class="fa fa-truck"></i> Delivery Companies</a></li>
+                                    <?php } if($canExpenseCat){ ?>
+                                    <li><a href="<?php echo base_url('expense-categories')?>"><i class="fa fa-folder-open"></i> Expense Categories</a></li>
                                     <?php } ?>
                                     <?php if($canPromotions || $canLoyalty || $canLabeljoy){ ?>
                                     <li class="divider"></li>

@@ -77,7 +77,7 @@ class Userauthentication extends CI_Controller {
                 $store=$user_info[0]['priv_store'];
                 $staff=$user_info[0]['priv_staff'];
                 $tax=$user_info[0]['priv_tax'];
-                $expense_cat=$user_info[0]['priv_expense_cat'];
+                $expense_cat=isset($user_info[0]['priv_expense_cat']) ? $user_info[0]['priv_expense_cat'] : 0;
                 $register=$user_info[0]['priv_register'];
                 $grn=$user_info[0]['priv_grn'];
                 $sales=$user_info[0]['priv_sales'];
@@ -141,6 +141,10 @@ class Userauthentication extends CI_Controller {
                     'privstore'=>$store,
                     'privstaff'=>$staff,
                     'privtax'=>$tax,
+                    // Expense Categories page (Masters). The column was already
+                    // read above but never reached the session, so the page could
+                    // not be permitted to anyone.
+                    'privExpense_cat'=>$expense_cat,
                     'privregister'=>$register,
                     'privMasters'=>$Master,
                     'privUsers'=>$User,

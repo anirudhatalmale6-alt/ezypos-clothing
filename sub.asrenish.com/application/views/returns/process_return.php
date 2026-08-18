@@ -89,6 +89,10 @@
                                             <label class="col-6 col-form-label"><strong>Return Total:</strong></label>
                                             <div class="col-6 col-form-label text-right"><strong style="color:#c62828;">LKR <span id="lbl_return_total">0.00</span></strong></div>
                                         </div>
+                                        <div class="form-group row mb-1" id="exchangeDiscountRow" style="display:none;">
+                                            <label class="col-6 col-form-label">Exchange Discount:</label>
+                                            <div class="col-6 col-form-label text-right">LKR <span id="lbl_exchange_discount">0.00</span></div>
+                                        </div>
                                         <div class="form-group row mb-1" id="exchangeTotalRow" style="display:none;">
                                             <label class="col-6 col-form-label"><strong>Exchange Total:</strong></label>
                                             <div class="col-6 col-form-label text-right"><strong style="color:#2e7d32;">LKR <span id="lbl_exchange_total">0.00</span></strong></div>
@@ -191,6 +195,7 @@
                                                     <th style="font-size:12px;">Item</th>
                                                     <th style="font-size:12px;text-align:right;width:110px;">Price</th>
                                                     <th style="font-size:12px;text-align:center;width:100px;">Qty</th>
+                                                    <th style="font-size:12px;text-align:center;width:150px;">Discount</th>
                                                     <th style="font-size:12px;text-align:right;">Total</th>
                                                     <th style="font-size:12px;text-align:center;">Remove</th>
                                                 </tr>
@@ -198,6 +203,26 @@
                                             <tbody id="exchangeItemsBody">
                                             </tbody>
                                         </table>
+
+                                        <!-- Whole-exchange discount, the same field the Sales
+                                             screen has under the bill total. -->
+                                        <div class="row m-t-10 justify-content-end">
+                                            <div class="col-6 col-md-5">
+                                                <div class="form-group row mb-0">
+                                                    <label class="col-5 col-form-label" style="font-size:13px;"><strong>Discount</strong></label>
+                                                    <div class="col-4">
+                                                        <input class="form-control form-control-sm" type="number" min="0" step="0.01"
+                                                               id="exc_invoice_discount" value="" placeholder="0.00" style="text-align:right;">
+                                                    </div>
+                                                    <div class="col-3">
+                                                        <select class="form-control form-control-sm" id="exc_invoice_discount_type">
+                                                            <option value="flat">Flat</option>
+                                                            <option value="percentage">%</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -290,12 +315,28 @@ $( function() {
     var collectedPayments = [];   // [{method, reference, amount}]
     var payRowCounter     = 0;
 
-    // Cash + Cheque always available, plus every method configured in Settings.
-    var PAYMENT_METHODS = ['Cash', 'Cheque', 'Credit Card'
-        <?php if(isset($paymentMethods) && $paymentMethods){ foreach($paymentMethods as $pm){
-            echo ', "'.addslashes($pm->pm_name).'"';
-        }} ?>
-    ];
+    // Exactly the list the Sales screen offers: Cash, then every method set up
+    // under Masters > Payment Methods (Card, Reference Payment, and anything
+    // else that has been added), then Cheque. Duplicates are dropped, so a
+    // method named "Cash" or "Cheque" in Settings does not appear twice.
+    var PAYMENT_METHODS = (function(){
+        var configured = [
+            <?php if(isset($paymentMethods) && $paymentMethods){ foreach($paymentMethods as $pm){
+                echo '"'.addslashes($pm->pm_name).'", ';
+            }} ?>
+        ];
+        var list = ['Cash'].concat(configured).concat(['Cheque']);
+        var seen = {}, out = [];
+        for(var i = 0; i < list.length; i++){
+            var name = (list[i] || '').toString().trim();
+            if(name === '') continue;
+            var key = name.toLowerCase();
+            if(seen[key]) continue;
+            seen[key] = true;
+            out.push(name);
+        }
+        return out;
+    })();
 
     // =========== ITEM AUTOCOMPLETE FOR EXCHANGE ===========
     var availableItems = [
@@ -329,6 +370,10 @@ $( function() {
         } else {
             $('#exchangeSection').hide();
             $('#exchangeTotalRow').hide();
+            $('#exchangeDiscountRow').hide();
+            // A discount left over from an exchange must not follow the user
+            // into a plain return, where there is nothing to discount.
+            $('#exc_invoice_discount').val('');
         }
         if(type === 'full_return'){
             autoFillFullReturn();
@@ -432,6 +477,9 @@ $( function() {
                 collectedPayments = [];
                 amountToCollect = 0;
                 $('#exchangeItemsBody').html('');
+                $('#exc_invoice_discount').val('');
+                $('#exc_invoice_discount_type').val('flat');
+                $('#exchangeDiscountRow').hide();
                 $('#collectPaymentBox').hide();
                 $('#refundModeBox').hide();
                 $('#cash_returned').prop('checked', true);
@@ -522,9 +570,9 @@ $( function() {
         }
         if(existing){
             existing.qty = parseFloat(existing.qty) + qty;
-            existing.total = parseFloat((existing.price * existing.qty).toFixed(2));
             var $r = $('#exchangeItemsBody tr[data-exc-idx="'+existing.idx+'"]');
             $r.find('.exc-qty-input').val(existing.qty);
+            existing.total = lineTotal(existing.price, existing.qty, existing.discount, existing.discount_type);
             $r.find('.exc-total-cell').text(existing.total.toFixed(2));
         } else {
             excCounter++;
@@ -538,6 +586,10 @@ $( function() {
                 item_name: itemName,
                 price: price,
                 qty: qty,
+                discount: 0,
+                // Same default as the Sales screen, so a discount typed on an
+                // exchange line behaves exactly as it does on a sale line.
+                discount_type: 'percentage',
                 total: total
             });
 
@@ -546,6 +598,15 @@ $( function() {
             row += '<td>'+itemName+'</td>';
             row += '<td style="text-align:right;"><input type="number" class="form-control form-control-sm exc-price-input" style="text-align:right;" min="0" step="0.01" value="'+price.toFixed(2)+'"></td>';
             row += '<td style="text-align:center;"><input type="number" class="form-control form-control-sm exc-qty-input" style="text-align:right;" min="0.01" step="0.01" value="'+qty+'"></td>';
+            row += '<td style="text-align:center;">'
+                 +   '<div style="display:flex;">'
+                 +     '<input type="number" class="form-control form-control-sm exc-dis-input" style="text-align:right;" min="0" step="0.01" value="0">'
+                 +     '<select class="form-control form-control-sm exc-dis-type" style="width:70px;">'
+                 +       '<option value="percentage">%</option>'
+                 +       '<option value="flat">Flat</option>'
+                 +     '</select>'
+                 +   '</div>'
+                 + '</td>';
             row += '<td style="text-align:right;" class="exc-total-cell">'+total.toFixed(2)+'</td>';
             row += '<td style="text-align:center;"><a href="javascript:;" class="btn btn-sm btn-danger btn-remove-exc" data-exc-idx="'+excCounter+'"><i class="fa fa-times"></i></a></td>';
             row += '</tr>';
@@ -561,26 +622,55 @@ $( function() {
         calculateReturnTotals();
     });
 
-    // Edit quantity / price directly on an exchange line.
-    $(document).on('keyup change', '.exc-qty-input, .exc-price-input', function(){
+    /**
+     * One line's total after its own discount. Exactly the rule the Sales
+     * screen uses: a flat discount comes off the line, a percentage takes that
+     * share off it, and a line can never fall below zero.
+     */
+    function lineTotal(price, qty, dis, disType){
+        var gross = price * qty;
+        if(isNaN(dis)) dis = 0;
+        var t = (disType === 'flat') ? (gross - dis) : ((100 - dis) * gross / 100);
+        if(!(t > 0)) t = 0;
+        return parseFloat(t.toFixed(2));
+    }
+
+    // Edit quantity / price / discount directly on an exchange line.
+    $(document).on('keyup change', '.exc-qty-input, .exc-price-input, .exc-dis-input, .exc-dis-type', function(){
         var $row = $(this).closest('tr');
         var idx  = $row.data('exc-idx');
         var qty   = parseFloat($row.find('.exc-qty-input').val()) || 0;
         var price = parseFloat($row.find('.exc-price-input').val()) || 0;
+        var dis   = parseFloat($row.find('.exc-dis-input').val()) || 0;
+        var disType = $row.find('.exc-dis-type').val() || 'percentage';
         if(qty < 0){ qty = 0; $row.find('.exc-qty-input').val(0); }
         if(price < 0){ price = 0; $row.find('.exc-price-input').val(0); }
+        if(dis < 0){ dis = 0; $row.find('.exc-dis-input').val(0); }
+        // A percentage over 100 would turn the line negative.
+        if(disType === 'percentage' && dis > 100){ dis = 100; $row.find('.exc-dis-input').val(100); }
+        if(disType === 'flat' && dis > price * qty){
+            dis = parseFloat((price * qty).toFixed(2));
+            $row.find('.exc-dis-input').val(dis);
+        }
 
-        var total = parseFloat((price * qty).toFixed(2));
+        var total = lineTotal(price, qty, dis, disType);
         $row.find('.exc-total-cell').text(total.toFixed(2));
 
         for(var i = 0; i < exchangeItems.length; i++){
             if(exchangeItems[i].idx === idx){
                 exchangeItems[i].qty   = qty;
                 exchangeItems[i].price = price;
+                exchangeItems[i].discount = dis;
+                exchangeItems[i].discount_type = disType;
                 exchangeItems[i].total = total;
                 break;
             }
         }
+        calculateReturnTotals();
+    });
+
+    // The discount on the exchange as a whole.
+    $(document).on('keyup change', '#exc_invoice_discount, #exc_invoice_discount_type', function(){
         calculateReturnTotals();
     });
 
@@ -604,10 +694,33 @@ $( function() {
             returnTotal += parseFloat($(this).find('.return-amt-cell').text()) || 0;
         });
 
-        var exchangeTotal = 0;
+        // Sum of the exchange lines, each already net of its own discount.
+        var exchangeGross = 0;
         for(var i = 0; i < exchangeItems.length; i++){
-            exchangeTotal += exchangeItems[i].total;
+            exchangeGross += exchangeItems[i].total;
         }
+        exchangeGross = parseFloat(exchangeGross.toFixed(2));
+
+        // Then the discount on the exchange as a whole, same rule as the bill
+        // discount on a sale: flat comes straight off, a percentage takes its
+        // share, and it can never take the exchange below zero.
+        var excDis = parseFloat($('#exc_invoice_discount').val());
+        if(isNaN(excDis) || excDis < 0){ excDis = 0; }
+        var excDisType = $('#exc_invoice_discount_type').val() || 'flat';
+        if(excDisType === 'percentage' && excDis > 100){ excDis = 100; $('#exc_invoice_discount').val(100); }
+        if(excDisType === 'flat' && excDis > exchangeGross){
+            excDis = exchangeGross;
+            if(exchangeGross > 0){ $('#exc_invoice_discount').val(excDis.toFixed(2)); }
+        }
+        var exchangeTotal = (excDisType === 'flat')
+                          ? exchangeGross - excDis
+                          : (100 - excDis) * exchangeGross / 100;
+        exchangeTotal = parseFloat(exchangeTotal.toFixed(2));
+        if(!(exchangeTotal > 0)) exchangeTotal = 0;
+
+        var discountGiven = parseFloat((exchangeGross - exchangeTotal).toFixed(2));
+        $('#lbl_exchange_discount').text(discountGiven.toFixed(2));
+        $('#exchangeDiscountRow').toggle(discountGiven > 0.001);
 
         var netAmount = returnTotal - exchangeTotal;
         $('#lbl_return_total').text(returnTotal.toFixed(2));
@@ -845,6 +958,8 @@ $( function() {
                 item_id: exchangeItems[i].item_id,
                 price: exchangeItems[i].price,
                 qty: exchangeItems[i].qty,
+                discount: exchangeItems[i].discount || 0,
+                discount_type: exchangeItems[i].discount_type || 'percentage',
                 total: exchangeItems[i].total
             });
         }
@@ -873,6 +988,11 @@ $( function() {
             return_store_id: $('#return_store_id').val(),
             refund_amount: returnTotalVal,
             exchange_amount: exchangeTotalVal,
+            // The discount given on the exchange as a whole. exchange_amount is
+            // already net of it - this is kept so the return can be read back.
+            exchange_discount: parseFloat($('#lbl_exchange_discount').text()) || 0,
+            exchange_discount_input: parseFloat($('#exc_invoice_discount').val()) || 0,
+            exchange_discount_type: $('#exc_invoice_discount_type').val() || 'flat',
             net_amount: returnTotalVal - exchangeTotalVal,
             return_items: JSON.stringify(returnItems),
             exchange_items: JSON.stringify(excItemsData),

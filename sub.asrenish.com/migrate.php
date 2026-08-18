@@ -281,6 +281,8 @@ function status_checks($conn)
     $rows[] = array('New page permissions (priv_gatepass)', $hasCol('ezy_pos_privileges', 'priv_gatepass'));
     $rows[] = array('Branch on returns (ret_store_id)', $hasCol('ezy_pos_returns', 'ret_store_id'));
     $rows[] = array('Return tracking on sales (sale_return_status)', $hasCol('ezy_pos_sale', 'sale_return_status'));
+    $rows[] = array('Discount on exchanges (ret_exchange_discount)', $hasCol('ezy_pos_returns', 'ret_exchange_discount'));
+    $rows[] = array('Discount type on exchange lines (ei_discount_type)', $hasCol('ezy_pos_exchange_items', 'ei_discount_type'));
 
     echo '<div class="box"><h3>What is already in place</h3><table class="data">';
     foreach ($rows as $r) {
@@ -399,13 +401,17 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
         $action = isset($_POST['action']) ? $_POST['action'] : '';
 
         /* ----------------------------------------------------------- actions */
-        if ($action === 'v9' || $action === 'v10') {
-            $file = ($action === 'v9')
-                  ? MIGRATE_DIR . '/v9_billno_storecredit_privileges.sql'
-                  : MIGRATE_DIR . '/v10_data_repair.sql';
-            $name = ($action === 'v9')
-                  ? 'Step 2 - new columns and tables (v9)'
-                  : 'Step 3 - repair existing records (v10, parts 1 to 3)';
+        if ($action === 'v9' || $action === 'v10' || $action === 'v11') {
+            $files = array(
+                'v9'  => array(MIGRATE_DIR . '/v9_billno_storecredit_privileges.sql',
+                               'Step 2 - new columns and tables (v9)'),
+                'v10' => array(MIGRATE_DIR . '/v10_data_repair.sql',
+                               'Step 3 - repair existing records (v10, parts 1 to 3)'),
+                'v11' => array(MIGRATE_DIR . '/v11_exchange_discount.sql',
+                               'Step 4 - discount columns for exchanges (v11)'),
+            );
+            $file = $files[$action][0];
+            $name = $files[$action][1];
 
             if (!is_readable($file)) {
                 echo '<div class="box"><p class="warn">Cannot find ' . h(basename($file))
@@ -501,8 +507,17 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
       <button type="submit">Run step 3</button></form>
   </div>
 
+  <div class="box step">
+    <h3>Step 4 - Discount on exchanges</h3>
+    <p>Adds the columns that record a discount given on an exchange. It only adds things -
+       nothing existing is touched. The discount works on screen with or without this;
+       running it just means a past exchange can be read back with its discount later.</p>
+    <form method="post"><input type="hidden" name="action" value="v11">
+      <button type="submit">Run step 4</button></form>
+  </div>
+
   <div class="box">
-    <h3>Optional - Part 4 (changes past sales figures)</h3>
+    <h3>Optional - the sales total correction (changes past sales figures)</h3>
     <p>On a return with no exchange, the old program never took the refunded value off the
        original bill, so those bills still show their full value in the Sales Report.
        This corrects them - which means your past sales totals will go down by the amount

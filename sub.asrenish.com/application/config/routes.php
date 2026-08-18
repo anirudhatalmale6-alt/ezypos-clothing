@@ -83,6 +83,10 @@ $route['tailoring-final/(:num)'] = 'ProductionSale/print_final/$1';
 // Delivery Companies
 $route['delivery-companies'] = 'DeliveryCompany/manage';
 
+// Expense Categories (Masters). The pages existed but were never linked, so
+// nobody could reach them - the Expense screen had no list to choose from.
+$route['expense-categories'] = 'ExpenCategories/addExpenseCategory/expense-category';
+
 // Gift Vouchers
 $route['gift-vouchers'] = 'GiftVoucher/manage/gift-voucher-manage';
 $route['gift-voucher-reports'] = 'GiftVoucher/reports/gift-voucher-reports';

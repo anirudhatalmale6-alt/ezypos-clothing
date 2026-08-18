@@ -1442,6 +1442,8 @@ var chequeHTML ='<div id="chequeDIV">'+
                     // cashier needs to know at the counter, not a week later.
                     var itemsExpected = rows - 1;
                     var itemsSaved = 0;
+                    // Taken now, because marking the cards sold empties gvSellRows.
+                    var gvRowsExpected = (typeof gvSellRows !== 'undefined' && gvSellRows) ? gvSellRows.length : 0;
                     for (var i = 1; i < rows; i++) { 
                         itemid1=$("#datatable").find("tr").eq(i).find("td").eq(1).text();
                     // iName=$("#datatable").find("tr").eq(i).find("td").eq(2).text();
@@ -1601,9 +1603,15 @@ var chequeHTML ='<div id="chequeDIV">'+
                     }
 
                     // Process voucher sales (mark cards as sold if voucher items were sold)
+                    // A gift voucher is not a stock line, so it never went through the
+                    // loop above. Count the cards that actually stored, and treat them
+                    // as saved lines - otherwise a voucher-only bill looked like an
+                    // empty sale and was never printed.
+                    var vouchersSold = 0;
                     try {
-                        if(sale_ID > 0){ processVoucherSales(sale_ID); }
+                        if(sale_ID > 0){ vouchersSold = processVoucherSales(sale_ID) || 0; }
                     } catch(e){ console.log('Voucher processing error:', e); }
+                    if(vouchersSold > 0){ itemAdded = true; }
 
                     //
                     $("#tbodyID").empty();
@@ -1636,6 +1644,17 @@ var chequeHTML ='<div id="chequeDIV">'+
                     // $("#customer-auto").html('<input class="form-control"  id="customer-auto" placeholder="Select" >');
                     $("#chequeDIV").remove();
                     pendingCardRefs = [];
+                    // Vouchers were on the bill but none of the cards could be marked
+                    // sold. The card is the goods here, so this is the same problem as
+                    // a sale line that did not store.
+                    if(hasGvRows && vouchersSold < gvRowsExpected){
+                        swal({
+                            type: 'error',
+                            title: 'Voucher not recorded',
+                            text: 'Only ' + vouchersSold + ' of ' + gvRowsExpected + ' gift voucher cards could be recorded on this bill. ' +
+                                  'Do not hand over the cards - tell your administrator, quoting bill ' + sale_ID + '.'
+                        });
+                    }
                     if(itemsSaved < itemsExpected){
                         if(itemsSaved === 0){
                             // Nothing stored at all, so no stock moved either. Take the
@@ -2479,16 +2498,19 @@ var chequeHTML ='<div id="chequeDIV">'+
         return true;
     }
 
-    // Process voucher card sales after sale is saved
+    // Process voucher card sales after sale is saved.
+    // Returns how many cards were actually recorded against the bill, so the
+    // caller can tell a real voucher sale from one that saved nothing.
     function processVoucherSales(saleId){
-        if(!saleId || saleId <= 0 || typeof gvSellRows === 'undefined' || !gvSellRows || gvSellRows.length === 0) return;
+        if(!saleId || saleId <= 0 || typeof gvSellRows === 'undefined' || !gvSellRows || gvSellRows.length === 0) return 0;
         var cardNumbers = [];
         for(var i=0; i<gvSellRows.length; i++){
             if(gvSellRows[i].validated && gvSellRows[i].card_number){
                 cardNumbers.push(gvSellRows[i].card_number);
             }
         }
-        if(cardNumbers.length === 0){ gvSellRows = []; return; }
+        if(cardNumbers.length === 0){ gvSellRows = []; return 0; }
+        var soldCount = 0;
         try {
             $.ajax({
                 type: 'POST',
@@ -2498,7 +2520,8 @@ var chequeHTML ='<div id="chequeDIV">'+
                 dataType: 'json',
                 success: function(res){
                     if(res && res.count > 0){
-                        console.log('Voucher cards sold: ' + res.count);
+                        soldCount = parseInt(res.count) || 0;
+                        console.log('Voucher cards sold: ' + soldCount);
                     }
                 },
                 error: function(xhr){
@@ -2508,6 +2531,7 @@ var chequeHTML ='<div id="chequeDIV">'+
         } catch(e){ console.log('Voucher AJAX error:', e); }
         gvSellRows = [];
         renderGvSellRows();
+        return soldCount;
     }
 
   });

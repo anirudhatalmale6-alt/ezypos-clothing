@@ -118,6 +118,15 @@ class Returns_model extends CI_Model {
         if(in_array('ret_refund_mode', $fields) && isset($data['refund_mode'])){
             $insert['ret_refund_mode'] = $data['refund_mode'];
         }
+        // Discount given on the exchange as a whole. ret_exchange_amount is
+        // already net of it; these two only record what was taken off and how,
+        // and are written only where the v11 columns exist.
+        if(in_array('ret_exchange_discount', $fields) && isset($data['exchange_discount'])){
+            $insert['ret_exchange_discount'] = $data['exchange_discount'];
+        }
+        if(in_array('ret_exchange_discount_type', $fields) && isset($data['exchange_discount_type'])){
+            $insert['ret_exchange_discount_type'] = $data['exchange_discount_type'];
+        }
         $this->db->insert('ezy_pos_returns', $insert);
         $insert_id = $this->db->insert_id();
         return $insert_id;
@@ -162,6 +171,12 @@ class Returns_model extends CI_Model {
             'ei_discount'  => $data['discount'],
             'ei_total'     => $data['total']
         );
+        // Whether that discount was a percentage or a flat amount. Written only
+        // where the v11 column exists, so this still runs before the migration.
+        if(isset($data['discount_type'])
+           && in_array('ei_discount_type', $this->db->list_fields('ezy_pos_exchange_items'))){
+            $insert['ei_discount_type'] = $data['discount_type'];
+        }
         return $this->db->insert('ezy_pos_exchange_items', $insert);
     }
 

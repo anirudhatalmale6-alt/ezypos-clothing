@@ -18,6 +18,9 @@
                                         <select class="form-control" name="expenseCat" id="expenseCatid" required>
                                             <option value="">-Select-</option>
                                                <?php
+                                            // Guard: with no active category at all this is FALSE,
+                                            // and foreach(FALSE) throws a warning across the page.
+                                            $expenCategories = (isset($expenCategories) && is_array($expenCategories)) ? $expenCategories : array();
                                             $otherCategory = null;
                                             foreach ($expenCategories as $expenCat) {
                                                 if ($expenCat->expencat_id == 6) {

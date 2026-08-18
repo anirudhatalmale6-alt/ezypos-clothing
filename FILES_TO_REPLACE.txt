@@ -1,7 +1,7 @@
 FILES TO REPLACE - everything from 13/08/2026 to now
 ====================================================
 
-33 files in total: 5 brand new, 28 replaced.
+41 files in total: 6 brand new, 35 replaced.
 All paths are inside your site folder (the one holding index.php).
 
 Please put ALL of them up together. They depend on each other - for example
@@ -12,12 +12,16 @@ the system half working.
 DO NOT touch application/config/database.php. It holds your database login
 and is different on every server.
 
+If it is easier, copy the whole sub.asrenish.com folder from the GitHub zip
+over your live folder - that does exactly the same thing. Just keep your own
+application/config/database.php.
+
 
 NEW FILES - upload these (they do not exist on your server yet)
 ---------------------------------------------------------------
  1. migrate.php
       The browser update tool. Sits next to index.php.
-      Set the password inside it, run the two steps, then delete it.
+      Set the password inside it, run the steps, then delete it.
 
  2. application/helpers/billno_helper.php
       Builds the bill number HG-B-001 from the branch name, and reads a
@@ -32,8 +36,8 @@ NEW FILES - upload these (they do not exist on your server yet)
  5. application/migrations/v10_data_repair.sql
       Database: repairs the records saved wrong. Step 3 in migrate.php.
 
- 6. (repo root) HOW_TO_UPDATE.txt
-      Written instructions only. Nothing to upload - read it and keep it.
+ 6. application/migrations/v11_exchange_discount.sql
+      Database: the discount columns for exchanges. Step 4 in migrate.php.
 
 
 REPLACE - settings
@@ -46,102 +50,133 @@ REPLACE - settings
       Loads the two new helper files above. Without this file the bill
       numbers and the permissions will not work at all.
 
+ 9. application/config/routes.php
+      Adds the address for the new Expense Categories page.
+
 
 REPLACE - controllers  (application/controllers/)
 -------------------------------------------------
- 9. Sales.php
+10. Sales.php
       Gives every new bill its branch number, passes the sold and redeemed
       gift vouchers to the printed bill, removes an empty bill if no line
       could be saved.
 
-10. Returns.php
+11. Returns.php
       Cash returned / store credit choice, records how the refund money
-      moved, files the return against the right branch.
+      moved, files the return against the right branch, and works out the
+      discount on an exchange.
 
-11. Reports.php
+12. Reports.php
       Cash Flow: the payment method filter now applies to the totals at the
       top, not only to the table.
 
-12. Userauthentication.php
-      Saves the new permission tick boxes when you create or edit a user.
+13. Userauthentication.php
+      Saves the new permission tick boxes when you create or edit a user,
+      and lets the Expense Categories permission through to the menu.
 
-13. CustomerPayment.php
+14. CustomerPayment.php
       Accepts the new bill number (HG-B-001) as well as the old AS00 one
       when you look a bill up.
 
-14. DeliveryCompany.php
-15. StoreItems.php
-16. RetailPosController.php
+15. ExpenCategories.php
+      The Expense Categories page. It existed but was never reachable.
+      Now permission-checked, with activate / deactivate instead of delete.
+
+16. DeliveryCompany.php
+17. StoreItems.php
+18. RetailPosController.php
       These three now check the user's permission before opening, which is
       what makes the tick boxes in user creation actually take effect.
 
 
 REPLACE - models  (application/models/)
 ---------------------------------------
-17. Report_model.php
-      The cash flow engine. This is the change-given fix: a 4,900 bill paid
-      with 5,000 now shows 5,000 in and 100 out.
+19. Report_model.php
+      The cash flow engine (the change-given fix: a 4,900 bill paid with
+      5,000 now shows 5,000 in and 100 out), plus the Sales Report now
+      showing voucher sales, the receipt number and how each bill was paid.
 
-18. Sales_model.php
+20. Sales_model.php
       Hands out the branch bill number safely when two tills save at the
       same moment, reads the bill lines from the sale itself, lists the
       vouchers on a bill.
 
-19. Returns_model.php
-      Store credit against cash, and the refund payment lines.
+21. Returns_model.php
+      Store credit against cash, the refund payment lines, and the discount
+      on an exchange.
 
-20. Payment_model.php
+22. Payment_model.php
       Shows the printed bill number on the customer payment screen.
 
-21. User_model.php
+23. CusPayment_model.php
+      Fixes the query behind the printed bill. On a stricter MySQL it
+      failed and the bill came out blank.
+
+24. User_model.php
       The new permission columns.
 
-22. Stocks_model.php
+25. Stocks_model.php
       Fixes the stock list when "All items" is selected.
+
+26. ExpenCategories_model.php
+      Activate / deactivate, and refuses two categories with the same name.
 
 
 REPLACE - screens  (application/views/)
 ---------------------------------------
-23. transactions/addsale.php
+27. transactions/addsale.php
       The save button is disabled the moment it is pressed, so a double
-      click can no longer save the sale twice. Also refuses to save a bill
-      with no branch on it (this was letting voucher sales through).
+      click can no longer save the sale twice. Refuses to save a bill with
+      no branch on it. AND: a voucher-only sale now prints its bill - the
+      program used to treat it as an empty sale and skip the print.
 
-24. returns/process_return.php
-      The "Cash returned to customer" tick box. Leave it unticked and the
-      value stays on the customer's account as store credit. Also defaults
-      the branch to the one that sold the bill.
+28. transactions/addexpense.php
+      Copes with there being no active expense category.
 
-25. returns/return_invoice.php
+29. expense-categry/expense-category.php
+      The Expense Categories screen: add, edit, view, activate/deactivate.
+
+30. returns/process_return.php
+      The "Cash returned to customer" tick box, the branch default, AND the
+      new Discount on exchanges plus the full Sales payment method list.
+
+31. returns/return_invoice.php
       Prints the new bill number, and says "Left On Account As Store
       Credit" when no cash was handed over.
 
-26. returns/list_returns.php
+32. returns/list_returns.php
       Shows the new bill number in the list.
 
-27. invoice/invoice.php
+33. invoice/invoice.php
       Inv No. and Bill By right aligned, gift vouchers printed as their own
-      lines with the card number, new bill number, no empty Address line.
+      lines with the card number under the right column headings, new bill
+      number, no empty Address line.
 
-28. customer/addcustomer.php
+34. report/salesreport.php
+      Receipt No instead of the internal Sale ID, a Type column marking
+      voucher sales, and a Payment column.
+
+35. customer/addcustomer.php
       Address, balance and credit limit hidden and no longer required.
 
-29. auth/register.php
-      Every page now appears as a tick box when creating a user.
+36. auth/register.php
+      Every page now appears as a tick box when creating a user, including
+      Expense Categories.
 
-30. templates/header.php
-      The menu only shows what the user is allowed to open.
+37. templates/header.php
+      The menu only shows what the user is allowed to open, and Masters now
+      has Expense Categories in it.
 
-31. report/today-summary.php
+38. report/today-summary.php
       New "Change Given" line so the till balance tallies.
 
-32. listing/allproductionsales.php
+39. listing/allproductionsales.php
       A tailoring payment can no longer be more than the amount still due.
 
-33. payment/Payment-Customer.php
+40. payment/Payment-Customer.php
       Shows the new bill number instead of AS00.
 
-34. listing/show-stock-list.php
+41. listing/show-stock-list.php
       The stock list was loading empty and had no search or export. Fixed.
 
 
@@ -150,9 +185,5 @@ ORDER OF WORK
 1. Back up the database (phpMyAdmin > Export > Go) and the site folder.
 2. Upload all the files above, replacing when asked.
 3. Open https://your-site/migrate.php, set the password inside the file
-   first, then run step 2 and step 3.
+   first, then run steps 2, 3 and 4.
 4. Delete migrate.php with the button on that page.
-
-If it is easier for you, copying the whole sub.asrenish.com folder from the
-GitHub zip over your live folder does exactly the same thing - just keep
-your own application/config/database.php.

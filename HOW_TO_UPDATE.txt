@@ -56,7 +56,9 @@ STEP 3 - RUN THE DATABASE UPDATES
       - returns that were saved without a branch
       - the gift voucher bills that were saved without a branch, which go to
         Ethulkotte and get their branch bill number
-6. Check the "Records still needing repair" boxes now read 0.
+6. Press "Run step 4" - this adds the columns that record a discount given
+   on an exchange. It only adds things.
+7. Check the "Records still needing repair" boxes now read 0.
 
 Every line is shown with a green "done" or an amber "already there". If
 anything comes up red, stop and send me a screenshot of the page - do not
@@ -66,9 +68,9 @@ rather look first.
 Running a step twice does no harm. Anything already in place is skipped.
 
 
-STEP 4 - OPTIONAL, ONLY IF YOU WANT IT
---------------------------------------
-Part 4 on the same page corrects one more old fault: when a customer returned
+OPTIONAL, ONLY IF YOU WANT IT
+-----------------------------
+The last box on the same page corrects one more old fault: when a customer returned
 goods without exchanging them, the old program never took that value off the
 original bill, so those bills still show their full value in the Sales Report.
 
@@ -79,8 +81,8 @@ and only then type RUN PART 4 and press the button.
 It cannot be applied twice. Each return it uses is stamped as done.
 
 
-STEP 5 - REMOVE THE TOOL
-------------------------
+REMOVE THE TOOL
+---------------
 Press "Delete this tool" at the bottom of the page. It removes itself from
 the server. If it cannot, delete migrate.php in File Manager yourself.
 
@@ -98,5 +100,11 @@ AFTER THE UPDATE - QUICK CHECKS
   5,000 in and 100 out.
 - Open the return you know about. Return total, exchange total and the amount
   due should now read 5,250 / 7,250 / 2,000.
+- Sell one gift voucher on its own. The bill should print by itself, with the
+  card number on it, exactly like a normal sale.
+- Reports > Sales Report for today. The voucher sale should be listed, marked
+  Voucher Sale, and the first column should be the receipt number the customer
+  was handed - not a plain number.
+- Masters > Expense Categories should now be in the menu.
 
 If any of those look wrong, tell me what you see and I will sort it.

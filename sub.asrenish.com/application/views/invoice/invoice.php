@@ -103,8 +103,11 @@
                     <td colspan="4">GIFT VOUCHER<?php echo ($gv->vcat_name ? ' - '.$gv->vcat_name : ''); ?></td>
                 </tr>
                 <tr>
-                    <td colspan="2" style="font-size:11px;">Card: <?php echo htmlspecialchars($gv->gc_card_number); ?></td>
+                    <!-- Four cells, in the same order as a stock line, so Qty,
+                         Price and Total sit under their own headings. -->
+                    <td style="font-size:11px;">Card: <?php echo htmlspecialchars($gv->gc_card_number); ?></td>
                     <td class="r">1</td>
+                    <td class="r"><?php echo number_format(floatval($gv->gc_original_value),2); ?></td>
                     <td class="r"><?php echo number_format(floatval($gv->gc_original_value),2); ?></td>
                 </tr>
                 <?php }

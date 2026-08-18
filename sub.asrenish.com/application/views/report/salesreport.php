@@ -104,6 +104,59 @@ $(document).ready(function () {
     // Initially clear the table
     $('#datatable-buttons').html('<thead><tr><th>No Data Available</th></tr></thead>');
 
+    function esc(v){
+        if(v === null || typeof v === 'undefined') return '';
+        return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // One header and one row builder for both views below, so the two tables
+    // can never drift apart again.
+    function reportHead(){
+        return `<thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Receipt No</th>
+                        <th>Type</th>
+                        <th>Customer Name</th>
+                        <th>Date</th>
+                        <th>Sub Total</th>
+                        <th>Discount</th>
+                        <th>Grand Total</th>
+                        <th>Payment</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>`;
+    }
+
+    function reportRow(row, index){
+        // The receipt number the customer was handed. Falls back to the
+        // internal id only on a bill saved before per-branch numbering.
+        var receipt = row.bill_no ? row.bill_no : row.sale_id;
+        var kind = row.sale_kind ? row.sale_kind : 'Sale';
+        var kindHtml = esc(kind);
+        if(kind.indexOf('Voucher') !== -1){
+            var cards = row.voucher_cards ? ' (' + esc(row.voucher_cards) + ')' : '';
+            kindHtml = '<span class="badge" style="background:#e65100;color:#fff;">' + esc(kind) + '</span>'
+                     + '<br><small>' + esc(parseFloat(row.voucher_total || 0).toFixed(2)) + cards + '</small>';
+        }
+        return `<tr>
+                    <td>${index + 1}</td>
+                    <td>${esc(receipt)}</td>
+                    <td>${kindHtml}</td>
+                    <td>${esc(row.cus_name || '-')}</td>
+                    <td>${esc(row.sale_createdat)}</td>
+                    <td style="text-align: right;">${row.sale_subtotal}</td>
+                    <td style="text-align: right;">${row.sale_discount}</td>
+                    <td style="text-align: right;">${row.sale_grandtotal}</td>
+                    <td><small>${esc(row.payment_info || '-')}</small></td>
+                    <td style="text-align: right;">
+                        <button class="btn btn-sm btn-info" onclick="load_bill_again(${row.sale_id})">
+                            <i class="fa fa-print" aria-hidden="true"></i>
+                        </button>
+                    </td>
+                </tr>`;
+    }
+
     // Update Total Grand Total
     function updateTotalGrandTotal(data) {
         let total = 0;
@@ -141,34 +194,9 @@ $(document).ready(function () {
                 }
 
                 // Build table rows
-                let tableHTML = `<thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Code</th>
-                                        <th>Customer Name</th>
-                                        <th>Date</th>
-                                        <th>Sub Total</th>
-                                        <th>Discount</th>
-                                        <th>Grand Total</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
+                let tableHTML = reportHead() + `<tbody>`;
                 data.forEach((row, index) => {
-                    tableHTML += `<tr>
-                                    <td>${index + 1}</td>
-                                    <td>${row.sale_id}</td>
-                                    <td>${row.cus_name}</td>
-                                    <td>${row.sale_createdat}</td>
-                                    <td style="text-align: right;">${row.sale_subtotal}</td>
-                                    <td style="text-align: right;">${row.sale_discount}</td>
-                                    <td style="text-align: right;">${row.sale_grandtotal}</td>
-                                    <td style="text-align: right;">
-                                        <button class="btn btn-sm btn-info" onclick="load_bill_again(${row.sale_id})">
-                                            <i class="fa fa-print" aria-hidden="true"></i>
-                                        </button>
-                                    </td>
-                                </tr>`;
+                    tableHTML += reportRow(row, index);
                 });
                 tableHTML += `</tbody>`;
 
@@ -212,34 +240,9 @@ $(document).ready(function () {
                         return;
                     }
 
-                    let tableHTML = `<thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Code</th>
-                                            <th>Customer Name</th>
-                                            <th>Date</th>
-                                            <th>Sub Total</th>
-                                            <th>Discount</th>
-                                            <th>Grand Total</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>`;
+                    let tableHTML = reportHead() + `<tbody>`;
                     data.forEach((row, index) => {
-                        tableHTML += `<tr>
-                                        <td>${index + 1}</td>
-                                        <td>${row.sale_id}</td>
-                                        <td>${row.cus_name}</td>
-                                        <td>${row.sale_createdat}</td>
-                                        <td style="text-align: right;">${row.sale_subtotal}</td>
-                                        <td style="text-align: right;">${row.sale_discount}</td>
-                                        <td style="text-align: right;">${row.sale_grandtotal}</td>
-                                        <td style="text-align: right;">
-                                            <button class="btn btn-sm btn-info" onclick="load_bill_again(${row.sale_id})">
-                                                <i class="fa fa-print" aria-hidden="true"></i>
-                                            </button>
-                                        </td>
-                                    </tr>`;
+                        tableHTML += reportRow(row, index);
                     });
                     tableHTML += `</tbody>`;
 

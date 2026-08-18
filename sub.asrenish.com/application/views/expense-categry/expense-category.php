@@ -37,8 +37,9 @@
                                 <tr>
                                     <th>#</th>
                                     <th>Name</th>
+                                    <th>Status</th>
                                     <th>Edit</th>
-                                    <th>Delete</th>                                  
+                                    <th>Active</th>
                                 </tr>
                                 </thead>
                                 <tbody id="tbodyID">                                          
@@ -98,16 +99,14 @@
                         async: false,
                         dataType:'json',  
                         success: function(response){
-                        //  $('#formid')[0].reset();
-                            alert("Record added");
+                            alert(response && response.msg ? response.msg : "Record added");
+                            if(!response || response.ok !== false){ $('#expenseid').val(''); }
                             showAllExpenses();
                         },
                         error: function() {
                             alert("There was an error. Try again please!");
                         }
                     });
-            $('#expenseid').val('');
-  
         });
 
         function showAllExpenses(){
@@ -119,19 +118,34 @@
 					success:function(data){
 						var rows = '';
 						var i;
+						if(!data){ data = []; }
 						for(i=0; i<data.length; i++){
-                        rows+= '<tr>'+
+                        var active = parseInt(data[i].expencat_status) === 1;
+                        var badge = active
+                            ? '<span class="badge badge-success" style="background:#28a745;color:#fff;">Active</span>'
+                            : '<span class="badge badge-secondary" style="background:#868e96;color:#fff;">Inactive</span>';
+                        // Deactivate hides the category from the Expense screen but
+                        // keeps every expense already booked against it readable.
+                        var toggle = active
+                            ? '<a href="javascript:;" class="btn btn-sm btn-warning cls-toggle" data="'+data[i].expencat_id+'" data-to="0">Deactivate</a>'
+                            : '<a href="javascript:;" class="btn btn-sm btn-success cls-toggle" data="'+data[i].expencat_id+'" data-to="1">Activate</a>';
+                        rows+= '<tr'+(active ? '' : ' style="opacity:.6;"')+'>'+
                                     '<td>'+data[i].expencat_id+'</td>'+
                                     '<td>'+data[i].expencat_catname+'</td>'+
+                                    '<td>'+badge+'</td>'+
                                     '<td>'+
                                     '<a href="javascript:;" class="btn btn-sm btn-info cls-edit" data="'+data[i].expencat_id+'"><i class="fa fa-edit"></i></a>'+
                                     '</td>'+
-                                    '<td>'+
-                                    '<a href="javascript:;" class="btn btn-sm btn-danger cls-delete" data="'+data[i].expencat_id+'"><i class="fa fa-times-rectangle-o"></i></a>'+
-                                    '</td>'+
+                                    '<td>'+toggle+'</td>'+
                                 '</tr>';
 						}
-							$('#tbodyID').html(rows);						
+							// Rebuild the table so search, sorting and paging see the
+							// new rows instead of the ones that were there at load.
+							if($.fn.DataTable.isDataTable('#datatable-buttons')){
+								$('#datatable-buttons').DataTable().destroy();
+							}
+							$('#tbodyID').html(rows);
+							initTable();
 					},
 					error: function(){
 						alert('error data collection');
@@ -170,7 +184,8 @@
                         async: false,
                         dataType:'json',  
                         success: function(response){
-                            alert("Expense Updated");
+                            alert(response && response.msg ? response.msg : "Expense Updated");
+                            if(!response || response.ok !== false){ $('#EditModel').modal('hide'); }
                             showAllExpenses();
                         },
                         error: function() {
@@ -179,37 +194,40 @@
                     });
             });
 
-        //Delete
-			$('#tbodyID').on('click', '.cls-delete', function(){
-                
-                var check = confirm("Press OK to continue delete");
-                if (check == true) {
+        //Activate / Deactivate. Categories are never deleted, so old expenses
+        //keep the category name they were booked under.
+			$('#tbodyID').on('click', '.cls-toggle', function(){
                 var id = $(this).attr('data');
-                        $.ajax({
-                                type: 'post',
-                                url: "<?php echo base_url('ExpenCategories/DeleteExpenses'); ?>",
-                                data:  {id: id},	
-                                async: false,
-                                dataType:'json',  
-                                success: function(response){
-                                    showAllExpenses();
-                                    alert("Record Deleted");                            
-                                },
-                                error: function() {
-                                    alert("There was an error. Try again please!");
-                                }
-                            });
-                        }                 
+                var to = $(this).attr('data-to');
+                var word = (to == '1') ? 'activate' : 'deactivate';
+                if(!confirm('Press OK to ' + word + ' this category.')){ return; }
+                $.ajax({
+                        type: 'post',
+                        url: "<?php echo base_url('ExpenCategories/setStatus'); ?>",
+                        data:  {id: id, status: to},
+                        async: false,
+                        dataType:'json',
+                        success: function(response){
+                            showAllExpenses();
+                            alert(response && response.msg ? response.msg : 'Saved.');
+                        },
+                        error: function() {
+                            alert("There was an error. Try again please!");
+                        }
+                    });
             });
                
-            //Buttons examples
-            var table = $('#datatable-buttons').DataTable({
-            buttons: ['copy', 'excel', 'pdf']
-            });
-            table.buttons().container()
-                    .appendTo('#datatable-buttons_wrapper .col-md-6:eq(0)');
+            //Buttons examples. Called again after every refresh above, so the
+            //Copy / Excel / PDF buttons keep working on the rows on screen.
+            function initTable(){
+                var table = $('#datatable-buttons').DataTable({
+                    buttons: ['copy', 'excel', 'pdf']
+                });
+                table.buttons().container()
+                        .appendTo('#datatable-buttons_wrapper .col-md-6:eq(0)');
+            }
 
-    } ); 
+    } );
     $(document)
     
 </script> 

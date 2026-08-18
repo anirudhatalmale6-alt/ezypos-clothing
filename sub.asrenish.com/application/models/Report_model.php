@@ -73,7 +73,149 @@ class Report_model extends CI_Model {
         }
         return $base;
     }
-    
+
+    /**
+     * The columns the Sales Report needs on every sale row.
+     *
+     * sale_bill_no / sale_bill_seq / sale_location are what bill_no() turns
+     * into the printed receipt number (HG-B-001). Older databases that have
+     * not run v9 have no such columns, so they are faked as empty rather than
+     * named directly - naming a missing column would break the whole report.
+     */
+    protected function _saleReportColumns()
+    {
+        $f = $this->db->list_fields('ezy_pos_sale');
+        return 's.sale_id, s.sale_cus_id, s.sale_grandtotal, s.sale_subtotal, s.sale_discount, s.sale_createdat'
+             .', '.(in_array('sale_location',  $f) ? 's.sale_location'  : '0 AS sale_location')
+             .', '.(in_array('sale_bill_no',   $f) ? 's.sale_bill_no'   : "'' AS sale_bill_no")
+             .', '.(in_array('sale_bill_seq',  $f) ? 's.sale_bill_seq'  : 'NULL AS sale_bill_seq');
+    }
+
+    /**
+     * Fill in the parts of a Sales Report row that are not on ezy_pos_sale.
+     *
+     *   bill_no        the receipt number the customer was handed
+     *   sale_kind      Sale / Voucher Sale / Sale + Voucher
+     *   voucher_cards  the card numbers sold on that bill
+     *   payment_info   how it was paid - Cash, a card and its reference,
+     *                  cheque, a gift voucher used as payment, or credit
+     *
+     * A gift voucher is not a stock item, so a voucher-only bill has no lines
+     * in ezy_pos_sale_item at all. Without this it looked like an empty sale.
+     *
+     * Everything is fetched in one query per source, not one per row, so a
+     * year of sales still loads in a single pass.
+     */
+    protected function _decorateSaleRows($rows)
+    {
+        if(!$rows || !is_array($rows) || count($rows) == 0){ return $rows; }
+
+        $ids = array();
+        foreach($rows as $r){ $ids[] = intval($r->sale_id); }
+        $in = implode(',', $ids);
+
+        // Stock lines per bill.
+        $lines = array();
+        $q = $this->db->query("SELECT saleitem_sale_id AS sid, COUNT(*) AS n
+                               FROM ezy_pos_sale_item
+                               WHERE saleitem_sale_id IN ($in)
+                               GROUP BY saleitem_sale_id");
+        foreach($q->result() as $x){ $lines[intval($x->sid)] = intval($x->n); }
+
+        // Gift vouchers SOLD on each bill.
+        $vSold = array();
+        if($this->db->table_exists('ezy_pos_gift_cards')){
+            $q = $this->db->query("SELECT gc_sold_sale_id AS sid, COUNT(*) AS n,
+                                          COALESCE(SUM(gc_original_value),0) AS v,
+                                          GROUP_CONCAT(gc_card_number ORDER BY gc_id SEPARATOR ', ') AS cards
+                                   FROM ezy_pos_gift_cards
+                                   WHERE gc_sold_sale_id IN ($in)
+                                   GROUP BY gc_sold_sale_id");
+            foreach($q->result() as $x){
+                $vSold[intval($x->sid)] = array('n' => intval($x->n),
+                                                'v' => floatval($x->v),
+                                                'cards' => (string)$x->cards);
+            }
+        }
+
+        // ---- how each bill was paid ----
+        $cash = array(); $credit = array();
+        $q = $this->db->query("SELECT cus_pay_saleid AS sid,
+                                      COALESCE(SUM(cus_pay_cash),0) AS cash,
+                                      COALESCE(SUM(cus_pay_credit),0) AS credit
+                               FROM ezy_pos_cus_payment
+                               WHERE cus_pay_saleid IN ($in)
+                               GROUP BY cus_pay_saleid");
+        foreach($q->result() as $x){
+            $cash[intval($x->sid)]   = floatval($x->cash);
+            $credit[intval($x->sid)] = floatval($x->credit);
+        }
+
+        $methods = array();
+        if($this->db->table_exists('ezy_pos_sale_payments')){
+            $spFields = $this->db->list_fields('ezy_pos_sale_payments');
+            $refCol   = in_array('sp_card_ref', $spFields) ? 'sp.sp_card_ref' : "'' AS sp_card_ref";
+            $q = $this->db->query("SELECT sp.sp_sale_id AS sid, sp.sp_amount, ".$refCol.",
+                                          COALESCE(pm.pm_name,'Card') AS pm_name
+                                   FROM ezy_pos_sale_payments sp
+                                   LEFT JOIN ezy_pos_payment_methods pm ON pm.pm_id = sp.sp_pm_id
+                                   WHERE sp.sp_sale_id IN ($in)");
+            foreach($q->result() as $x){
+                $sid = intval($x->sid);
+                if(!isset($methods[$sid])){ $methods[$sid] = array(); }
+                $txt = $x->pm_name.' '.number_format(floatval($x->sp_amount), 2);
+                $ref = isset($x->sp_card_ref) ? trim((string)$x->sp_card_ref) : '';
+                if($ref !== ''){ $txt .= ' (ref '.$ref.')'; }
+                $methods[$sid][] = $txt;
+            }
+        }
+
+        $cheques = array();
+        if($this->db->table_exists('ezy_pos_cus_cheque')){
+            $q = $this->db->query("SELECT cus_cheque_saleid AS sid,
+                                          COALESCE(SUM(cus_cheque_amount),0) AS t
+                                   FROM ezy_pos_cus_cheque
+                                   WHERE cus_cheque_saleid IN ($in)
+                                   GROUP BY cus_cheque_saleid");
+            foreach($q->result() as $x){ $cheques[intval($x->sid)] = floatval($x->t); }
+        }
+
+        $vUsed = array();
+        if($this->db->table_exists('ezy_pos_voucher_redemptions')){
+            $q = $this->db->query("SELECT vr_sale_id AS sid, COALESCE(SUM(vr_amount),0) AS t
+                                   FROM ezy_pos_voucher_redemptions
+                                   WHERE vr_sale_id IN ($in)
+                                   GROUP BY vr_sale_id");
+            foreach($q->result() as $x){ $vUsed[intval($x->sid)] = floatval($x->t); }
+        }
+
+        foreach($rows as $r){
+            $id = intval($r->sale_id);
+
+            $r->bill_no = bill_no($r);
+
+            $nLines  = isset($lines[$id]) ? $lines[$id] : 0;
+            $nVouch  = isset($vSold[$id]) ? $vSold[$id]['n'] : 0;
+            $r->voucher_qty   = $nVouch;
+            $r->voucher_total = isset($vSold[$id]) ? round($vSold[$id]['v'], 2) : 0;
+            $r->voucher_cards = isset($vSold[$id]) ? $vSold[$id]['cards'] : '';
+
+            if($nVouch > 0 && $nLines > 0){       $r->sale_kind = 'Sale + Voucher'; }
+            elseif($nVouch > 0){                  $r->sale_kind = 'Voucher Sale'; }
+            else{                                 $r->sale_kind = 'Sale'; }
+
+            $paid = array();
+            if(isset($cash[$id]) && $cash[$id] > 0.004){   $paid[] = 'Cash '.number_format($cash[$id], 2); }
+            if(isset($methods[$id])){                      $paid = array_merge($paid, $methods[$id]); }
+            if(isset($cheques[$id]) && $cheques[$id] > 0.004){ $paid[] = 'Cheque '.number_format($cheques[$id], 2); }
+            if(isset($vUsed[$id]) && $vUsed[$id] > 0.004){ $paid[] = 'Gift Voucher '.number_format($vUsed[$id], 2); }
+            if(isset($credit[$id]) && $credit[$id] > 0.004){ $paid[] = 'Credit '.number_format($credit[$id], 2); }
+            $r->payment_info = empty($paid) ? '-' : implode(', ', $paid);
+        }
+
+        return $rows;
+    }
+
     
         public function getSaleReport(){
         $str="SELECT s.sale_id,s.sale_cus_id,s.sale_grandtotal,s.sale_subtotal,s.sale_discount,s.sale_createdat,c.cus_name "
@@ -427,11 +569,14 @@ class Report_model extends CI_Model {
     
     public function getSaleReport_by_users($cus_id){
         $sf = $this->_storeFilterFor('s.sale_location', $this->input->post('store_id'));
-        $str="SELECT s.sale_id,s.sale_cus_id,s.sale_grandtotal,s.sale_subtotal,s.sale_discount,s.sale_createdat,c.cus_name "
-                . "FROM ezy_pos_sale s,ezy_pos_customers c WHERE s.sale_cus_id='$cus_id' AND  c.cus_id='$cus_id'".$sf;
+        // LEFT JOIN, not the old comma join: a bill whose customer record was
+        // since removed still happened and still belongs in the report.
+        $str="SELECT ".$this->_saleReportColumns().", c.cus_name "
+                . "FROM ezy_pos_sale s LEFT JOIN ezy_pos_customers c ON c.cus_id = s.sale_cus_id "
+                . "WHERE s.sale_cus_id='".intval($cus_id)."'".$sf;
         $query = $this->db->query($str);
         if($query->num_rows()>0){
-            return $query->result();
+            return $this->_decorateSaleRows($query->result());
         }
         else{
             return false;
@@ -461,11 +606,12 @@ class Report_model extends CI_Model {
         $end=$to." 23:59:59";
         $sf = $this->_storeFilterFor('s.sale_location', $this->input->post('store_id'));
 
-        $str="SELECT s.sale_id,s.sale_cus_id,s.sale_grandtotal,s.sale_subtotal,s.sale_discount,s.sale_createdat,c.cus_name "
-        . "FROM ezy_pos_sale s,ezy_pos_customers c WHERE s.sale_cus_id='$cus_id' AND c.cus_id='$cus_id' AND sale_createdat BETWEEN '".$start."' AND '".$end."' ".$sf;
+        $str="SELECT ".$this->_saleReportColumns().", c.cus_name "
+        . "FROM ezy_pos_sale s LEFT JOIN ezy_pos_customers c ON c.cus_id = s.sale_cus_id "
+        . "WHERE s.sale_cus_id='".intval($cus_id)."' AND s.sale_createdat BETWEEN '".$start."' AND '".$end."' ".$sf;
         $query = $this->db->query($str);
         if($query->num_rows()>0){
-            return $query->result();
+            return $this->_decorateSaleRows($query->result());
         }
         else{
             return false;
@@ -479,11 +625,14 @@ class Report_model extends CI_Model {
         $end=$to." 23:59:59";
         $sf = $this->_storeFilterFor('s.sale_location', $this->input->post('store_id'));
 
-        $str="SELECT s.sale_id,s.sale_cus_id,s.sale_grandtotal,s.sale_subtotal,s.sale_discount,s.sale_createdat,c.cus_name "
-        . "FROM ezy_pos_sale s,ezy_pos_customers c WHERE s.sale_cus_id=c.cus_id AND sale_createdat BETWEEN '".$start."' AND '".$end."' ".$sf;
+        // LEFT JOIN so a gift-voucher bill, or one whose customer was deleted,
+        // is not silently dropped from the report.
+        $str="SELECT ".$this->_saleReportColumns().", c.cus_name "
+        . "FROM ezy_pos_sale s LEFT JOIN ezy_pos_customers c ON c.cus_id = s.sale_cus_id "
+        . "WHERE s.sale_createdat BETWEEN '".$start."' AND '".$end."' ".$sf;
         $query = $this->db->query($str);
         if($query->num_rows()>0){
-            return $query->result();
+            return $this->_decorateSaleRows($query->result());
         }
         else{
             return false;

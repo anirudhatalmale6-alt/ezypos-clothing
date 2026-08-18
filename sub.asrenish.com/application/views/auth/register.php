@@ -318,6 +318,12 @@
                                                     <label for="gatepass">Gate Pass</label>
                                                     </div>
                                                 </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="expense_cat" name="expense_cat" type="checkbox" value=1>
+                                                    <label for="expense_cat">Expense Categories</label>
+                                                    </div>
+                                                </td>
                                             </tr>
 											<tr>
                                                 <th><b><u> Listing </u></b></th>
@@ -857,6 +863,13 @@
                                                     <input id="E_gatepass" name="E_gatepass" type="checkbox"
                                                     <?php echo (isset($user['priv_gatepass']) && $user['priv_gatepass']==1 ? 'checked' : '');?> value=1>
                                                     <label for="E_gatepass">Gate Pass</label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_expense_cat" name="E_expense_cat" type="checkbox"
+                                                    <?php echo (isset($user['priv_expense_cat']) && $user['priv_expense_cat']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_expense_cat">Expense Categories</label>
                                                     </div>
                                                 </td>
                                             </tr>

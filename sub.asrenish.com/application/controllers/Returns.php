@@ -148,6 +148,24 @@ class Returns extends CI_Controller {
                 $exchange_total += floatval($ei['total']);
             }
         }
+        $exchange_total = round($exchange_total, 2);
+
+        // Discount on the exchange as a whole - the same field, and the same
+        // rule, as the bill discount on a sale. Worked out here rather than
+        // trusting the figure the screen posted.
+        $exc_dis_in   = floatval($this->input->post('exchange_discount_input'));
+        $exc_dis_type = ($this->input->post('exchange_discount_type') === 'percentage') ? 'percentage' : 'flat';
+        $exchange_discount = 0;
+        if ($exc_dis_in > 0 && $exchange_total > 0) {
+            if ($exc_dis_type === 'percentage') {
+                if ($exc_dis_in > 100) { $exc_dis_in = 100; }
+                $exchange_discount = round($exchange_total * $exc_dis_in / 100, 2);
+            } else {
+                $exchange_discount = min(round($exc_dis_in, 2), $exchange_total);
+            }
+            $exchange_total = round($exchange_total - $exchange_discount, 2);
+            if ($exchange_total < 0) { $exchange_total = 0; }
+        }
 
         // Net amount: positive = refund to customer, negative = customer pays difference
         $net_amount = $return_total - $exchange_total;
@@ -168,7 +186,9 @@ class Returns extends CI_Controller {
             'net_amount'      => $net_amount,
             'reason'          => $reason ? $reason : '',
             'return_store_id' => $return_store_id,
-            'refund_mode'     => $refund_mode
+            'refund_mode'     => $refund_mode,
+            'exchange_discount'      => $exchange_discount,
+            'exchange_discount_type' => $exc_dis_type
         );
         $ret_id = $this->Returns_model->createReturn($ret_data);
         if (!$ret_id) {
@@ -225,7 +245,9 @@ class Returns extends CI_Controller {
                     'item_name' => $item_name,
                     'qty'       => $qty,
                     'price'     => $price,
-                    'discount'  => 0,
+                    // The line's own discount, which used to be thrown away.
+                    'discount'      => isset($ei['discount']) ? floatval($ei['discount']) : 0,
+                    'discount_type' => (isset($ei['discount_type']) && $ei['discount_type'] === 'flat') ? 'flat' : 'percentage',
                     'total'     => $total
                 );
                 $this->Returns_model->addExchangeItem($ei_data);

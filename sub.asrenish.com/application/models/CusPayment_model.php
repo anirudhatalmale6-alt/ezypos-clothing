@@ -471,12 +471,21 @@ class CusPayment_model extends CI_Model {
         }
     }
     public function getPayment($saleID){
-        $str="SELECT  cus_pay_cash,cus_pay_credit,sum(cus_cheque_amount) as cheq, count(cus_cheque_amount) as noOfChqs
-        FROM ezy_pos_sale
-        LEFT JOIN ezy_pos_cus_payment ON ezy_pos_cus_payment.cus_pay_saleid=ezy_pos_sale.sale_id
-        LEFT JOIN ezy_pos_cus_cheque ON ezy_pos_cus_cheque.cus_cheque_saleid=ezy_pos_sale.sale_id 
-        WHERE sale_id='".$saleID."'
-        GROUP BY cus_cheque_saleid";
+        // cus_pay_cash and cus_pay_credit were named bare alongside SUM() and
+        // COUNT(). MySQL refuses that whenever only_full_group_by is on (it is
+        // on by default from MySQL 5.7), and the whole bill then failed to
+        // print with a blank page. MAX() gives the same single value the query
+        // was already relying on - it cannot be summed, because one payment row
+        // joined against several cheque rows would be counted once per cheque.
+        $str="SELECT MAX(p.cus_pay_cash) AS cus_pay_cash,
+                     MAX(p.cus_pay_credit) AS cus_pay_credit,
+                     SUM(c.cus_cheque_amount) AS cheq,
+                     COUNT(c.cus_cheque_amount) AS noOfChqs
+        FROM ezy_pos_sale s
+        LEFT JOIN ezy_pos_cus_payment p ON p.cus_pay_saleid = s.sale_id
+        LEFT JOIN ezy_pos_cus_cheque  c ON c.cus_cheque_saleid = s.sale_id
+        WHERE s.sale_id = '".$saleID."'
+        GROUP BY s.sale_id";
         $query = $this->db->query($str);
         if($query->num_rows()>0){
             return $query->row();
