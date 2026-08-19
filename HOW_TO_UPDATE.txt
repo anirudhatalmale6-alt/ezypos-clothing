@@ -58,7 +58,11 @@ STEP 3 - RUN THE DATABASE UPDATES
         Ethulkotte and get their branch bill number
 6. Press "Run step 4" - this adds the columns that record a discount given
    on an exchange. It only adds things.
-7. Check the "Records still needing repair" boxes now read 0.
+7. Press "Run step 5" - this adds the column that lets an expense category
+   sit under a parent one. It only adds things. Every category you have
+   today becomes a parent category and every expense already entered keeps
+   the category it has now.
+8. Check the "Records still needing repair" boxes now read 0.
 
 Every line is shown with a green "done" or an amber "already there". If
 anything comes up red, stop and send me a screenshot of the page - do not
@@ -105,6 +109,13 @@ AFTER THE UPDATE - QUICK CHECKS
 - Reports > Sales Report for today. The voucher sale should be listed, marked
   Voucher Sale, and the first column should be the receipt number the customer
   was handed - not a plain number.
-- Masters > Expense Categories should now be in the menu.
+- Masters > Expense Categories should now be in the menu. Add a parent
+  category called Transportation, then switch to Subcategory, pick
+  Transportation as the parent, and add Fuel under it.
+- Transactions > Expense. Choosing Transportation should offer Fuel in a
+  second box underneath, and it will not let you save until you pick one.
+- Transactions > Supplier Return should now be a normal link in that menu.
+  It used to be a button floated to the right of the menu bar, and on a
+  full menu it was pushed off the end where nobody could reach it.
 
 If any of those look wrong, tell me what you see and I will sort it.

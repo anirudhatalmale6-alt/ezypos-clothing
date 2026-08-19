@@ -12,30 +12,47 @@
                         <div class="card-box">
                             <h4 class="header-title m-t-0 m-b-30">Expense Details</h4>
                             <form id="formid" name="formname" action="#" method="post">
+                                <?php
+                                    // Guard: with no active category at all this is FALSE,
+                                    // and foreach(FALSE) throws a warning across the page.
+                                    $expenCategories = (isset($expenCategories) && is_array($expenCategories)) ? $expenCategories : array();
+                                    $expenCatTree    = (isset($expenCatTree) && is_array($expenCatTree)) ? $expenCatTree : array();
+                                    // Fall back to the flat list on a database where the
+                                    // v12 update has not been run yet: every category then
+                                    // reads as a parent with no subcategories, which is
+                                    // exactly how this screen used to behave.
+                                    if(count($expenCatTree) === 0){
+                                        foreach($expenCategories as $c){
+                                            $expenCatTree[] = array(
+                                                'id'        => intval($c->expencat_id),
+                                                'name'      => $c->expencat_catname,
+                                                'parent_id' => 0,
+                                                'display'   => $c->expencat_catname
+                                            );
+                                        }
+                                    }
+                                ?>
                                 <div class="form-group row">
                                     <label for="expenseCatid" class="col-3 col-form-label">Expense Category:<span class="text-danger">*</span></label>
                                     <div class="col-9">
-                                        <select class="form-control" name="expenseCat" id="expenseCatid" required>
+                                        <select class="form-control" name="expenseParentCat" id="expenseCatid" required>
                                             <option value="">-Select-</option>
-                                               <?php
-                                            // Guard: with no active category at all this is FALSE,
-                                            // and foreach(FALSE) throws a warning across the page.
-                                            $expenCategories = (isset($expenCategories) && is_array($expenCategories)) ? $expenCategories : array();
-                                            $otherCategory = null;
-                                            foreach ($expenCategories as $expenCat) {
-                                                if ($expenCat->expencat_id == 6) {
-                                                    $otherCategory = $expenCat;
-                                                } else {
-                                                    print '<option value="'. $expenCat->expencat_id.'"> '. $expenCat->expencat_catname.'</option>';
-                                                }
-                                            }
-                                            if ($otherCategory) {
-                                                print '<option value="'. $otherCategory->expencat_id.'"> '. $otherCategory->expencat_catname.'</option>';
-                                            }
-                                            ?><!-- "Other" category (ID: 6) will always appear as the last option in the dropdown -->                                     
                                         </select>
                                     </div>
                                 </div>
+                                <div class="form-group row" id="subCatRow">
+                                    <label for="expenseSubCatid" class="col-3 col-form-label">Subcategory:<span class="text-danger" id="subCatStar" style="display:none;">*</span></label>
+                                    <div class="col-9">
+                                        <select class="form-control" name="expenseSubCat" id="expenseSubCatid">
+                                            <option value="">-Select-</option>
+                                        </select>
+                                        <small class="text-muted" id="subCatNote"></small>
+                                    </div>
+                                </div>
+                                <!-- What actually gets saved: the subcategory if one was
+                                     chosen, otherwise the parent. The rest of the system
+                                     reads this field exactly as it always has. -->
+                                <input type="hidden" name="expenseCat" id="expenseEffectiveCat" value="">
                                 <div class="form-group row" id="employeediv"></div>   
                                 <div id="employeeExpensediv"></div>                             
                                 <div class="form-group row">
@@ -121,19 +138,23 @@
                     <div class="modal-body">                            
                             <input type="hidden" name="hiddenID" id="hiddenID" value="0">
                                 <div class="form-group row">
-                                    <label for="edit_expenseCatid" class="col-3 col-form-label">Expense</label>
+                                    <label for="edit_expenseCatid" class="col-3 col-form-label">Expense Category</label>
                                     <div class="col-9">
-                                        <select class="form-control" name="edit_expenseCat" id="edit_expenseCatid" required>
+                                        <select class="form-control" name="edit_expenseParentCat" id="edit_expenseCatid" required>
                                             <option value="">-Select-</option>
-                                            <?php
-                                            foreach ($expenses as $expen)
-                                            {
-                                           print '<option value="'.  $expen->expen_id.'"> '. $expen->expen_catname.'</option>';
-                                            }
-	                                        ?>
                                         </select>
                                     </div>
                                 </div>
+                                <div class="form-group row" id="edit_subCatRow">
+                                    <label for="edit_expenseSubCatid" class="col-3 col-form-label">Subcategory</label>
+                                    <div class="col-9">
+                                        <select class="form-control" name="edit_expenseSubCat" id="edit_expenseSubCatid">
+                                            <option value="">-Select-</option>
+                                        </select>
+                                        <small class="text-muted" id="edit_subCatNote"></small>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="edit_expenseCat" id="edit_expenseEffectiveCat" value="">
                                 <div class="form-group row">
                                     <label for="edit_descriptionid" class="col-3 col-form-label">Description</label>
                                     <div class="col-9">
@@ -360,9 +381,97 @@
 
         showAllExpenses();
 
+        // -----------------------------------------------------------------
+        // Parent category / subcategory
+        //
+        // The whole list comes down with the page, so choosing a parent fills
+        // the subcategory box straight away. What gets SAVED is the hidden
+        // field: the subcategory if one was picked, otherwise the parent. Every
+        // report and every expense already on file reads that same field, so
+        // nothing downstream had to change.
+        // -----------------------------------------------------------------
+        var EXPENSE_CATS = <?php echo json_encode($expenCatTree); ?>;
+
+        function catById(id){
+            for(var i=0; i<EXPENSE_CATS.length; i++){
+                if(String(EXPENSE_CATS[i].id) === String(id)) return EXPENSE_CATS[i];
+            }
+            return null;
+        }
+        function subsOf(parentId){
+            var out = [];
+            for(var i=0; i<EXPENSE_CATS.length; i++){
+                if(String(EXPENSE_CATS[i].parent_id) === String(parentId)) out.push(EXPENSE_CATS[i]);
+            }
+            return out;
+        }
+        function fillParents($sel){
+            var keep = $sel.val();
+            $sel.empty().append($('<option>').val('').text('-Select-'));
+            var other = null;
+            for(var i=0; i<EXPENSE_CATS.length; i++){
+                var c = EXPENSE_CATS[i];
+                if(parseInt(c.parent_id, 10) !== 0) continue;
+                // "Other" (id 6) stays pinned to the bottom, as it always was.
+                if(parseInt(c.id, 10) === 6){ other = c; continue; }
+                $sel.append($('<option>').val(c.id).text(c.name));
+            }
+            if(other){ $sel.append($('<option>').val(other.id).text(other.name)); }
+            if(keep){ $sel.val(keep); }
+        }
+        // Returns true when the parent has subcategories, i.e. when picking one
+        // is compulsory.
+        function fillSubs($sel, parentId, $row, $star, $note){
+            var subs = parentId ? subsOf(parentId) : [];
+            $sel.empty().append($('<option>').val('').text('-Select-'));
+            for(var i=0; i<subs.length; i++){
+                $sel.append($('<option>').val(subs[i].id).text(subs[i].name));
+            }
+            var required = subs.length > 0;
+            $row.toggle(!!parentId);
+            $star.toggle(required);
+            $sel.prop('disabled', !required);
+            $note.text(parentId && !required
+                ? 'This category has no subcategories - the expense will be booked against it directly.'
+                : '');
+            return required;
+        }
+        // The one value that is actually saved.
+        function syncEffective($parent, $sub, $hidden){
+            var sub = $sub.val();
+            $hidden.val(sub ? sub : ($parent.val() || ''));
+        }
+
+        fillParents($('#expenseCatid'));
+        fillSubs($('#expenseSubCatid'), '', $('#subCatRow'), $('#subCatStar'), $('#subCatNote'));
+
+        $('#expenseCatid').on('change', function(){
+            fillSubs($('#expenseSubCatid'), $(this).val(), $('#subCatRow'), $('#subCatStar'), $('#subCatNote'));
+            syncEffective($('#expenseCatid'), $('#expenseSubCatid'), $('#expenseEffectiveCat'));
+        });
+        $('#expenseSubCatid').on('change', function(){
+            syncEffective($('#expenseCatid'), $('#expenseSubCatid'), $('#expenseEffectiveCat'));
+        });
+        $('#edit_expenseCatid').on('change', function(){
+            fillSubs($('#edit_expenseSubCatid'), $(this).val(), $('#edit_subCatRow'), $('<span>'), $('#edit_subCatNote'));
+            syncEffective($('#edit_expenseCatid'), $('#edit_expenseSubCatid'), $('#edit_expenseEffectiveCat'));
+        });
+        $('#edit_expenseSubCatid').on('change', function(){
+            syncEffective($('#edit_expenseCatid'), $('#edit_expenseSubCatid'), $('#edit_expenseEffectiveCat'));
+        });
+
         $("#formid").submit(function(e) {
        
             e.preventDefault();
+            // A parent that HAS subcategories must be narrowed down to one of
+            // them, otherwise the expense report would only ever say
+            // "Transportation" and never which kind.
+            if(subsOf($('#expenseCatid').val()).length > 0 && !$('#expenseSubCatid').val()){
+                swal({ type: 'error', title: 'Subcategory needed',
+                       text: 'Choose the subcategory of ' + $('#expenseCatid option:selected').text().trim() + '.' });
+                return;
+            }
+            syncEffective($('#expenseCatid'), $('#expenseSubCatid'), $('#expenseEffectiveCat'));
             var data = $('#formid').serialize();
                 $.ajax({
                     type: 'post',
@@ -372,6 +481,8 @@
                     dataType:'json',  
                     success: function(response){
                         $('#formid')[0].reset();
+                        fillSubs($('#expenseSubCatid'), '', $('#subCatRow'), $('#subCatStar'), $('#subCatNote'));
+                        $('#expenseEffectiveCat').val('');
                         // alert(response);
                         swal({
                             type: 'success',
@@ -451,6 +562,23 @@
                 });
         }
         //for expen edit
+        // Point the edit modal at the category an expense was booked to. If
+        // that category is a subcategory, its parent is selected first and the
+        // subcategory box is filled from it.
+        function selectEditCategory(catId){
+            var cat = catById(catId);
+            var parentId = '', subId = '';
+            if(cat){
+                if(parseInt(cat.parent_id, 10) > 0){ parentId = cat.parent_id; subId = cat.id; }
+                else { parentId = cat.id; }
+            }
+            fillParents($('#edit_expenseCatid'));
+            $('#edit_expenseCatid').val(parentId);
+            fillSubs($('#edit_expenseSubCatid'), parentId, $('#edit_subCatRow'), $('<span>'), $('#edit_subCatNote'));
+            $('#edit_expenseSubCatid').val(subId);
+            syncEffective($('#edit_expenseCatid'), $('#edit_expenseSubCatid'), $('#edit_expenseEffectiveCat'));
+        }
+
         function loadExpenCatgryNameID(){
             $.ajax({ //get all expense categories to dropdown
                     type: 'post',
@@ -522,8 +650,7 @@
                             $('input[name=edit_description]').val(data[1].expen_description);
                             $('input[name=edit_amount]').val(data[1].expen_amount);
                             $('input[name=edit_date]').val(data[1].expen_date);
-                            loadExpenCatgryNameID();
-                            $("#edit_expenseCatid").val(data[1].expencat_id);
+                            selectEditCategory(data[1].expencat_id);
                         }
                         
                     },
@@ -589,6 +716,12 @@
         //update
             $("#editForm").submit(function(e) {
             e.preventDefault();
+            if(subsOf($('#edit_expenseCatid').val()).length > 0 && !$('#edit_expenseSubCatid').val()){
+                swal({ type: 'error', title: 'Subcategory needed',
+                       text: 'Choose the subcategory of ' + $('#edit_expenseCatid option:selected').text().trim() + '.' });
+                return;
+            }
+            syncEffective($('#edit_expenseCatid'), $('#edit_expenseSubCatid'), $('#edit_expenseEffectiveCat'));
             var data = $('#editForm').serialize();
             $.ajax({
                     type: 'post',

@@ -285,6 +285,11 @@
                             $canGiftvoucher   = $isAdmin || (isset($_SESSION['privGiftvoucher']) && $_SESSION['privGiftvoucher']==1);
                             $canReturns       = $isAdmin || (isset($_SESSION['privReturns']) && $_SESSION['privReturns']==1) || (isset($_SESSION['privExchanges']) && $_SESSION['privExchanges']==1);
                             $canStocktransfer = $isAdmin || (isset($_SESSION['privStocktransfer']) && $_SESSION['privStocktransfer']==1);
+                            // Supplier Return used to be a button floated to the right of the
+                            // menu bar. On a full menu it was pushed off the end and could not
+                            // be clicked, so it looked hidden even to a user who had the
+                            // permission. It is a normal Transactions link now.
+                            $canSupreturn     = nav_can('privSupreturn');
                             // Item 7 (corrected): ONLY the Sales module is shown as an individual,
                             // permission-based nav link. Every other module keeps its original grouped
                             // "Transactions" submenu below. $showTxSubmenu = original condition minus Sales.
@@ -292,7 +297,8 @@
                                 (isset($_SESSION['privGrn']) && $_SESSION['privGrn'] == 1) ||
                                 (isset($_SESSION['privExpense']) && $_SESSION['privExpense'] == 1) ||
                                 $isAdmin || $canProduction || $canTailoring ||
-                                $canGiftvoucher || $canReturns || $canStocktransfer
+                                $canGiftvoucher || $canReturns || $canStocktransfer ||
+                                $canSupreturn
                             );
                             ?>
                             <?php if($isAdmin || (isset($_SESSION['privSales']) && $_SESSION['privSales'] == 1)){ ?>
@@ -325,6 +331,8 @@
                                     <li class="divider"></li>
                                     <?php } if($canStocktransfer){ ?>
                                     <li><a href="<?php echo base_url('stock-transfers')?>"><i class="fa fa-exchange"></i> Stock Transfers</a></li>
+                                    <?php } if($canSupreturn){ ?>
+                                    <li><a href="javascript:;" id="Sup_Rtn_link"><i class="fa fa-reply"></i> Supplier Return</a></li>
                                     <?php } ?>
                                 </ul>
                             </li>
@@ -443,13 +451,6 @@
                            <li class=""  style="float:right;margin-top: 10px;">
                                 <ul>
                                     <button id="Cus_Rtn_btn" class="btn btn-purple waves-effect waves-light" style ="box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);">Customer Return</button>
-                                </ul>
-                            </li>
-                            <?php endif; ?>
-                            <?php if (nav_can('privSupreturn')): ?>
-                            <li class=""  style="float:right;margin-top: 10px;">
-                                <ul>
-                                    <button id="Sup_Rtn_btn" class="btn btn-purple waves-effect waves-light"style ="box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);">Supplier Return</button>
                                 </ul>
                             </li>
                             <?php endif; ?>
@@ -1234,7 +1235,7 @@
 
                 // Start of Supplier Return //
 
-                $("#Sup_Rtn_btn").click(function() { 
+                $(document).on('click', '#Sup_Rtn_btn, #Sup_Rtn_link', function() { 
                     $('#supplierModal').modal('show');                 
                 });
                 var discnt_SR=0;

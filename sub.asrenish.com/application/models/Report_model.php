@@ -447,10 +447,42 @@ class Report_model extends CI_Model {
     
     
     
+    /**
+     * Expense categories have two levels now. The report should say
+     * "Transportation > Fuel", not a bare "Fuel" that could belong to
+     * anything. Guarded on the v12 column, so a database that has not been
+     * updated yet still gets the plain name and the report still runs.
+     */
+    protected function _expenseCatHasParent()
+    {
+        static $has = null;
+        if($has === null){
+            $has = in_array('expencat_parent_id', $this->db->list_fields('ezy_pos_expense_cat'));
+        }
+        return $has;
+    }
+    protected function _expenseCatName()
+    {
+        if(!$this->_expenseCatHasParent()){
+            return 'ezy_pos_expense_cat.expencat_catname';
+        }
+        return "CASE WHEN ezy_pos_expense_cat.expencat_parent_id > 0
+                     THEN CONCAT(expencat_parent.expencat_catname, ' > ', ezy_pos_expense_cat.expencat_catname)
+                     ELSE ezy_pos_expense_cat.expencat_catname END AS expencat_catname";
+    }
+    protected function _joinExpenseParent()
+    {
+        if($this->_expenseCatHasParent()){
+            $this->db->join('ezy_pos_expense_cat expencat_parent',
+                            'expencat_parent.expencat_id = ezy_pos_expense_cat.expencat_parent_id', 'left');
+        }
+    }
+
      public function get_expense_Report(){
-        $this->db->select('ezy_pos_expense.expen_id,ezy_pos_expense.expen_description,ezy_pos_expense.expen_amount,ezy_pos_expense.expen_date,ezy_pos_expense_cat.expencat_catname'); 
+        $this->db->select('ezy_pos_expense.expen_id,ezy_pos_expense.expen_description,ezy_pos_expense.expen_amount,ezy_pos_expense.expen_date,'.$this->_expenseCatName(), false); 
         $this->db->from('ezy_pos_expense');
         $this->db->join('ezy_pos_expense_cat','ezy_pos_expense.expen_expencat_id=ezy_pos_expense_cat.expencat_id');
+        $this->_joinExpenseParent();
         $this->db->order_by('expen_createdat','DESC');
         $query = $this->db->get();
         return $query->result_array();
@@ -462,10 +494,11 @@ class Report_model extends CI_Model {
         $to=$this->input->post('to');
         $start=$from;
         $end=$to; 
-        $this->db->select('ezy_pos_expense.expen_id,ezy_pos_expense.expen_description,ezy_pos_expense.expen_amount,ezy_pos_expense.expen_date,ezy_pos_expense_cat.expencat_catname'); 
+        $this->db->select('ezy_pos_expense.expen_id,ezy_pos_expense.expen_description,ezy_pos_expense.expen_amount,ezy_pos_expense.expen_date,'.$this->_expenseCatName(), false); 
         $this->db->from('ezy_pos_expense');
         $this->db->where("ezy_pos_expense.expen_date BETWEEN '$start' AND '$end'");
         $this->db->join('ezy_pos_expense_cat','ezy_pos_expense.expen_expencat_id=ezy_pos_expense_cat.expencat_id');
+        $this->_joinExpenseParent();
         $this->db->order_by('expen_createdat','DESC');
         $query = $this->db->get();
         
@@ -483,10 +516,11 @@ class Report_model extends CI_Model {
 
         
         
-        $this->db->select('ezy_pos_expense.expen_id,ezy_pos_expense.expen_description,ezy_pos_expense.expen_amount,ezy_pos_expense.expen_date,ezy_pos_expense_cat.expencat_catname'); 
+        $this->db->select('ezy_pos_expense.expen_id,ezy_pos_expense.expen_description,ezy_pos_expense.expen_amount,ezy_pos_expense.expen_date,'.$this->_expenseCatName(), false); 
         $this->db->from('ezy_pos_expense');
         $this->db->where("ezy_pos_expense.expen_date like '%$selected_month%'");
         $this->db->join('ezy_pos_expense_cat','ezy_pos_expense.expen_expencat_id=ezy_pos_expense_cat.expencat_id');
+        $this->_joinExpenseParent();
         $this->db->order_by('expen_createdat','DESC');
         $query = $this->db->get();
         
@@ -501,10 +535,11 @@ class Report_model extends CI_Model {
     
     
      public function get_expense_Report_for_today(){ 
-        $this->db->select('ezy_pos_expense.expen_id,ezy_pos_expense.expen_description,ezy_pos_expense.expen_amount,ezy_pos_expense.expen_date,ezy_pos_expense_cat.expencat_catname'); 
+        $this->db->select('ezy_pos_expense.expen_id,ezy_pos_expense.expen_description,ezy_pos_expense.expen_amount,ezy_pos_expense.expen_date,'.$this->_expenseCatName(), false); 
         $this->db->from('ezy_pos_expense');
         $this->db->where("ezy_pos_expense.expen_date = CURDATE()");
         $this->db->join('ezy_pos_expense_cat','ezy_pos_expense.expen_expencat_id=ezy_pos_expense_cat.expencat_id');
+        $this->_joinExpenseParent();
         $this->db->order_by('expen_createdat','DESC');
         $query = $this->db->get();
         

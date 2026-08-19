@@ -24,7 +24,21 @@ class Expenses_model extends CI_Model {
         return  $insert_id;
     }
     public function showAllExpenses(){
-        $str ="select expencat_catname,expen_id,expen_description,expen_amount,expen_date FROM ezy_pos_expense_cat INNER JOIN ezy_pos_expense ON ezy_pos_expense_cat.expencat_id = ezy_pos_expense.expen_expencat_id WHERE expen_status=1 ORDER BY `ezy_pos_expense`.`expen_id` DESC";        
+        // Categories have two levels now, so the list says "Transportation > Fuel"
+        // rather than a bare "Fuel". Guarded on the v12 column so the page still
+        // works on a database that has not been updated yet.
+        $hasParent = in_array('expencat_parent_id', $this->db->list_fields('ezy_pos_expense_cat'));
+        $nameExpr  = $hasParent
+            ? "CASE WHEN c.expencat_parent_id > 0 THEN CONCAT(p.expencat_catname,' > ',c.expencat_catname) ELSE c.expencat_catname END"
+            : "c.expencat_catname";
+        $parentJoin = $hasParent
+            ? "LEFT JOIN ezy_pos_expense_cat p ON p.expencat_id = c.expencat_parent_id "
+            : "";
+        $str ="select ".$nameExpr." AS expencat_catname, expen_id, expen_description, expen_amount, expen_date
+        FROM ezy_pos_expense_cat c
+        ".$parentJoin."
+        INNER JOIN ezy_pos_expense ON c.expencat_id = ezy_pos_expense.expen_expencat_id
+        WHERE expen_status=1 ORDER BY `ezy_pos_expense`.`expen_id` DESC";        
                 $query = $this->db->query($str);
                 if($query->num_rows()>0){
                     return $query->result();

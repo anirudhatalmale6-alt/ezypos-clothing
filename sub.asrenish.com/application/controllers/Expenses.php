@@ -30,7 +30,11 @@ class Expenses extends CI_Controller {
                 );
                 $data2 = array(                                  
                         'staffs'=>$this->Staffs_model->getAllStaffs(),
-                        'expenCategories'=>$this->ExpenCategories_model->getExpenCategories()
+                        'expenCategories'=>$this->ExpenCategories_model->getExpenCategories(),
+                        // Parent + subcategory list for the two dropdowns. Sent with
+                        // the page so the subcategory box fills in instantly when the
+                        // parent is chosen, with no round trip to the server.
+                        'expenCatTree'=>$this->ExpenCategories_model->getCategoryTree()
                     );    
                 $this->load->view('templates/header', $data1);
                 $this->load->view('transactions/'.$page,$data2);

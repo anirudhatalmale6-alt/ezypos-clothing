@@ -283,6 +283,7 @@ function status_checks($conn)
     $rows[] = array('Return tracking on sales (sale_return_status)', $hasCol('ezy_pos_sale', 'sale_return_status'));
     $rows[] = array('Discount on exchanges (ret_exchange_discount)', $hasCol('ezy_pos_returns', 'ret_exchange_discount'));
     $rows[] = array('Discount type on exchange lines (ei_discount_type)', $hasCol('ezy_pos_exchange_items', 'ei_discount_type'));
+    $rows[] = array('Expense subcategories (expencat_parent_id)', $hasCol('ezy_pos_expense_cat', 'expencat_parent_id'));
 
     echo '<div class="box"><h3>What is already in place</h3><table class="data">';
     foreach ($rows as $r) {
@@ -401,7 +402,7 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
         $action = isset($_POST['action']) ? $_POST['action'] : '';
 
         /* ----------------------------------------------------------- actions */
-        if ($action === 'v9' || $action === 'v10' || $action === 'v11') {
+        if ($action === 'v9' || $action === 'v10' || $action === 'v11' || $action === 'v12') {
             $files = array(
                 'v9'  => array(MIGRATE_DIR . '/v9_billno_storecredit_privileges.sql',
                                'Step 2 - new columns and tables (v9)'),
@@ -409,6 +410,8 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
                                'Step 3 - repair existing records (v10, parts 1 to 3)'),
                 'v11' => array(MIGRATE_DIR . '/v11_exchange_discount.sql',
                                'Step 4 - discount columns for exchanges (v11)'),
+                'v12' => array(MIGRATE_DIR . '/v12_expense_subcategories.sql',
+                               'Step 5 - parent categories and subcategories for expenses (v12)'),
             );
             $file = $files[$action][0];
             $name = $files[$action][1];
@@ -514,6 +517,16 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
        running it just means a past exchange can be read back with its discount later.</p>
     <form method="post"><input type="hidden" name="action" value="v11">
       <button type="submit">Run step 4</button></form>
+  </div>
+
+  <div class="box step">
+    <h3>Step 5 - Parent categories and subcategories for expenses</h3>
+    <p>Adds one column so an expense category can sit under a parent one
+       (Transportation &gt; Fuel). It only adds things. Every category you have today
+       becomes a parent category, and every expense already entered keeps exactly the
+       category it has now, so nothing in the Expense Report changes.</p>
+    <form method="post"><input type="hidden" name="action" value="v12">
+      <button type="submit">Run step 5</button></form>
   </div>
 
   <div class="box">

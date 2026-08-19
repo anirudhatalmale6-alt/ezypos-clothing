@@ -74,4 +74,11 @@ class ExpenCategories extends CI_Controller {
             $result = $this->ExpenCategories_model->getExpenCategories();
             echo json_encode($result);
         }
+
+        // Parent + subcategory list for the two dropdowns on the Expense
+        // screen. Read only, so it needs no Masters permission - anyone who
+        // may enter an expense may see the categories they can book it to.
+        public function getCategoryTree(){
+            echo json_encode($this->ExpenCategories_model->getCategoryTree());
+        }
 }
