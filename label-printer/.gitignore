@@ -1,0 +1,7 @@
+# Build output. The finished .exe goes on the GitHub release instead of into
+# the history - a 66 MB binary in every clone helps nobody.
+bin/
+obj/
+dist/
+*.user
+__pycache__/

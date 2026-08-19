@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>EzyLabel.Core</AssemblyName>
+    <RootNamespace>EzyLabel.Core</RootNamespace>
+  </PropertyGroup>
+</Project>
