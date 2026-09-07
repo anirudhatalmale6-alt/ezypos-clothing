@@ -256,7 +256,7 @@
                                     </div>
                                 </form>                                 
                                 <div class="pull-right">                                                               
-                                    <button href="javascript:window.print()" id="save" disabled class="btn btn-primary waves-effect" title="Save and print the bill"><i class="fa fa-print"></i></button>
+                                    <button href="javascript:window.print()" id="save" disabled class="btn btn-primary waves-effect" title="Save and print the bill - no SMS"><i class="fa fa-print"></i> Save</button>
                                     <!-- Same save, then the bill goes to the customer by SMS. The plain
                                          Save button never sends one. -->
                                     <button type="button" id="saveSms" disabled class="btn btn-success waves-effect" title="Save, print, and SMS the bill to the customer"><i class="fa fa-paper-plane"></i> Save &amp; SMS</button>
