@@ -62,9 +62,60 @@ class Returns_model extends CI_Model {
                 WHERE si.saleitem_sale_id = ?";
         $query = $this->db->query($str, array($sale_id));
         if ($query->num_rows() > 0) {
-            return $query->result();
+            $rows = $query->result();
+            // saleitem_quantity is what was sold and stays that way, so how much
+            // may still come back has to be worked out from the returns already
+            // recorded against the bill.
+            $done = $this->returnedQtyBySale($sale_id);
+            foreach ($rows as $r) {
+                $id = intval($r->saleitem_item_id);
+                $r->returned_qty  = isset($done[$id]) ? round($done[$id], 2) : 0;
+                $r->remaining_qty = round(floatval($r->saleitem_quantity) - $r->returned_qty, 2);
+                if ($r->remaining_qty < 0) { $r->remaining_qty = 0; }
+            }
+            return $rows;
         }
         return false;
+    }
+
+    /**
+     * How much of each item on a bill has already been returned, counting both
+     * this module and the older Customer Return screen.
+     *
+     * Returns array(item_id => qty).
+     */
+    public function returnedQtyBySale($sale_id)
+    {
+        $sale_id = intval($sale_id);
+        $out = array();
+
+        if ($this->db->table_exists('ezy_pos_returns') && $this->db->table_exists('ezy_pos_return_items')) {
+            $q = $this->db->query(
+                "SELECT ri.ri_item_id AS iid, COALESCE(SUM(ri.ri_qty),0) AS q
+                 FROM ezy_pos_return_items ri
+                 INNER JOIN ezy_pos_returns r ON r.ret_id = ri.ri_return_id
+                 WHERE r.ret_sale_id = ? AND r.ret_status = 1
+                 GROUP BY ri.ri_item_id", array($sale_id));
+            foreach ($q->result() as $x) { $out[intval($x->iid)] = floatval($x->q); }
+        }
+
+        // The old screen. cusrtrn_saleID arrived in v13; rows written before it
+        // cannot be tied to a bill, so they are left out rather than guessed at.
+        if ($this->db->table_exists('ezy_pos_cus_return')
+            && in_array('cusrtrn_saleID', $this->db->list_fields('ezy_pos_cus_return'))) {
+            $q = $this->db->query(
+                "SELECT ri.retrn_itm_itmID AS iid, COALESCE(SUM(ri.retrn_itm_rQty),0) AS q
+                 FROM ezy_pos_cus_return_item ri
+                 INNER JOIN ezy_pos_cus_return r ON r.cusrtrn_id = ri.retrn_itm_retrnID
+                 WHERE r.cusrtrn_saleID = ? AND r.cusrtrn_status = 1
+                 GROUP BY ri.retrn_itm_itmID", array($sale_id));
+            foreach ($q->result() as $x) {
+                $iid = intval($x->iid);
+                $out[$iid] = (isset($out[$iid]) ? $out[$iid] : 0) + floatval($x->q);
+            }
+        }
+
+        return $out;
     }
 
     /**

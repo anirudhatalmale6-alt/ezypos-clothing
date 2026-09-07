@@ -3,6 +3,29 @@
 <!-- ============================================================== -->
 <div class="wrapper">
     <div class="container">
+
+        <!-- Total for whatever the filters below are currently showing. It is
+             the first thing on the page because it is the number the owner
+             opens this report for. -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card-box" style="background:#0d47a1;color:#fff;padding:14px 20px;margin-bottom:15px;">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <div style="font-size:13px;opacity:.85;text-transform:uppercase;letter-spacing:1px;">Total Sales</div>
+                            <div style="font-size:30px;font-weight:600;line-height:1.2;">
+                                Rs. <span id="totalSalesTop">0.00</span>
+                            </div>
+                        </div>
+                        <div class="text-right" style="font-size:13px;opacity:.9;">
+                            <div id="totalSalesScope">No filter applied yet</div>
+                            <div id="totalSalesReturned" style="display:none;margin-top:4px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Filters Row -->
         <div class="row">                    
             <div class="button-list col-3 col-xl-3 col-lg-3 col-md-12 col-sm-12 col-xs-12">
@@ -52,13 +75,6 @@
             </div>                   
         </div>
 
-        <!-- Total Sales Row -->
-        <!-- <div class="row mb-3">
-            <div class="col-12 text-right">
-                <h5>Total Grand Sales: <span id="totalGrandTotal">0.00</span></h5>
-            </div>
-        </div> -->
-
 <!-- Table Row -->
 <div class="row">
     <div class="col-12">
@@ -81,10 +97,10 @@
                         PDF
                     </button>
                 </div>
-                <!-- Total Sales -->
-                <div class="text-right">
-                    <h5>Total Sales: <span id="totalGrandTotal">0.00</span></h5>
-                </div>
+                <!-- The figure itself lives in the banner at the top of the page.
+                     This hidden span is what the table code has always written
+                     to, so it is kept rather than chased through the file. -->
+                <span id="totalGrandTotal" style="display:none;">0.00</span>
             </div>
             <table id="datatable-buttons" class="table table-striped table-bordered" cellspacing="0" width="100%">
                 <!-- Table content dynamically generated via JS -->
@@ -147,7 +163,7 @@ $(document).ready(function () {
                     <td>${esc(row.sale_createdat)}</td>
                     <td style="text-align: right;">${row.sale_subtotal}</td>
                     <td style="text-align: right;">${row.sale_discount}</td>
-                    <td style="text-align: right;">${row.sale_grandtotal}</td>
+                    <td style="text-align: right;">${grandTotalCell(row)}</td>
                     <td><small>${esc(row.payment_info || '-')}</small></td>
                     <td style="text-align: right;">
                         <button class="btn btn-sm btn-info" onclick="load_bill_again(${row.sale_id})">
@@ -157,13 +173,64 @@ $(document).ready(function () {
                 </tr>`;
     }
 
+    function money(v){
+        return (parseFloat(v) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    // The quantity on a bill is what was sold and it stays that way. What a
+    // return changes is the money, so the bill shows the adjusted total with
+    // the deduction spelled out underneath rather than a silently smaller
+    // number nobody can explain.
+    function grandTotalCell(row){
+        var ret = parseFloat(row.returned_total || 0);
+        var cell = money(row.sale_grandtotal);
+        if(ret > 0.004){
+            cell += '<br><small style="color:#c62828;">&nbsp;was ' + money(row.original_total)
+                  + ', &minus;' + money(ret) + ' returned</small>';
+        }
+        return cell;
+    }
+
     // Update Total Grand Total
-    function updateTotalGrandTotal(data) {
-        let total = 0;
+    function updateTotalGrandTotal(data, scopeText) {
+        let total = 0, returned = 0;
         data.forEach(row => {
             total += parseFloat(row.sale_grandtotal || 0);
+            returned += parseFloat(row.returned_total || 0);
         });
-        $('#totalGrandTotal').text(total.toFixed(2)); // Update the total in the UI
+        $('#totalGrandTotal').text(total.toFixed(2));
+        $('#totalSalesTop').text(money(total));
+        $('#totalSalesScope').text(scopeText || (data.length + ' bill(s)'));
+        if(returned > 0.004){
+            $('#totalSalesReturned')
+                .text('after ' + money(returned) + ' returned / exchanged')
+                .show();
+        } else {
+            $('#totalSalesReturned').hide();
+        }
+    }
+
+    // One place that empties the banner, so no screen can leave a stale total
+    // sitting above an empty table.
+    function clearTotals(msg){
+        $('#totalGrandTotal').text('0.00');
+        $('#totalSalesTop').text('0.00');
+        $('#totalSalesScope').text(msg || 'No filter applied yet');
+        $('#totalSalesReturned').hide();
+    }
+
+    // How many bills, and what they were filtered by - so the number in the
+    // banner can never be read as covering more than it does.
+    function scopeLabel(count){
+        var bits = [];
+        var from = $('#datepicFrom').val(), to = $('#datepicTo').val();
+        if(from && to){ bits.push(from === to ? from : (from + ' to ' + to)); }
+        var cus = $('#customer_select option:selected').text().trim();
+        if($('#customer_select').val() !== 'all'){ bits.push(cus); }
+        var st = $('#store_select option:selected').text().trim();
+        if($('#store_select').val() !== 'all'){ bits.push(st); }
+        bits.push(count + ' bill' + (count === 1 ? '' : 's'));
+        return bits.join(' \u00b7 ');
     }
 
     // Fetch and display data for a customer
@@ -174,7 +241,7 @@ $(document).ready(function () {
         if (customerId === "all" || !customerId) {
             $('#datatable-buttons').DataTable().destroy();
             $('#datatable-buttons').html('<thead><tr><th>No Data Available</th></tr></thead>');
-            $('#totalGrandTotal').text("0.00");
+            clearTotals();
             return;
         }
 
@@ -189,7 +256,7 @@ $(document).ready(function () {
                     // No sales data for the selected customer
                     $('#datatable-buttons').DataTable().destroy();
                     $('#datatable-buttons').html('<thead><tr><th>No Sales Data Found</th></tr></thead>');
-                    $('#totalGrandTotal').text("0.00");
+                    clearTotals('No sales for this customer');
                     return;
                 }
 
@@ -210,7 +277,7 @@ $(document).ready(function () {
                 });
 
                 // Update the total grand total
-                updateTotalGrandTotal(data);
+                updateTotalGrandTotal(data, scopeLabel(data.length));
             },
             error: function () {
                 alert('Failed to fetch sales data.');
@@ -236,7 +303,7 @@ $(document).ready(function () {
                     if (data.length === 0) {
                         $('#datatable-buttons').DataTable().destroy();
                         $('#datatable-buttons').html('<thead><tr><th>No Data Available</th></tr></thead>');
-                        $('#totalGrandTotal').text("0.00");
+                        clearTotals('No sales in this range');
                         return;
                     }
 
@@ -253,7 +320,7 @@ $(document).ready(function () {
                     });
 
                     // Update the total grand total
-                    updateTotalGrandTotal(data);
+                    updateTotalGrandTotal(data, scopeLabel(data.length));
                 },
                 error: function () {
                     alert('Error fetching data.');
@@ -285,7 +352,7 @@ $(document).ready(function () {
         $('#store_select').val('all');
         $('#datepicFrom').val('');
         $('#datepicTo').val('');
-        $('#totalGrandTotal').text("0.00");
+        clearTotals();
     });
 });
 

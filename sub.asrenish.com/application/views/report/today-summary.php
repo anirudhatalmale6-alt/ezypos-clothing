@@ -67,6 +67,16 @@
             echo number_format($today_sale_credit,2); ?></td>
         </tr>
 
+        <!-- A gift voucher goes on the bill like any other line, so its value is
+             already inside SALES above. It is broken out here because "did the
+             voucher money get counted?" is otherwise impossible to answer from
+             this screen. -->
+        <tr style="font-size:medium;color:#e65100;">
+            <td style="text-align:left">&nbsp;&nbsp;of which GIFT VOUCHERS SOLD</td>
+            <td id="td_voucher_sales"><?php echo number_format(isset($voucher_sales_today) ? $voucher_sales_today : 0, 2); ?></td>
+            <td colspan="3" style="text-align:right;font-size:small;color:#888;">included in the Sales line above</td>
+        </tr>
+
         <tr>
             <td style="text-align: left">PURCHASE</td>
             <td id="td_purchase_total"><?php echo number_format($purchase_result_total->sum_grn_grandtotal,2); ?></td>
@@ -210,6 +220,7 @@ $( function() {
 
                 var saleCredit = parseFloat(d.sale_total) - (parseFloat(d.sale_cash) + parseFloat(d.sale_cheque) + parseFloat(d.sale_card || 0));
                 $('#td_sale_total').text(fmt(d.sale_total));
+                $('#td_voucher_sales').text(fmt(d.voucher_sales || 0));
                 $('#td_sale_cash').text(fmt(d.sale_cash));
                 $('#td_sale_cheque').text(fmt(d.sale_cheque));
                 $('#td_sale_credit').text(fmt(saleCredit));

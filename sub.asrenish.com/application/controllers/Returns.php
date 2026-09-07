@@ -123,6 +123,33 @@ class Returns extends CI_Controller {
             return;
         }
 
+        // A sale line keeps the quantity it was sold at, so nothing stops the
+        // same piece being brought back twice except this check. Done on the
+        // server because the screen can be left open while someone else
+        // processes a return on the same bill at another till.
+        $alreadyReturned = $this->Returns_model->returnedQtyBySale($sale_id);
+        $soldQty = array();
+        $soldRows = $this->Returns_model->getSaleItems($sale_id);
+        if ($soldRows) {
+            foreach ($soldRows as $sr) { $soldQty[intval($sr->saleitem_item_id)] = floatval($sr->saleitem_quantity); }
+        }
+        foreach ($return_items as $ri) {
+            $iid = isset($ri['item_id']) ? intval($ri['item_id']) : 0;
+            $qty = isset($ri['qty']) ? floatval($ri['qty']) : 0;
+            if ($iid <= 0 || $qty <= 0) { continue; }
+            $sold = isset($soldQty[$iid]) ? $soldQty[$iid] : 0;
+            $done = isset($alreadyReturned[$iid]) ? $alreadyReturned[$iid] : 0;
+            $left = round($sold - $done, 2);
+            if ($qty > $left + 0.0001) {
+                $name = isset($ri['item_name']) ? $ri['item_name'] : ('item '.$iid);
+                echo json_encode(array('status' => 'error',
+                    'message' => $name.': only '.rtrim(rtrim(number_format($left, 2, '.', ''), '0'), '.')
+                               .' of the '.rtrim(rtrim(number_format($sold, 2, '.', ''), '0'), '.')
+                               .' sold can still be returned. Nothing has been saved.'));
+                return;
+            }
+        }
+
         $sale_store_id = isset($sale->store_id) ? $sale->store_id : 0;
         // Return store: where the return is being processed (may differ from sale store for cross-store returns)
         $return_store_id = $this->input->post('return_store_id');

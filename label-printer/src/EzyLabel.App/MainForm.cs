@@ -42,9 +42,9 @@ namespace EzyLabel.App
         private TextBox _txtUrl, _txtKey, _txtShopLine, _txtCurrency;
         private ComboBox _cboPrinter;
         private NumericUpDown _numW, _numH, _numCols, _numColGap, _numRowGap,
-                              _numLeft, _numTop, _numInner, _numBarH, _numNarrow,
+                              _numLeft, _numTop, _numInner, _numBarH, _numNarrow, _numLineGap,
                               _numSpeed, _numDensity, _numDpi, _numPort;
-        private CheckBox _chkName, _chkCode, _chkPrice, _chkBarcodeText, _chkAgent;
+        private CheckBox _chkName, _chkCode, _chkPrice, _chkBarcodeText, _chkAgent, _chkHideDupCode;
         private Label _lblStatus;
         private TextBox _txtLog;
 
@@ -230,6 +230,7 @@ namespace EzyLabel.App
             _numTop    = Num("Vertical trim",        -20, 20, 1, "positive moves the print down");
             _numInner  = Num("Margin inside sticker", 0, 20, 1, "white space kept clear round the edge");
             _numBarH   = Num("Barcode height",       1, 100, 1);
+            _numLineGap= Num("Gap between lines",    0, 5,  1, "how much air between the name, the barcode and the price");
 
             Head("Printer settings");
             _numDpi     = Num("Resolution (dpi)", 100, 600, 0, "203 for the TTP-244 Pro");
@@ -242,6 +243,10 @@ namespace EzyLabel.App
             _chkCode = new CheckBox { Text = "Item code", Left = 350, Top = y, Width = 140 }; page.Controls.Add(_chkCode);
             _chkPrice = new CheckBox { Text = "Price", Left = 495, Top = y, Width = 100 }; page.Controls.Add(_chkPrice);
             _chkBarcodeText = new CheckBox { Text = "Number under the barcode", Left = 600, Top = y, Width = 220 }; page.Controls.Add(_chkBarcodeText);
+            y += 26;
+            _chkHideDupCode = new CheckBox { Text = "Do not repeat the item code when it is the same as the barcode number",
+                                             Left = 205, Top = y, Width = 620 };
+            page.Controls.Add(_chkHideDupCode);
             y += 32;
             _txtCurrency = Row("Currency prefix", 120, "e.g. Rs.");
             _txtShopLine = Row("Extra top line", 380, "optional - a shop name above the item name");
@@ -543,6 +548,7 @@ namespace EzyLabel.App
             _numTop.Value = (decimal)L.TopOffsetMm;
             _numInner.Value = (decimal)L.InnerMarginMm;
             _numBarH.Value = (decimal)L.BarcodeHeightMm;
+            _numLineGap.Value = (decimal)L.LineGapMm;
             _numDpi.Value = L.Dpi;
             _numNarrow.Value = L.BarcodeNarrowDots;
             _numSpeed.Value = L.Speed;
@@ -551,6 +557,7 @@ namespace EzyLabel.App
             _chkCode.Checked = L.ShowItemCode;
             _chkPrice.Checked = L.ShowPrice;
             _chkBarcodeText.Checked = L.ShowBarcodeText;
+            _chkHideDupCode.Checked = L.HideCodeWhenSameAsBarcode;
             _txtCurrency.Text = L.CurrencyPrefix;
             _txtShopLine.Text = L.ShopLine;
             _chkAgent.Checked = s.AgentEnabled;
@@ -572,6 +579,7 @@ namespace EzyLabel.App
             L.TopOffsetMm = (double)_numTop.Value;
             L.InnerMarginMm = (double)_numInner.Value;
             L.BarcodeHeightMm = (double)_numBarH.Value;
+            L.LineGapMm = (double)_numLineGap.Value;
             L.Dpi = (int)_numDpi.Value;
             L.BarcodeNarrowDots = (int)_numNarrow.Value;
             L.Speed = (int)_numSpeed.Value;
@@ -580,6 +588,7 @@ namespace EzyLabel.App
             L.ShowItemCode = _chkCode.Checked;
             L.ShowPrice = _chkPrice.Checked;
             L.ShowBarcodeText = _chkBarcodeText.Checked;
+            L.HideCodeWhenSameAsBarcode = _chkHideDupCode.Checked;
             L.CurrencyPrefix = _txtCurrency.Text;
             L.ShopLine = _txtShopLine.Text;
 

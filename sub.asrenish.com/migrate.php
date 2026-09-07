@@ -284,6 +284,7 @@ function status_checks($conn)
     $rows[] = array('Discount on exchanges (ret_exchange_discount)', $hasCol('ezy_pos_returns', 'ret_exchange_discount'));
     $rows[] = array('Discount type on exchange lines (ei_discount_type)', $hasCol('ezy_pos_exchange_items', 'ei_discount_type'));
     $rows[] = array('Expense subcategories (expencat_parent_id)', $hasCol('ezy_pos_expense_cat', 'expencat_parent_id'));
+    $rows[] = array('Bill number on customer returns (cusrtrn_saleID)', $hasCol('ezy_pos_cus_return', 'cusrtrn_saleID'));
 
     echo '<div class="box"><h3>What is already in place</h3><table class="data">';
     foreach ($rows as $r) {
@@ -402,7 +403,7 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
         $action = isset($_POST['action']) ? $_POST['action'] : '';
 
         /* ----------------------------------------------------------- actions */
-        if ($action === 'v9' || $action === 'v10' || $action === 'v11' || $action === 'v12') {
+        if ($action === 'v9' || $action === 'v10' || $action === 'v11' || $action === 'v12' || $action === 'v13') {
             $files = array(
                 'v9'  => array(MIGRATE_DIR . '/v9_billno_storecredit_privileges.sql',
                                'Step 2 - new columns and tables (v9)'),
@@ -412,6 +413,8 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
                                'Step 4 - discount columns for exchanges (v11)'),
                 'v12' => array(MIGRATE_DIR . '/v12_expense_subcategories.sql',
                                'Step 5 - parent categories and subcategories for expenses (v12)'),
+                'v13' => array(MIGRATE_DIR . '/v13_return_keeps_sale_qty.sql',
+                               'Step 6 - keep the sold quantity when an item is returned (v13)'),
             );
             $file = $files[$action][0];
             $name = $files[$action][1];
@@ -527,6 +530,18 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
        category it has now, so nothing in the Expense Report changes.</p>
     <form method="post"><input type="hidden" name="action" value="v12">
       <button type="submit">Run step 5</button></form>
+  </div>
+
+  <div class="box step">
+    <h3>Step 6 - Keep the sold quantity when an item is returned</h3>
+    <p>Until now a customer return subtracted the returned pieces from the original bill,
+       so a bill for 2 pieces with 1 brought back read as a bill for 1 piece ever after.
+       This adds one column that records which bill a return came off, so the return can
+       be kept as its own record instead. The bill keeps the quantity it was rung up with
+       and the Grand Total still comes down by the refund.</p>
+    <p class="note">It only adds a column. Nothing already in the database is changed.</p>
+    <form method="post"><input type="hidden" name="action" value="v13">
+      <button type="submit">Run step 6</button></form>
   </div>
 
   <div class="box">

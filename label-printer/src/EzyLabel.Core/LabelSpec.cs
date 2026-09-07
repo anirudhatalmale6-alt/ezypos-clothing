@@ -66,6 +66,24 @@ namespace EzyLabel.Core
         public bool ShowItemCode { get; set; } = true;
         public bool ShowPrice { get; set; } = true;
         public bool ShowBarcodeText { get; set; } = true;
+
+        /// <summary>
+        /// In this shop the item code and the barcode number are the same
+        /// string, so printing both put the same text on the sticker twice and
+        /// pushed everything else apart. When they match, the readable number
+        /// under the bars is the one that stays.
+        ///
+        /// Turn this off if the two are ever different and both are wanted.
+        /// </summary>
+        public bool HideCodeWhenSameAsBarcode { get; set; } = true;
+
+        /// <summary>
+        /// Space between one line of the label and the next. Small on purpose:
+        /// a 25 mm sticker has no room to waste, and the item name sitting
+        /// right above the bars is what makes the label readable at arm's
+        /// length. Raise it if the print looks cramped on your roll.
+        /// </summary>
+        public double LineGapMm { get; set; } = 0.4;
         public string CurrencyPrefix { get; set; } = "Rs.";
         public string ShopLine { get; set; } = "";
 
@@ -125,6 +143,7 @@ namespace EzyLabel.Core
             if (Speed < 1 || Speed > 12) return "Speed should be between 1 and 12.";
             if (Density < 0 || Density > 15) return "Density should be between 0 and 15.";
             if (BarcodeNarrowDots < 1 || BarcodeNarrowDots > 6) return "The narrow bar width should be between 1 and 6 dots.";
+            if (LineGapMm < 0 || LineGapMm > 5) return "The gap between lines should be between 0 and 5 mm.";
             return null;
         }
     }

@@ -242,39 +242,40 @@ class Sales_model extends CI_Model {
         sale_subtotal=sale_subtotal -'".$subttl."'
         WHERE sale_id='".$sale_id."'";
         $query = $this->db->query($str);
-        if($this->db->affected_rows()>0){
-            return true;
-        }
-        else{
-            return false;
-        }
-    }
-    public function updateSaleItemsforCusReturn(){
-        $saleid = $this->input->post('saleID');
-        $itmid = $this->input->post('itmid');
-        $qty = $this->input->post('qty');
+        $ok = ($this->db->affected_rows()>0);
 
-        $str="UPDATE ezy_pos_sale_item 
-        SET saleitem_quantity=saleitem_quantity -'".$qty."'
-        WHERE saleitem_sale_id='".$saleid."'
-        AND saleitem_item_id='".$itmid."'";
-        $query = $this->db->query($str);
-        if($this->db->affected_rows()>0){
-            $str2="UPDATE ezy_pos_sale_item 
-            SET saleitem_total=saleitem_price*saleitem_quantity-saleitem_discount/100*saleitem_price*saleitem_quantity
-            WHERE saleitem_sale_id='".$saleid."'
-            AND saleitem_item_id='".$itmid."'";
-            $query = $this->db->query($str2);
-            if($this->db->affected_rows()>0){
-                return true;
+        // Mark the bill as having had a return against it. Without this the
+        // Cash Flow report sees a bill whose total is now lower than the cash
+        // taken for it and calls the difference "Change Given" - the refund
+        // showed up, but under the wrong name and outside the Returns figure.
+        $fields = $this->db->list_fields('ezy_pos_sale');
+        if(in_array('sale_return_status', $fields)){
+            $data = array('sale_return_status' => 'partial_refunded');
+            if(in_array('sale_last_modified', $fields)){
+                $data['sale_last_modified'] = date('Y-m-d H:i:s');
             }
-            else{
-                return false;
-            }
+            $this->db->where('sale_id', intval($sale_id))->update('ezy_pos_sale', $data);
         }
-        else{
-            return false;
-        }
+        return $ok;
+    }
+    /**
+     * A sale line is a record of what was sold, and a return does not change
+     * that - it is its own transaction against the bill.
+     *
+     * This used to do "saleitem_quantity = saleitem_quantity - returned", so a
+     * bill for 2 pieces with 1 brought back read as a bill for 1 piece ever
+     * after. The Sales Report, the reprinted invoice and the item history all
+     * disagreed with the receipt in the customer's hand.
+     *
+     * The money side is still adjusted - updateSalesforCusReturn() takes the
+     * refund off sale_grandtotal - and how much has come back is worked out
+     * from the return tables (CusReturns_model::returnedQtyBySale), which is
+     * also what stops the same piece being returned twice.
+     *
+     * The endpoint is kept so the return screen's existing calls still succeed.
+     */
+    public function updateSaleItemsforCusReturn(){
+        return true;
     }
     public function getInvoices(){
         // sale_location + sale_bill_no let bill_no() print the real bill number

@@ -180,6 +180,33 @@ class Report_model extends CI_Model {
             foreach($q->result() as $x){ $cheques[intval($x->sid)] = floatval($x->t); }
         }
 
+        // ---- what came back off each bill ----
+        // A return does not undo the sale, it books an adjustment against it.
+        // The bill keeps the quantity it was rung up with; this is the money
+        // that came off it, so the Grand Total column can be read as
+        // "sold for X, of which Y came back".
+        $returned = array();
+        if($this->db->table_exists('ezy_pos_returns')){
+            $q = $this->db->query("SELECT ret_sale_id AS sid, COALESCE(SUM(ret_net_amount),0) AS t
+                                   FROM ezy_pos_returns
+                                   WHERE ret_sale_id IN ($in) AND ret_status = 1
+                                   GROUP BY ret_sale_id");
+            foreach($q->result() as $x){ $returned[intval($x->sid)] = floatval($x->t); }
+        }
+        // The older Customer Return screen writes to its own table. It only
+        // learned which bill it belonged to in v13, so guard the column.
+        if($this->db->table_exists('ezy_pos_cus_return')
+           && in_array('cusrtrn_saleID', $this->db->list_fields('ezy_pos_cus_return'))){
+            $q = $this->db->query("SELECT cusrtrn_saleID AS sid, COALESCE(SUM(cusrtrn_totalRtrn),0) AS t
+                                   FROM ezy_pos_cus_return
+                                   WHERE cusrtrn_saleID IN ($in)
+                                   GROUP BY cusrtrn_saleID");
+            foreach($q->result() as $x){
+                $sid = intval($x->sid);
+                $returned[$sid] = (isset($returned[$sid]) ? $returned[$sid] : 0) + floatval($x->t);
+            }
+        }
+
         $vUsed = array();
         if($this->db->table_exists('ezy_pos_voucher_redemptions')){
             $q = $this->db->query("SELECT vr_sale_id AS sid, COALESCE(SUM(vr_amount),0) AS t
@@ -211,6 +238,13 @@ class Report_model extends CI_Model {
             if(isset($vUsed[$id]) && $vUsed[$id] > 0.004){ $paid[] = 'Gift Voucher '.number_format($vUsed[$id], 2); }
             if(isset($credit[$id]) && $credit[$id] > 0.004){ $paid[] = 'Credit '.number_format($credit[$id], 2); }
             $r->payment_info = empty($paid) ? '-' : implode(', ', $paid);
+
+            // sale_grandtotal is already the adjusted figure - the return took
+            // it down when it was processed. original_total puts back what the
+            // bill was rung up at, so both numbers can be shown side by side.
+            $ret = isset($returned[$id]) ? round($returned[$id], 2) : 0;
+            $r->returned_total = $ret;
+            $r->original_total = round(floatval($r->sale_grandtotal) + $ret, 2);
         }
 
         return $rows;
@@ -1114,6 +1148,32 @@ class Report_model extends CI_Model {
         $retStatCol = in_array('sale_return_status', $saleFields)
                     ? 's.sale_return_status' : "'' AS sale_return_status";
 
+        // Which bills in this period sold gift vouchers, and whether they also
+        // had ordinary stock lines on them. A voucher is not a stock item, so a
+        // voucher bill has no sale_item rows and used to read as a plain "Sale"
+        // with no way to tell what it was for.
+        $voucherBills = array();
+        if($this->db->table_exists('ezy_pos_gift_cards')){
+            $q = $this->db->query(
+                "SELECT gc.gc_sold_sale_id AS sid,
+                        COALESCE(SUM(gc.gc_original_value),0) AS v,
+                        (SELECT COUNT(*) FROM ezy_pos_sale_item si
+                          WHERE si.saleitem_sale_id = gc.gc_sold_sale_id) AS line_count
+                 FROM ezy_pos_gift_cards gc
+                 INNER JOIN ezy_pos_sale s ON s.sale_id = gc.gc_sold_sale_id
+                 WHERE gc.gc_sold_sale_id IS NOT NULL
+                   AND s.sale_date BETWEEN ? AND ?
+                 GROUP BY gc.gc_sold_sale_id", array($start, $end));
+            foreach($q->result() as $x){
+                $voucherBills[intval($x->sid)] = (intval($x->line_count) > 0) ? 'Sale + Voucher' : 'Voucher Sale';
+            }
+        }
+        // What to call a sale row: the plain word, or what it actually sold.
+        $saleSource = function($sale_id) use (&$voucherBills){
+            $id = intval($sale_id);
+            return isset($voucherBills[$id]) ? $voucherBills[$id] : 'Sale';
+        };
+
         $mk = function($date, $source, $ref, $customer, $methodName, $reference, $direction, $amount, $store){
             $o = new stdClass();
             $o->date          = $date;
@@ -1156,7 +1216,7 @@ class Report_model extends CI_Model {
                     .$sf.
                     " ORDER BY s.sale_id DESC";
             foreach($this->db->query($str, array($start, $end))->result() as $r){
-                $rows[] = $mk($r->sale_date, 'Sale', $billOf($r), $r->cus_name,
+                $rows[] = $mk($r->sale_date, $saleSource($r->sale_id), $billOf($r), $r->cus_name,
                               'Cash', '', 'in', $r->cus_pay_cash, $r->store_name);
 
                 $change = $this->_changeGivenOnSale($r);
@@ -1188,7 +1248,7 @@ class Report_model extends CI_Model {
                 if(trim($r->cus_cheque_bank) !== ''){
                     $ref = trim($r->cus_cheque_bank.($ref !== '' ? ' - '.$ref : ''));
                 }
-                $rows[] = $mk($r->sale_date, 'Sale', $billOf($r), $r->cus_name,
+                $rows[] = $mk($r->sale_date, $saleSource($r->sale_id), $billOf($r), $r->cus_name,
                               'Cheque', $ref, 'in', $r->cus_cheque_amount, $r->store_name);
             }
         }
@@ -1218,7 +1278,7 @@ class Report_model extends CI_Model {
             }
             $str .= " ORDER BY s.sale_id DESC";
             foreach($this->db->query($str, $params)->result() as $r){
-                $rows[] = $mk($r->sale_date, 'Sale', $billOf($r), $r->cus_name,
+                $rows[] = $mk($r->sale_date, $saleSource($r->sale_id), $billOf($r), $r->cus_name,
                               ($r->pm_name ? $r->pm_name : 'Card'), $r->sp_card_ref,
                               'in', $r->sp_amount, $r->store_name);
             }
@@ -1327,6 +1387,35 @@ class Report_model extends CI_Model {
             }
         }
 
+        // ------------------------------------------------------------------
+        // 6. RETURNS taken on the older Customer Return screen
+        //    That screen has its own table and no payment lines - a refund
+        //    there is always cash out of the till. Rows written before v13
+        //    have no bill on them and are skipped, because without the bill
+        //    there is no branch to file them under.
+        // ------------------------------------------------------------------
+        if($wantCash
+           && $this->db->table_exists('ezy_pos_cus_return')
+           && in_array('cusrtrn_saleID', $this->db->list_fields('ezy_pos_cus_return'))){
+            $sf = $this->_storeFilterFor('s.sale_location', $storeId);
+            $str = "SELECT r.cusrtrn_id, r.cusrtrn_totalRtrn, r.cusrtrn_createdat,
+                           c.cus_name, st.store_name
+                    FROM ezy_pos_cus_return r
+                    INNER JOIN ezy_pos_sale s ON s.sale_id = r.cusrtrn_saleID
+                    LEFT JOIN ezy_pos_customers c ON c.cus_id = r.cusrtrn_cusID
+                    LEFT JOIN ezy_pos_stores st ON st.store_id = s.sale_location
+                    WHERE r.cusrtrn_createdat BETWEEN ? AND ?
+                      AND r.cusrtrn_status = 1
+                      AND r.cusrtrn_totalRtrn > 0"
+                    .$sf.
+                    " ORDER BY r.cusrtrn_id DESC";
+            foreach($this->db->query($str, array($start, $end))->result() as $r){
+                $rows[] = $mk(substr($r->cusrtrn_createdat, 0, 10), 'Return',
+                              'CR-'.$r->cusrtrn_id, $r->cus_name, 'Cash', '',
+                              'out', $r->cusrtrn_totalRtrn, $r->store_name);
+            }
+        }
+
         // Newest first, so the report reads like a day book.
         usort($rows, function($a, $b){
             if($a->date === $b->date) return 0;
@@ -1399,6 +1488,9 @@ class Report_model extends CI_Model {
             // Split of the sale money by tender, so Today's Summary shows exactly
             // the same Cash / Cheque figures the Cash Flow report does.
             'sale_cash' => 0, 'sale_cheque' => 0, 'sale_card' => 0,
+            // Of the sale money above, how much came in on a bill that sold a
+            // gift voucher. Part of sale_in, not on top of it.
+            'voucher_in' => 0,
             'tailoring_cash' => 0,
             // Cash-only view (physical notes in the till)
             'cash_in' => 0, 'cash_out' => 0, 'cash_net' => 0
@@ -1416,11 +1508,16 @@ class Report_model extends CI_Model {
             } else {
                 $out['total_in'] += $r->amount;
                 if($isCash) $out['cash_in'] += $r->amount;
-                if($r->source === 'Sale'){
+                // A voucher bill is a sale. It is labelled differently in the
+                // table so the owner can see what it was, but it must land in
+                // exactly the same totals - leaving it out is what made the
+                // voucher money disappear from the day's figures.
+                if($r->source === 'Sale' || $r->source === 'Voucher Sale' || $r->source === 'Sale + Voucher'){
                     $out['sale_in'] += $r->amount;
                     if($isCash)      $out['sale_cash']   += $r->amount;
                     elseif($isChq)   $out['sale_cheque'] += $r->amount;
                     else             $out['sale_card']   += $r->amount;
+                    if($r->source !== 'Sale'){ $out['voucher_in'] += $r->amount; }
                 }
                 elseif($r->source === 'Tailoring'){
                     $out['tailoring_in'] += $r->amount;
@@ -1786,25 +1883,35 @@ class Report_model extends CI_Model {
     }
 
     public function getReturnsTotalForToday($storeId = null){
-        if(!$this->db->table_exists('ezy_pos_returns')){
-            $obj = new stdClass();
-            $obj->total_returns = 0;
-            $obj->return_count = 0;
-            return $obj;
+        return $this->getReturnsTotalByDates(date('Y-m-d'), date('Y-m-d'), $storeId);
+    }
+
+    /**
+     * Returns taken on the older Customer Return screen, which keeps its own
+     * table. Rows written before v13 carry no bill number and are left out -
+     * there is no branch to file them under and no sale to show them against.
+     */
+    protected function _oldReturnsTotal($from, $to, $storeId = null){
+        $blank = array('total' => 0, 'count' => 0);
+        if(!$this->db->table_exists('ezy_pos_cus_return')
+           || !in_array('cusrtrn_saleID', $this->db->list_fields('ezy_pos_cus_return'))){
+            return $blank;
         }
-        $str = "SELECT COALESCE(SUM(ret_net_amount),0) AS total_returns, COUNT(*) AS return_count
-                FROM ezy_pos_returns
-                WHERE DATE(ret_created_at) = CURDATE() AND ret_status = 1"
-                .$this->_returnStoreFilter($storeId);
-        $query = $this->db->query($str);
-        return $query->row();
+        $sf  = $this->_storeFilterFor('s.sale_location', $storeId);
+        $str = "SELECT COALESCE(SUM(r.cusrtrn_totalRtrn),0) AS t, COUNT(*) AS n
+                FROM ezy_pos_cus_return r
+                INNER JOIN ezy_pos_sale s ON s.sale_id = r.cusrtrn_saleID
+                WHERE r.cusrtrn_createdat BETWEEN ? AND ? AND r.cusrtrn_status = 1".$sf;
+        $row = $this->db->query($str, array($from." 00:00:00", $to." 23:59:59"))->row();
+        return $row ? array('total' => floatval($row->t), 'count' => intval($row->n)) : $blank;
     }
 
     public function getReturnsTotalByDates($from, $to, $storeId = null){
+        $old = $this->_oldReturnsTotal($from, $to, $storeId);
         if(!$this->db->table_exists('ezy_pos_returns')){
             $obj = new stdClass();
-            $obj->total_returns = 0;
-            $obj->return_count = 0;
+            $obj->total_returns = round($old['total'], 2);
+            $obj->return_count = $old['count'];
             return $obj;
         }
         $start = $from . " 00:00:00";
@@ -1813,8 +1920,33 @@ class Report_model extends CI_Model {
                 FROM ezy_pos_returns
                 WHERE ret_created_at BETWEEN ? AND ? AND ret_status = 1"
                 .$this->_returnStoreFilter($storeId);
-        $query = $this->db->query($str, array($start, $end));
-        return $query->row();
+        $row = $this->db->query($str, array($start, $end))->row();
+        $row->total_returns = round(floatval($row->total_returns) + $old['total'], 2);
+        $row->return_count  = intval($row->return_count) + $old['count'];
+        return $row;
+    }
+
+    /**
+     * Face value of the gift vouchers sold in a period.
+     *
+     * The money is already inside the SALES line - a voucher goes on the bill
+     * like anything else and sale_grandtotal includes it. This is how much of
+     * that total was vouchers, shown so the figure is visible rather than
+     * assumed to be missing.
+     */
+    public function getVoucherSalesTotal($from, $to, $storeId = null){
+        if(!$this->db->table_exists('ezy_pos_gift_cards')){ return 0; }
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilterFor('s.sale_location', $storeId);
+        $str = "SELECT COALESCE(SUM(gc.gc_original_value),0) AS t
+                FROM ezy_pos_gift_cards gc
+                INNER JOIN ezy_pos_sale s ON s.sale_id = gc.gc_sold_sale_id
+                WHERE gc.gc_sold_sale_id IS NOT NULL
+                  AND s.sale_date BETWEEN ? AND ?
+                  AND s.sale_status = '1'".$sf;
+        $row = $this->db->query($str, array($start, $end))->row();
+        return $row ? round(floatval($row->t), 2) : 0;
     }
 
     public function getTodaySummaryByDates($from, $to, $storeId = null){
@@ -1835,6 +1967,8 @@ class Report_model extends CI_Model {
         $result['sale_cash']   = $cf['sale_cash'];
         $result['sale_cheque'] = $cf['sale_cheque'];
         $result['sale_card']   = $cf['sale_card'];
+        // Vouchers sold. Part of sale_total above, not on top of it.
+        $result['voucher_sales'] = $this->getVoucherSalesTotal($from, $to, $storeId);
 
         // Full cash-flow block (tailoring in, refunds out, exchange top-ups, net)
         $result['cf_sale_in']      = $cf['sale_in'];

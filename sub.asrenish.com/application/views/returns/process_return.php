@@ -454,7 +454,15 @@ $( function() {
 
                     html += '<tr data-item-id="'+itm.saleitem_item_id+'" data-price="'+itm.saleitem_price+'" data-qty="'+itm.saleitem_quantity+'" data-discount="'+(itm.saleitem_discount||0)+'" data-discount-type="'+(itm.saleitem_discount_type||'percentage')+'" data-max-ret="'+maxRetQty.toFixed(2)+'">';
                     html += '<td>'+(i+1)+'</td>';
-                    html += '<td>'+itm.itm_name+'</td>';
+                    // The sold quantity in the next column is what the customer was
+                    // billed for and never changes. This says how much of it has
+                    // already come back, so the two numbers cannot be confused.
+                    var doneQty = parseFloat(itm.returned_qty || 0);
+                    html += '<td>'+itm.itm_name
+                          + (doneQty > 0
+                              ? '<br><small style="color:#c62828;">'+doneQty.toFixed(2)+' already returned, '+maxRetQty.toFixed(2)+' left</small>'
+                              : '')
+                          + '</td>';
                     html += '<td style="text-align:right;">'+parseFloat(itm.saleitem_price).toFixed(2)+'</td>';
                     html += '<td style="text-align:right;">'+parseFloat(itm.saleitem_quantity).toFixed(2)+'</td>';
                     html += '<td style="text-align:right;">'+disLabel+'</td>';

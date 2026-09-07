@@ -30,11 +30,24 @@ class InsufficentStockSale_model extends CI_Model {
     // johan pending grn
     
     public function showPendingGrn(){
-        $str = "SELECT itm_id, itm_name, insuffi_newqty, insuffi_saleid 
-                FROM ezy_pos_items 
-                INNER JOIN ezy_pos_insuffistocksale 
-                ON ezy_pos_insuffistocksale.insuffi_itmid = ezy_pos_items.itm_id 
-                WHERE insuffi_newqty > 0"; // updated condition to check new quantity 
+        // Item code and the quantity still owed are what the admin actually
+        // needs here: which item is short, and by how much. The per-item
+        // total is carried alongside the per-bill line so a stock keeper can
+        // see "12 pending in all" without adding the rows up by hand.
+        $str = "SELECT i.itm_id, i.itm_code, i.itm_name,
+                       s.insuffi_newqty, s.insuffi_saleid,
+                       t.total_pending
+                FROM ezy_pos_items i
+                INNER JOIN ezy_pos_insuffistocksale s
+                    ON s.insuffi_itmid = i.itm_id
+                INNER JOIN (
+                    SELECT insuffi_itmid, SUM(insuffi_newqty) AS total_pending
+                    FROM ezy_pos_insuffistocksale
+                    WHERE insuffi_newqty > 0
+                    GROUP BY insuffi_itmid
+                ) t ON t.insuffi_itmid = s.insuffi_itmid
+                WHERE s.insuffi_newqty > 0
+                ORDER BY i.itm_name, s.insuffi_saleid";
     
         $query = $this->db->query($str);
     

@@ -191,69 +191,114 @@ namespace EzyLabel.Core
             // No CLS here on purpose - every row opens with its own.
         }
 
+        /// <summary>
+        /// Should the separate item-code line be printed at all?
+        ///
+        /// In this shop the item code and the barcode number are the same
+        /// string. Printing both put it on the sticker twice and pushed the
+        /// name away from the bars, so when they match the readable number
+        /// under the barcode is the one that is kept.
+        /// </summary>
+        public static bool WantsCodeLine(LabelSpec spec, LabelItem item)
+        {
+            if (!spec.ShowItemCode || string.IsNullOrWhiteSpace(item.ItemCode)) return false;
+            if (!spec.HideCodeWhenSameAsBarcode) return true;
+            // Only the readable number counts as "already shown".
+            if (!spec.ShowBarcodeText) return true;
+            string bar = item.EffectiveBarcode;
+            if (string.IsNullOrWhiteSpace(bar)) return true;
+            return !string.Equals(bar.Trim(), item.ItemCode.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
         private static void AppendOneLabel(StringBuilder sb, LabelSpec spec, LabelItem item, int originX, int narrowDots)
         {
             var inv = CultureInfo.InvariantCulture;
             int x0 = originX + spec.InnerMarginDots;
             int usable = spec.LabelWidthDots - 2 * spec.InnerMarginDots;
-            int y = spec.InnerMarginDots;
 
-            if (spec.ShopLine.Length > 0)
+            // Everything on the sticker is one line high, so the block is the
+            // same height for every item on the roll. That is measured first,
+            // then centred - which is what keeps the bars in the same place on
+            // every sticker whether the item name is long or short. It also
+            // means the only space between the name and the barcode is the one
+            // line gap below, instead of the name being pinned to the top of
+            // the label and the barcode to the bottom of it.
+            int gap = spec.Mm(spec.LineGapMm);
+            if (gap < 1) gap = 1;
+
+            bool wantShop  = spec.ShopLine.Length > 0;
+            bool wantName  = spec.ShowItemName && !string.IsNullOrWhiteSpace(item.ItemName);
+            bool wantCode  = WantsCodeLine(spec, item);
+            string code    = item.EffectiveBarcode;
+            bool wantBars  = !string.IsNullOrEmpty(code) && narrowDots > 0;
+            bool wantPrice = spec.ShowPrice;
+
+            int shopH  = wantShop  ? FontHeight("1") : 0;
+            int nameH  = wantName  ? FontHeight(spec.NameFont) : 0;
+            int codeH  = wantCode  ? FontHeight(spec.CodeFont) : 0;
+            int barH   = spec.Mm(spec.BarcodeHeightMm);
+            // The human-readable number the printer draws under the bars.
+            int readH  = spec.ShowBarcodeText ? 20 : 0;
+            int barsH  = wantBars ? barH + readH : 0;
+            int priceH = wantPrice ? FontHeight(spec.PriceFont) * spec.PriceMultiplier : 0;
+
+            int blocks = (wantShop ? 1 : 0) + (wantName ? 1 : 0) + (wantCode ? 1 : 0)
+                       + (wantBars ? 1 : 0) + (wantPrice ? 1 : 0);
+            int total = shopH + nameH + codeH + barsH + priceH + (blocks > 1 ? (blocks - 1) * gap : 0);
+
+            int inner = spec.LabelHeightDots - 2 * spec.InnerMarginDots;
+            int y = spec.InnerMarginDots + Math.Max(0, (inner - total) / 2);
+
+            if (wantShop)
             {
-                sb.Append(Text(x0, y, "1", 1, 1, Fit(spec.ShopLine, usable, 8)));
-                y += 14;
+                sb.Append(Centred(x0, y, usable, "1", 1, Fit(spec.ShopLine, usable, FontWidth("1"))));
+                y += shopH + gap;
             }
 
-            if (spec.ShowItemName && !string.IsNullOrWhiteSpace(item.ItemName))
+            if (wantName)
             {
                 int cw = FontWidth(spec.NameFont);
-                sb.Append(Text(x0, y, spec.NameFont, 1, 1, Fit(item.ItemName, usable, cw)));
-                y += FontHeight(spec.NameFont) + 3;
+                sb.Append(Centred(x0, y, usable, spec.NameFont, 1, Fit(item.ItemName, usable, cw)));
+                y += nameH + gap;
             }
 
-            if (spec.ShowItemCode && !string.IsNullOrWhiteSpace(item.ItemCode))
+            if (wantCode)
             {
                 int cw = FontWidth(spec.CodeFont);
-                sb.Append(Text(x0, y, spec.CodeFont, 1, 1, Fit(item.ItemCode, usable, cw)));
-                y += FontHeight(spec.CodeFont) + 3;
+                sb.Append(Centred(x0, y, usable, spec.CodeFont, 1, Fit(item.ItemCode, usable, cw)));
+                y += codeH + gap;
             }
 
-            // The barcode is the point of the label, so it is placed from the
-            // BOTTOM upwards. Whatever text is above it, the bars and the price
-            // stay put - which is what stops the layout drifting between one
-            // item with a long name and the next with a short one.
-            int barH = spec.Mm(spec.BarcodeHeightMm);
-            int readableH = spec.ShowBarcodeText ? 20 : 0;
-            int priceH = spec.ShowPrice ? FontHeight(spec.PriceFont) * spec.PriceMultiplier : 0;
-
-            int bottom = spec.LabelHeightDots - spec.InnerMarginDots;
-            int priceY = bottom - priceH;
-            int barY = priceY - (spec.ShowPrice ? 4 : 0) - readableH - barH;
-            if (barY < y) barY = y;                       // never overlap the text above
-
-            string code = item.EffectiveBarcode;
-            if (!string.IsNullOrEmpty(code) && narrowDots > 0)
+            if (wantBars)
             {
                 // Centre the bars inside the sticker so a short code does not sit
                 // hard against the left edge while a long one fills the width.
                 int barW = Code128.WidthDots(code, narrowDots);
                 int barX = x0 + Math.Max(0, (usable - barW) / 2);
-                sb.Append("BARCODE ").Append(barX).Append(",").Append(barY)
+                sb.Append("BARCODE ").Append(barX).Append(",").Append(y)
                   .Append(",\"128\",").Append(barH).Append(",")
                   .Append(spec.ShowBarcodeText ? 1 : 0).Append(",0,")
                   .Append(narrowDots).Append(",").Append(narrowDots * 2)
                   .Append(",\"").Append(Escape(code)).Append("\"").Append(CRLF);
+                y += barsH + gap;
             }
 
-            if (spec.ShowPrice)
+            if (wantPrice)
             {
                 string price = spec.CurrencyPrefix + " " + item.SellingPrice.ToString("N2", inv);
                 int cw = FontWidth(spec.PriceFont) * spec.PriceMultiplier;
-                string txt = Fit(price, usable, cw);
-                int w = txt.Length * cw;
-                int px = x0 + Math.Max(0, (usable - w) / 2);
-                sb.Append(Text(px, priceY, spec.PriceFont, spec.PriceMultiplier, spec.PriceMultiplier, txt));
+                sb.Append(Centred(x0, y, usable, spec.PriceFont, spec.PriceMultiplier,
+                                  Fit(price, usable, cw)));
             }
+        }
+
+        /// <summary>Draw one line of text centred across the sticker.</summary>
+        private static string Centred(int x0, int y, int usableDots, string font, int mult, string content)
+        {
+            int cw = FontWidth(font) * mult;
+            int w = content.Length * cw;
+            int x = x0 + Math.Max(0, (usableDots - w) / 2);
+            return Text(x, y, font, mult, mult, content);
         }
 
         private static string Text(int x, int y, string font, int xm, int ym, string content)

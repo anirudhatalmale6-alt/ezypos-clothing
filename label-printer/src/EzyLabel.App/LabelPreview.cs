@@ -70,36 +70,62 @@ namespace EzyLabel.App
             var inv = CultureInfo.InvariantCulture;
             int x0 = originX + spec.InnerMarginDots;
             int usable = spec.LabelWidthDots - 2 * spec.InnerMarginDots;
-            int y = originY + spec.InnerMarginDots;
 
-            if (spec.ShopLine.Length > 0)
-            {
-                FixedPitch(g, x0, y, TsplBuilder.Fit(spec.ShopLine, usable, 8), 8, 12);
-                y += 14;
-            }
-            if (spec.ShowItemName && !string.IsNullOrWhiteSpace(item.ItemName))
-            {
-                int cw = TsplBuilder.FontWidth(spec.NameFont), ch = TsplBuilder.FontHeight(spec.NameFont);
-                FixedPitch(g, x0, y, TsplBuilder.Fit(item.ItemName, usable, cw), cw, ch);
-                y += ch + 3;
-            }
-            if (spec.ShowItemCode && !string.IsNullOrWhiteSpace(item.ItemCode))
-            {
-                int cw = TsplBuilder.FontWidth(spec.CodeFont), ch = TsplBuilder.FontHeight(spec.CodeFont);
-                FixedPitch(g, x0, y, TsplBuilder.Fit(item.ItemCode, usable, cw), cw, ch);
-                y += ch + 3;
-            }
+            // Same block-centred layout the printer is given. It has to be, or
+            // the preview would be showing something the TSC never prints -
+            // TsplBuilder.AppendOneLabel is the one to change if this needs to
+            // move, and this follows it.
+            int gap = spec.Mm(spec.LineGapMm);
+            if (gap < 1) gap = 1;
 
-            int barH = spec.Mm(spec.BarcodeHeightMm);
+            bool wantShop  = spec.ShopLine.Length > 0;
+            bool wantName  = spec.ShowItemName && !string.IsNullOrWhiteSpace(item.ItemName);
+            bool wantCode  = TsplBuilder.WantsCodeLine(spec, item);
+            string code    = item.EffectiveBarcode;
+            bool wantBars  = !string.IsNullOrEmpty(code) && narrowDots > 0;
+            bool wantPrice = spec.ShowPrice;
+
+            int shopH  = wantShop ? TsplBuilder.FontHeight("1") : 0;
+            int nameH  = wantName ? TsplBuilder.FontHeight(spec.NameFont) : 0;
+            int codeH  = wantCode ? TsplBuilder.FontHeight(spec.CodeFont) : 0;
+            int barH   = spec.Mm(spec.BarcodeHeightMm);
             int readableH = spec.ShowBarcodeText ? 20 : 0;
-            int priceH = spec.ShowPrice ? TsplBuilder.FontHeight(spec.PriceFont) * spec.PriceMultiplier : 0;
-            int bottom = originY + spec.LabelHeightDots - spec.InnerMarginDots;
-            int priceY = bottom - priceH;
-            int barY = priceY - (spec.ShowPrice ? 4 : 0) - readableH - barH;
-            if (barY < y) barY = y;
+            int barsH  = wantBars ? barH + readableH : 0;
+            int priceH = wantPrice ? TsplBuilder.FontHeight(spec.PriceFont) * spec.PriceMultiplier : 0;
 
-            string code = item.EffectiveBarcode;
-            if (!string.IsNullOrEmpty(code) && narrowDots > 0)
+            int blocks = (wantShop ? 1 : 0) + (wantName ? 1 : 0) + (wantCode ? 1 : 0)
+                       + (wantBars ? 1 : 0) + (wantPrice ? 1 : 0);
+            int total = shopH + nameH + codeH + barsH + priceH + (blocks > 1 ? (blocks - 1) * gap : 0);
+
+            int inner = spec.LabelHeightDots - 2 * spec.InnerMarginDots;
+            int y = originY + spec.InnerMarginDots + Math.Max(0, (inner - total) / 2);
+
+            if (wantShop)
+            {
+                int cw = TsplBuilder.FontWidth("1");
+                string t = TsplBuilder.Fit(spec.ShopLine, usable, cw);
+                FixedPitch(g, x0 + Math.Max(0, (usable - t.Length * cw) / 2), y, t, cw, shopH);
+                y += shopH + gap;
+            }
+            if (wantName)
+            {
+                int cw = TsplBuilder.FontWidth(spec.NameFont);
+                string t = TsplBuilder.Fit(item.ItemName, usable, cw);
+                FixedPitch(g, x0 + Math.Max(0, (usable - t.Length * cw) / 2), y, t, cw, nameH);
+                y += nameH + gap;
+            }
+            if (wantCode)
+            {
+                int cw = TsplBuilder.FontWidth(spec.CodeFont);
+                string t = TsplBuilder.Fit(item.ItemCode, usable, cw);
+                FixedPitch(g, x0 + Math.Max(0, (usable - t.Length * cw) / 2), y, t, cw, codeH);
+                y += codeH + gap;
+            }
+
+            int barY = y;
+            int priceY = y + barsH + (wantBars ? gap : 0);
+
+            if (wantBars)
             {
                 int barW = Code128.WidthDots(code, narrowDots);
                 int barX = x0 + Math.Max(0, (usable - barW) / 2);

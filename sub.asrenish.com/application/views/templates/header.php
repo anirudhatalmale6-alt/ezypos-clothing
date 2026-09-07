@@ -621,15 +621,28 @@
                                 var rows = '';
                                 var i;
                                 for(i=0; i<data.length; i++){
+                                // The Qty cell keeps the quantity as it was sold and nothing
+                                // else - the save code reads it with parseFloat, so a note in
+                                // there would be read as part of the number. What has already
+                                // come back goes under the item name instead, and the limit
+                                // travels on the input as data-remaining.
+                                var soldQty = parseFloat(data[i].saleitem_quantity) || 0;
+                                var doneQty = parseFloat(data[i].returned_qty) || 0;
+                                var leftQty = (typeof data[i].remaining_qty !== 'undefined')
+                                            ? (parseFloat(data[i].remaining_qty) || 0)
+                                            : soldQty;
+                                var retNote = doneQty > 0
+                                    ? '<br><small style="color:#c62828;">'+doneQty+' already returned, '+leftQty+' left</small>'
+                                    : '';
                                 rows+= '<tr>'+
                                             '<td class="" style="display:none;">'+data[i].itm_id+'</td>'+
                                             '<td>'+data[i].itm_code+'</td>'+
-                                            '<td>'+data[i].itm_name+'</td>'+
+                                            '<td>'+data[i].itm_name+retNote+'</td>'+
                                             '<td style="Text-align: right;">'+data[i].saleitem_price+'</td>'+
                                             '<td class="oldQty" style="Text-align: right;">'+data[i].saleitem_quantity+'</td>'+//field in use
                                             '<td style="Text-align: right;">'+data[i].saleitem_discount+'% </td>'+
                                             '<td class="amount" style="Text-align: right;">'+data[i].saleitem_total+'</td>'+
-                                            '<td><input type="text" name="rtrnQty" class="rtrnQty" style="text-align:right;" size="6"></td>'+
+                                            '<td><input type="text" name="rtrnQty" class="rtrnQty" style="text-align:right;" size="6" data-remaining="'+leftQty+'"></td>'+
                                             '<td class="rtrnAmont" style="Text-align: right;">0.00</td>'+
                                             '<td>'+
                                             '<a href="javascript:;" class="btn btn-sm btn-danger cls-delete"><i class="fa fa-times-rectangle-o"></i></a>'+
@@ -745,8 +758,11 @@
                            alert("Quantity is not valid");
                            checkDeci=0;
                         }
-                        else if(rtrnQty>parseFloat(oldQty)){
-                            alert("Return quantity is greater than sold quantity");
+                        else if(rtrnQty>parseFloat($(this).data('remaining'))){
+                            // The sold quantity is no longer reduced by a return, so the
+                            // limit is what is left, not what was sold - otherwise the
+                            // same piece could be brought back twice.
+                            alert("Only " + $(this).data('remaining') + " of this item can still be returned");
                             checkQty=0;
                         }
                         else{
@@ -908,7 +924,7 @@
                         $.ajax({
                             type: "Post",
                             url:"<?php echo base_url('cusReturns/addReturn'); ?>",
-                            data: {cusID:cusID_R,rtrnTotal:rtrnTotal},
+                            data: {cusID:cusID_R,rtrnTotal:rtrnTotal,saleID:saleID_R},
                             async: false,
                             dataType: "json",
                             success: function (RID) {

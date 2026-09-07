@@ -62,7 +62,10 @@ STEP 3 - RUN THE DATABASE UPDATES
    sit under a parent one. It only adds things. Every category you have
    today becomes a parent category and every expense already entered keeps
    the category it has now.
-8. Check the "Records still needing repair" boxes now read 0.
+8. Press "Run step 6" - this adds the column that records which bill a
+   customer return came off. It only adds things. From then on a return
+   keeps the bill's quantity as it was sold and only the money comes down.
+9. Check the "Records still needing repair" boxes now read 0.
 
 Every line is shown with a green "done" or an amber "already there". If
 anything comes up red, stop and send me a screenshot of the page - do not
@@ -117,5 +120,22 @@ AFTER THE UPDATE - QUICK CHECKS
 - Transactions > Supplier Return should now be a normal link in that menu.
   It used to be a button floated to the right of the menu bar, and on a
   full menu it was pushed off the end where nobody could reach it.
+- Sales window: press the green New button beside the Customer box. Put in a
+  name and a phone number, save, and that customer should already be on the
+  bill you are ringing up - no searching for them again.
+- Sales window: there are now two buttons at the bottom. The printer one saves
+  and prints as before and sends nothing. "Save & SMS" does the same and then
+  texts the bill to the phone number on the sale.
+- Dashboard > Pending GRN. The list should now show the item code, how much is
+  pending on that bill, and the total pending for that item.
+- Reports > Sales Report. Total Sales should be across the top in a blue bar,
+  and it should change as you change the dates, the customer or the branch.
+- Take a bill with 2 of something and return 1 on the Customer Return screen.
+  The Sales Report should still say the bill had 2, with the Grand Total down
+  by the refund and a red note saying what came off. Open the same bill on the
+  return screen again - it should say 1 already returned, 1 left, and refuse
+  to take more than 1.
+- Reports > Today Summary. There is a new "of which GIFT VOUCHERS SOLD" line
+  under Sales.
 
 If any of those look wrong, tell me what you see and I will sort it.

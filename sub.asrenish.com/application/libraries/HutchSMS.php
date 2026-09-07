@@ -97,13 +97,36 @@ class HutchSMS {
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
+        if ($response === FALSE) {
+            return array('status' => 'error', 'message' => 'Could not reach the SMS gateway');
+        }
         if ($httpCode == 401) {
             return array('status' => 'error', 'message' => 'SMS auth failed (401)');
         }
-        if ($response === FALSE) {
-            return array('status' => 'error', 'message' => 'SMS request failed');
-        }
+
         $data = json_decode($response, TRUE);
-        return array('status' => 'success', 'response' => $data, 'serverRef' => isset($data['serverRef']) ? $data['serverRef'] : null);
+
+        // The gateway answers 200 with a body that says it refused the message
+        // - "Invalid mask", "Insufficient credit", and so on. Reporting that as
+        // sent is worse than not sending: the shop believes the customer has
+        // the bill. Only an accepted message counts as sent.
+        $ok = ($httpCode >= 200 && $httpCode < 300);
+        $serverRef = (is_array($data) && isset($data['serverRef'])) ? $data['serverRef'] : null;
+        $state = (is_array($data) && isset($data['status'])) ? strtoupper((string)$data['status']) : '';
+        $accepted = array('ACCEPTED', 'SUCCESS', 'OK', 'SENT', 'QUEUED', 'SUBMITTED');
+
+        if ($ok && ($serverRef || in_array($state, $accepted))) {
+            return array('status' => 'success', 'response' => $data, 'serverRef' => $serverRef);
+        }
+
+        // Pass the gateway's own words back - "Invalid mask" tells the shop
+        // exactly what to fix, where "SMS failed" tells them nothing.
+        $why = '';
+        if (is_array($data)) {
+            if (isset($data['message'])) { $why = (string)$data['message']; }
+            if (isset($data['code']))    { $why = trim($why.' ('.$data['code'].')'); }
+        }
+        if ($why === '') { $why = 'The SMS gateway refused the message (HTTP '.$httpCode.')'; }
+        return array('status' => 'error', 'message' => $why, 'response' => $data);
     }
 }

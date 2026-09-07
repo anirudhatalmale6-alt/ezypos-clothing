@@ -7,23 +7,33 @@ At 203 dpi that is **304 x 200 dots**, and every position below is in dots.
 ```
 +--------------------------------------------------+  <- sticker edge
 |  (1.5 mm clear all round)                        |
-|  2 COLOUR BATIK BAG                              |  item name,  font 2 (12x20)
-|  RUBKBG2C1                                       |  item code,  font 1 (8x12)
-|                                                  |
+|            2 COLOUR BATIK BAG                    |  item name,  font 2 (12x20)
 |        ||| || |||| | ||| || |||| ||              |  Code 128, 8 mm tall
 |              RUBKBG2C1                           |  the number, font 1
-|            Rs. 3,250.00                          |  price, font 3 (16x24), centred
+|            Rs. 3,250.00                          |  price, font 3 (16x24)
 +--------------------------------------------------+
 ```
 
-The layout is built **from the bottom up**, not the top down. The price sits a
-fixed distance off the bottom edge, the barcode sits directly above it, and only
-the text at the top moves. That is what stops the barcode wandering up and down
-the sticker between an item with a long name and one with a short name — the
-"drifting alignment" the brief warns about.
+**The item code is not printed on its own line.** In this shop the item code and
+the barcode number are the same string, so printing both put it on the sticker
+twice and pushed the name away from the bars. When the two match, the readable
+number under the barcode is the one that is kept. If they are ever different,
+both are printed — and the behaviour can be turned off entirely with **"Do not
+repeat the item code when it is the same as the barcode number"** on the
+Settings tab.
 
-The barcode and the price are both centred, so a short item code does not sit
-hard against the left edge while a long one fills the width.
+**The lines are one block, centred.** Every line on the sticker is one line
+high, so the block is exactly the same height for every item on the roll. It is
+measured, then centred in the sticker, with **Gap between lines** (0.4 mm by
+default) between one line and the next. Because the height never changes, the
+bars land in the same place on every sticker whether the item name is long or
+short — no "drifting alignment". And because the name is separated from the
+barcode by one line gap rather than being pinned to the top of the sticker while
+the barcode was pinned to the bottom, there is no longer a band of white space
+between them.
+
+Everything is centred across the sticker, so a short item name does not sit hard
+against the left edge while a long one fills the width.
 
 Everything can be switched off individually on the Settings tab (item name,
 item code, price, the number under the barcode), and there is an optional extra
@@ -96,7 +106,9 @@ these settings are adjusted to suit:
 | Barcode taller or shorter | **Barcode height** on the Settings tab |
 | Bars thicker or thinner | **Narrow bar (dots)** |
 | Different order of the lines | a small change to `TsplBuilder.AppendOneLabel` |
-| More or less white space | **Margin inside sticker** |
+| More or less white space round the edge | **Margin inside sticker** |
+| More or less air between the lines | **Gap between lines** |
+| Item code wanted as well as the number | untick **"Do not repeat the item code..."** |
 | Currency shown differently | **Currency prefix** |
 | Shop name on the label | **Extra top line** |
 

@@ -11,7 +11,7 @@
     <AssemblyName>EzyPOS Label Printer</AssemblyName>
     <RootNamespace>EzyLabel.App</RootNamespace>
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Company>EzyPOS</Company>
     <Product>EzyPOS Label Printer</Product>
     <Description>Barcode label printing for the TSC TTP-244 Pro, driven from EzyPOS</Description>

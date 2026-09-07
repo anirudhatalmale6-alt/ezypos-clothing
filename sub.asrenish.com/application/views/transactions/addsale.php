@@ -29,15 +29,23 @@
                                 <fieldset>
                                 <div class="form-group row">
                                     <label for="customer-auto" class="col-4 col-form-label">Customer<span class="text-danger">*</span></label>
-                                    <div class="col-6">
+                                    <div class="col-5">
                                         <input class="form-control"  id="customer-auto" placeholder="Select" >
                                         <input type="hidden" class="form-control" name="customer" id="customer-id">
                                    </div>
-                                    <div class="col-2">
-                                        <a href="#"><b><span id="show_cus" class="hover" data-toggle="tooltip" ></span></b></a>
-                                        <button id="btnChange" style="display:none;" class="btn btn-sm btn-warning">
-                                            <i class="fa fa-exchange"></i>
-                                        </button>
+                                    <div class="col-3">
+                                        <div><a href="#"><b><span id="show_cus" class="hover" data-toggle="tooltip" ></span></b></a></div>
+                                        <div style="white-space:nowrap;">
+                                            <button id="btnChange" type="button" style="display:none;" class="btn btn-sm btn-warning" title="Change customer">
+                                                <i class="fa fa-exchange"></i>
+                                            </button>
+                                            <!-- A new face at the counter should not send the cashier off to the
+                                                 Customers page and back. This opens the quick-add box and puts the
+                                                 new customer straight on the bill being rung up. -->
+                                            <button id="btnAddCustomer" type="button" class="btn btn-sm btn-success" title="Add a new customer">
+                                                <i class="fa fa-user-plus"></i> New
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="form-group row">
@@ -248,7 +256,10 @@
                                     </div>
                                 </form>                                 
                                 <div class="pull-right">                                                               
-                                    <button href="javascript:window.print()" id="save" disabled class="btn btn-primary waves-effect"><i class="fa fa-print"></i></button>
+                                    <button href="javascript:window.print()" id="save" disabled class="btn btn-primary waves-effect" title="Save and print the bill"><i class="fa fa-print"></i></button>
+                                    <!-- Same save, then the bill goes to the customer by SMS. The plain
+                                         Save button never sends one. -->
+                                    <button type="button" id="saveSms" disabled class="btn btn-success waves-effect" title="Save, print, and SMS the bill to the customer"><i class="fa fa-paper-plane"></i> Save &amp; SMS</button>
                                     <div id="div_result"></div>
                                 </div>                                
                             </div>
@@ -402,7 +413,8 @@
                 <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body">
-                <p class="text-warning">Credit sale requires a saved customer. Add details below:</p>
+                <p class="text-warning" id="nc_credit_note" style="display:none;">Credit sale requires a saved customer. Add details below:</p>
+                <p class="text-muted" id="nc_sale_note">The customer is saved and put on this bill straight away.</p>
                 <div class="form-group">
                     <label>Name<span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="nc_name" placeholder="Customer name">
@@ -449,6 +461,7 @@
 <script>
     $( function() {
         document.getElementById("save").disabled = true;
+        document.getElementById("saveSms").disabled = true;
 
         // =========== ONLINE DELIVERY TOGGLE ===========
         $('#online_delivery').change(function(){
@@ -1180,16 +1193,30 @@ var chequeHTML ='<div id="chequeDIV">'+
         // used to create a duplicate bill. The flag blocks re-entry and the button
         // is disabled so the operator can see the sale is already going through.
         var saleSaveInProgress = false;
+        // Set by the Save & SMS button just before it fires the ordinary save,
+        // and read once the bill has been written. Save on its own leaves it
+        // false, so that sale never sends a message.
+        var smsRequested = false;
         function lockSaveButton(){
             saleSaveInProgress = true;
             $('#save').prop('disabled', true);
+            $('#saveSms').prop('disabled', true);
             $('#btnConfirmCardRefs').prop('disabled', true);
         }
         function unlockSaveButton(){
             saleSaveInProgress = false;
             $('#save').prop('disabled', false);
+            $('#saveSms').prop('disabled', false);
             $('#btnConfirmCardRefs').prop('disabled', false);
         }
+        $('#saveSms').click(function(){
+            if(saleSaveInProgress){ return; }
+            smsRequested = true;
+            $('#save').click();
+            // If the save was refused (missing phone, short payment, ...) the
+            // flag has to come back off, or the next plain Save would text.
+            if(!saleSaveInProgress){ smsRequested = false; }
+        });
         $('#save').click(function(){
             if(saleSaveInProgress){ return; }
             if ($("#cheque").is(':checked')) {
@@ -1694,12 +1721,10 @@ var chequeHTML ='<div id="chequeDIV">'+
                         var rurl="<?= base_url('Sales/print_inv')?>/"+sale_ID;
                         console.log(rurl);
                         window.open(rurl, "_blank", "toolbar=yes,scrollbars=yes,resizable=yes,top=40,left="+left+",width=400,height=600");
-                        // Show SMS option for online sales or if user wants
-                        if(lastSavedIsOnline || lastSavedPhone){
-                            $('#sms_phone_display').text(lastSavedPhone);
-                            $('#smsModal').modal('show');
-                            // Reload after modal closes
-                            $('#smsModal').on('hidden.bs.modal', function(){ location.reload(); });
+                        // The bill only goes out by SMS when the cashier pressed
+                        // Save & SMS. Plain Save finishes the sale silently.
+                        if(smsRequested && lastSavedPhone){
+                            sendBillSms(lastSavedSaleId, lastSavedPhone, function(){ location.reload(); });
                         } else {
                             location.reload();
                         }
@@ -1879,6 +1904,8 @@ var chequeHTML ='<div id="chequeDIV">'+
     function validate_user_credits(){
         var saveBtn = document.getElementById("save");
         if(saveBtn){ saveBtn.disabled = false; }
+        var smsBtn = document.getElementById("saveSms");
+        if(smsBtn){ smsBtn.disabled = false; }
     }
     
     
@@ -2285,61 +2312,123 @@ var chequeHTML ='<div id="chequeDIV">'+
         $('#save').click();
     });
 
-    // =========== NEW CUSTOMER SAVE (Credit Sales) ===========
+    // =========== ADD CUSTOMER FROM THE SALES WINDOW ===========
+    // openedForCredit tells the two callers apart: the credit-sale path wants
+    // "now press Pay again", the Add Customer button wants "carry on ringing
+    // this bill up". Everything else about the popup is the same.
+    var ncOpenedForCredit = false;
+
+    function openNewCustomerPopup(forCredit){
+        ncOpenedForCredit = !!forCredit;
+        $('#nc_name').val('');
+        $('#nc_phone').val($('#customer_phone').val().trim());
+        $('#nc_credit_note').toggle(ncOpenedForCredit);
+        $('#nc_sale_note').toggle(!ncOpenedForCredit);
+        $('#newCustomerModal').modal('show');
+        setTimeout(function(){ $('#nc_name').focus(); }, 300);
+    }
+
+    $('#btnAddCustomer').click(function(){ openNewCustomerPopup(false); });
+
+    // A customer created mid-sale has to be findable straight away, without
+    // reloading the page - the page load is what built this list in the first
+    // place, and reloading would throw the bill away.
+    function addToCustomerAutocomplete(id, name, phone){
+        try{
+            var $ac = $('#customer-auto');
+            var src = $ac.autocomplete('option', 'source');
+            if($.isArray(src)){
+                src.push({ label: name + (phone ? ' - ' + phone : ''),
+                           cusname: name, value: String(id) });
+                $ac.autocomplete('option', 'source', src);
+            }
+        }catch(e){ /* widget not ready yet - the new customer is selected regardless */ }
+    }
+
+    function selectCustomerOnThisSale(cusId, name, phone){
+        $('#customer-id').val(cusId);
+        $('#customer-auto').val(name);
+        $('#show_cus').text(name).show();
+        $('#btnChange').show();
+        $('#customer-auto').parent().hide();
+        if(phone){ $('#customer_phone').val(phone); }
+        addToCustomerAutocomplete(cusId, name, phone);
+        load_cus_credit_and_dues();
+        $(document).trigger('customerSelected');
+    }
+
     $('#btnSaveNewCustomer').click(function(){
         var ncName = $('#nc_name').val().trim();
         var ncPhone = $('#nc_phone').val().trim();
-        if(!ncName){ alert('Customer name is required'); return; }
-        if(!ncPhone){ alert('Customer phone is required'); return; }
+        if(!ncName){ swal({type:'error',title:'Name needed',text:'Enter the customer name.'}); return; }
+        if(!ncPhone){ swal({type:'error',title:'Phone needed',text:'Enter the customer phone number.'}); return; }
+        var btn = $(this);
+        btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Saving...');
         $.ajax({
             type:'POST',
             url:'<?php echo base_url("Customers/quickAddCustomer"); ?>',
             data: {name:ncName, contact:ncPhone, address:$('#nc_address').val(), creditlimit:$('#nc_creditlimit').val()||0},
-            async:false,
             dataType:'json',
             success:function(newCusId){
+                btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Customer');
                 if(newCusId > 0){
-                    $('#customer-id').val(newCusId);
-                    $('#customer-auto').val(ncName);
-                    $("#show_cus").text(ncName).show();
-                    $("#btnChange").show();
-                    $("#customer-auto").parent().hide();
-                    $('#customer_phone').val(ncPhone);
+                    selectCustomerOnThisSale(newCusId, ncName, ncPhone);
                     $('#newCustomerModal').modal('hide');
-                    load_cus_credit_and_dues();
-                    swal({type:'success',title:'Customer Saved',text:'Now click Pay again to complete the sale.',showConfirmButton:true});
+                    if(ncOpenedForCredit){
+                        swal({type:'success',title:'Customer Saved',text:'Now click Pay again to complete the sale.',showConfirmButton:true});
+                    } else {
+                        swal({type:'success',title:'Customer added',
+                              text:ncName + ' is now on this bill.',
+                              showConfirmButton:false, timer:1500});
+                    }
                 } else {
-                    alert('Error creating customer');
+                    swal({type:'error',title:'Not saved',text:'The customer could not be created. Check the phone number is not already used.'});
                 }
             },
-            error:function(){ alert('Error creating customer'); }
+            error:function(){
+                btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Customer');
+                swal({type:'error',title:'Not saved',text:'Could not reach the server. Try again.'});
+            }
         });
     });
 
-    // =========== SMS SEND HANDLER ===========
-    $('#btnSendSms').click(function(){
-        var btn = $(this);
-        btn.prop('disabled',true).html('<i class="fa fa-spinner fa-spin"></i> Sending...');
+    // =========== SMS SEND ===========
+    // The bill is already saved and printed by the time this runs, so a failed
+    // message must never lose the sale - `done` runs either way, and the
+    // cashier is told plainly whether the customer got the text.
+    function sendBillSms(saleId, phone, done){
+        if(!saleId || !phone){ if(done){ done(); } return; }
+        swal({title:'Sending SMS...', text:'To ' + phone,
+              showConfirmButton:false, allowOutsideClick:false});
         $.ajax({
             type:'POST',
             url:'<?php echo base_url("Sales/sendSmsReceipt"); ?>',
-            data:{sale_id: lastSavedSaleId, phone: lastSavedPhone},
+            data:{sale_id: saleId, phone: phone},
             dataType:'json',
             success:function(res){
-                btn.prop('disabled',false).html('<i class="fa fa-paper-plane"></i> Send SMS');
-                if(res.status == 'success'){
-                    swal({type:'success',title:'SMS Sent',showConfirmButton:false,timer:1500});
+                if(res && res.status == 'success'){
+                    swal({type:'success',title:'Bill sent by SMS',text:'To ' + phone,
+                          showConfirmButton:false,timer:1600});
+                    setTimeout(function(){ if(done){ done(); } }, 1700);
                 } else {
-                    swal({type:'error',title:'SMS Failed',text:res.message||'Could not send SMS'});
+                    swal({type:'error',title:'SMS not sent',
+                          text:'The sale is saved and the bill is printed. ' +
+                               ((res && res.message) ? res.message : 'The SMS could not be sent.')})
+                        .then(function(){ if(done){ done(); } });
                 }
-                $('#smsModal').modal('hide');
             },
             error:function(){
-                btn.prop('disabled',false).html('<i class="fa fa-paper-plane"></i> Send SMS');
-                swal({type:'error',title:'SMS Error',text:'Network error sending SMS'});
-                $('#smsModal').modal('hide');
+                swal({type:'error',title:'SMS not sent',
+                      text:'The sale is saved and the bill is printed, but the SMS could not be sent.'})
+                    .then(function(){ if(done){ done(); } });
             }
         });
+    }
+
+    // The old confirmation popup still works if it is ever opened by hand.
+    $('#btnSendSms').click(function(){
+        $('#smsModal').modal('hide');
+        sendBillSms(lastSavedSaleId, lastSavedPhone, null);
     });
 
     // =========== GIFT VOUCHER SELLING ===========

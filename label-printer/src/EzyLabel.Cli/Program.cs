@@ -284,6 +284,7 @@ A queue file is the same shape the API returns:
             if ((d = Dbl(args, "--top-offset"))    != null) s.TopOffsetMm     = d.Value;
             if ((d = Dbl(args, "--inner-margin"))  != null) s.InnerMarginMm   = d.Value;
             if ((d = Dbl(args, "--barcode-height"))!= null) s.BarcodeHeightMm = d.Value;
+            if ((d = Dbl(args, "--line-gap"))     != null) s.LineGapMm       = d.Value;
             if ((n = Int(args, "--narrow-dots"))   != null) s.BarcodeNarrowDots = n.Value;
             if ((n = Int(args, "--dpi"))           != null) s.Dpi             = n.Value;
             if ((n = Int(args, "--speed"))         != null) s.Speed           = n.Value;
@@ -293,6 +294,8 @@ A queue file is the same shape the API returns:
             if (Has(args, "--no-price"))        s.ShowPrice = false;
             if (Has(args, "--no-name"))         s.ShowItemName = false;
             if (Has(args, "--no-code"))         s.ShowItemCode = false;
+            // Print the item code even when it is the same as the barcode number.
+            if (Has(args, "--repeat-code"))     s.HideCodeWhenSameAsBarcode = false;
             if (Has(args, "--no-barcode-text")) s.ShowBarcodeText = false;
         }
 

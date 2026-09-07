@@ -214,6 +214,7 @@ class Reports extends CI_Controller {
 
                 // Cash flow block for today, from the same engine the Cash Flow report uses
                 $data['cashflow_today'] = $this->Report_model->getCashMovementBySource(date('Y-m-d'), date('Y-m-d'));
+                $data['voucher_sales_today'] = $this->Report_model->getVoucherSalesTotal(date('Y-m-d'), date('Y-m-d'));
                 $data['storesForFilter'] = $this->_loadStoresForUser();
 
                 $this->load->view('templates/header',$data);

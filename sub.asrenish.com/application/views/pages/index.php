@@ -175,8 +175,10 @@
                                                 '<thead>'+
                                                     '<tr>'+
                                                         '<th style="font-size: 12px;">Sale ID</th>'+
+                                                        '<th style="font-size: 12px;">Item Code</th>'+
                                                         '<th style="font-size: 12px;">Item Name</th>'+
-                                                        '<th style="font-size: 12px;">Qty</th>'+  
+                                                        '<th style="font-size: 12px;">Pending Qty</th>'+
+                                                        '<th style="font-size: 12px;">Total Pending</th>'+
                                                         '<th style="font-size: 12px;">GRN</th>'+                                         
                                                     '</tr>'+
                                                 '</thead>';
@@ -188,8 +190,10 @@
 						for(i=0; i<data.length; i++){
                         rows+= '<tr>'+
                                     '<td>'+data[i].insuffi_saleid+'</td>'+
+                                    '<td>'+(data[i].itm_code || '-')+'</td>'+
                                     '<td>'+data[i].itm_name+'</td>'+
-                                    '<td>'+data[i].insuffi_newqty+'</td>'+
+                                    '<td style="text-align:right;">'+data[i].insuffi_newqty+'</td>'+
+                                    '<td style="text-align:right;"><strong>'+(data[i].total_pending || data[i].insuffi_newqty)+'</strong></td>'+
                                     '<td>'+
                                         '<a href="<?php echo base_url('add-grn')?>"  target="_blank" class="btn btn-sm btn-danger"><i class="fa fa-plus"></i></a>'+
                                     '</td>'+
