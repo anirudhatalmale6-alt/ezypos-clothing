@@ -4,12 +4,30 @@ class CusPayment_model extends CI_Model {
     {
             $this->load->database();
     }
+
+    /**
+     * The date a payment is filed under.
+     *
+     * An empty date becomes 0000-00-00 in MySQL, and every report filters on
+     * "date BETWEEN from AND to" - so the row is not merely wrong, it is
+     * invisible for good. That is what hid gift voucher sales from the Cash
+     * Flow report. Today is a far better guess than a date no range contains.
+     */
+    protected function _postedDate($field = 'date')
+    {
+        $d = trim((string)$this->input->post($field));
+        if ($d === '' || $d === '0000-00-00' || strtotime($d) === false) {
+            return date('Y-m-d');
+        }
+        return date('Y-m-d', strtotime($d));
+    }
+
     public function customerCash(){
         $data = array(
             'cus_pay_saleid'=>$this->input->post('saleID'),
             'cus_pay_cash'=>$this->input->post('cash'),
             'cus_pay_credit'=>$this->input->post('credit'),   
-            'cus_pay_paiddate'=>$this->input->post('date'),  //=saledate     
+            'cus_pay_paiddate'=>$this->_postedDate(),  //=saledate     
         );
         return $this->db->insert('ezy_pos_cus_payment', $data);
     }
@@ -17,7 +35,7 @@ class CusPayment_model extends CI_Model {
         $data = array(
             'pymntlog_saleid'=>$this->input->post('saleID'),
             'pymntlog_amount'=>$this->input->post('cash'),   
-            'pymntlog_date'=>$this->input->post('date')  //=saledate     
+            'pymntlog_date'=>$this->_postedDate()  //=saledate     
         );
         return $this->db->insert('ezy_pos_cus_paymnt_log', $data);
     }
@@ -29,7 +47,7 @@ class CusPayment_model extends CI_Model {
         $bank = $this->input->post('bank');
         $num = $this->input->post('chequeno');
         $date = $this->input->post('chequedate');
-        $givendate = $this->input->post('date');
+        $givendate = $this->_postedDate();
         $cusID = $this->input->post('cusID'); // ✅ Get cusID from POST
     
         $cnt = count($amount);

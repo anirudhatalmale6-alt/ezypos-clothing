@@ -1416,6 +1416,32 @@ class Report_model extends CI_Model {
             }
         }
 
+        // ------------------------------------------------------------------
+        // 7. ADVANCE RETURNS
+        //    Its own module and its own tables, but the money comes out of the
+        //    same till, so it has to be here or the drawer will not tally.
+        //    Store-credit refunds are excluded on purpose: no cash moved.
+        // ------------------------------------------------------------------
+        if($wantCash && $this->db->table_exists('ezy_pos_adv_return')){
+            $sf = $this->_storeFilterFor('a.adv_store_id', $storeId);
+            $str = "SELECT a.adv_id, a.adv_ref_no, a.adv_total, a.adv_created_at,
+                           c.cus_name, st.store_name
+                    FROM ezy_pos_adv_return a
+                    LEFT JOIN ezy_pos_customers c ON c.cus_id = a.adv_cus_id
+                    LEFT JOIN ezy_pos_stores st ON st.store_id = a.adv_store_id
+                    WHERE a.adv_created_at BETWEEN ? AND ?
+                      AND a.adv_status = 1
+                      AND a.adv_refund_mode = 'cash'
+                      AND a.adv_total > 0"
+                    .$sf.
+                    " ORDER BY a.adv_id DESC";
+            foreach($this->db->query($str, array($start, $end))->result() as $r){
+                $rows[] = $mk(substr($r->adv_created_at, 0, 10), 'Advance Return',
+                              $r->adv_ref_no, $r->cus_name, 'Cash', '',
+                              'out', $r->adv_total, $r->store_name);
+            }
+        }
+
         // Newest first, so the report reads like a day book.
         usort($rows, function($a, $b){
             if($a->date === $b->date) return 0;
@@ -1504,6 +1530,9 @@ class Report_model extends CI_Model {
                 if($isCash) $out['cash_out'] += $r->amount;
                 if($r->source === 'Change Given')  $out['change_out']   += $r->amount;
                 elseif($r->source === 'Exchange')  $out['exchange_out'] += $r->amount;
+                // An Advance Return refund is a refund - it belongs with the
+                // others under money out, not in a bucket of its own that
+                // nothing on Today's Summary reads.
                 else                               $out['return_out']   += $r->amount;
             } else {
                 $out['total_in'] += $r->amount;
@@ -1906,8 +1935,27 @@ class Report_model extends CI_Model {
         return $row ? array('total' => floatval($row->t), 'count' => intval($row->n)) : $blank;
     }
 
+    /**
+     * Advance Returns, which keep their own tables. Counted here so the Returns
+     * figure on Today's Summary means "everything that went back over the
+     * counter", not "everything except the new module".
+     */
+    protected function _advReturnsTotal($from, $to, $storeId = null){
+        $blank = array('total' => 0, 'count' => 0);
+        if(!$this->db->table_exists('ezy_pos_adv_return')){ return $blank; }
+        $sf  = $this->_storeFilterFor('adv_store_id', $storeId);
+        $str = "SELECT COALESCE(SUM(adv_total),0) AS t, COUNT(*) AS n
+                FROM ezy_pos_adv_return
+                WHERE adv_created_at BETWEEN ? AND ? AND adv_status = 1".$sf;
+        $row = $this->db->query($str, array($from." 00:00:00", $to." 23:59:59"))->row();
+        return $row ? array('total' => floatval($row->t), 'count' => intval($row->n)) : $blank;
+    }
+
     public function getReturnsTotalByDates($from, $to, $storeId = null){
         $old = $this->_oldReturnsTotal($from, $to, $storeId);
+        $adv = $this->_advReturnsTotal($from, $to, $storeId);
+        $old['total'] += $adv['total'];
+        $old['count'] += $adv['count'];
         if(!$this->db->table_exists('ezy_pos_returns')){
             $obj = new stdClass();
             $obj->total_returns = round($old['total'], 2);

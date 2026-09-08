@@ -68,7 +68,7 @@ function db_settings_fallback($file)
         return array('error' => 'Cannot read application/config/database.php');
     }
     $out = array();
-    foreach (array('hostname', 'username', 'password', 'database', 'char_set') as $key) {
+    foreach (array('hostname', 'username', 'password', 'database', 'char_set', 'port') as $key) {
         if (preg_match("/'" . $key . "'\s*=>\s*'([^']*)'/", $txt, $m)) { $out[$key] = $m[1]; }
     }
     if (empty($out['database'])) {
@@ -85,6 +85,10 @@ function db_connect(&$err)
     $host = isset($cfg['hostname']) ? $cfg['hostname'] : 'localhost';
     $port = null;
     if (strpos($host, ':') !== false) { list($host, $port) = explode(':', $host, 2); }
+    // CodeIgniter takes the port as its own setting rather than glued onto the
+    // hostname. Honour that too, or a database on a non-standard port reports
+    // "Access denied" and sends you hunting for the wrong problem.
+    if (!$port && !empty($cfg['port'])) { $port = $cfg['port']; }
 
     mysqli_report(MYSQLI_REPORT_OFF);
     $conn = $port ? @new mysqli($host, $cfg['username'], $cfg['password'], $cfg['database'], (int)$port)
@@ -285,6 +289,8 @@ function status_checks($conn)
     $rows[] = array('Discount type on exchange lines (ei_discount_type)', $hasCol('ezy_pos_exchange_items', 'ei_discount_type'));
     $rows[] = array('Expense subcategories (expencat_parent_id)', $hasCol('ezy_pos_expense_cat', 'expencat_parent_id'));
     $rows[] = array('Bill number on customer returns (cusrtrn_saleID)', $hasCol('ezy_pos_cus_return', 'cusrtrn_saleID'));
+    $rows[] = array('Advance Return tables (ezy_pos_adv_return)', $hasTable('ezy_pos_adv_return'));
+    $rows[] = array('Advance Return permission (priv_advreturn)', $hasCol('ezy_pos_privileges', 'priv_advreturn'));
 
     echo '<div class="box"><h3>What is already in place</h3><table class="data">';
     foreach ($rows as $r) {
@@ -403,7 +409,7 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
         $action = isset($_POST['action']) ? $_POST['action'] : '';
 
         /* ----------------------------------------------------------- actions */
-        if ($action === 'v9' || $action === 'v10' || $action === 'v11' || $action === 'v12' || $action === 'v13') {
+        if (in_array($action, array('v9','v10','v11','v12','v13','v14','v15'), true)) {
             $files = array(
                 'v9'  => array(MIGRATE_DIR . '/v9_billno_storecredit_privileges.sql',
                                'Step 2 - new columns and tables (v9)'),
@@ -415,6 +421,10 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
                                'Step 5 - parent categories and subcategories for expenses (v12)'),
                 'v13' => array(MIGRATE_DIR . '/v13_return_keeps_sale_qty.sql',
                                'Step 6 - keep the sold quantity when an item is returned (v13)'),
+                'v14' => array(MIGRATE_DIR . '/v14_repair_empty_sale_dates.sql',
+                               'Step 7 - put a date back on the bills saved without one (v14)'),
+                'v15' => array(MIGRATE_DIR . '/v15_advance_return.sql',
+                               'Step 8 - the Advance Return module (v15)'),
             );
             $file = $files[$action][0];
             $name = $files[$action][1];
@@ -542,6 +552,33 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
     <p class="note">It only adds a column. Nothing already in the database is changed.</p>
     <form method="post"><input type="hidden" name="action" value="v13">
       <button type="submit">Run step 6</button></form>
+  </div>
+
+  <div class="box step">
+    <h3>Step 7 - Put a date back on the bills that were saved without one</h3>
+    <p>On the sales screen the date was only read when an item was added to the bill.
+       A bill with no stock line on it - a gift voucher sold on its own is the usual
+       case - was saved with no date at all, and the database stored 0000-00-00.</p>
+    <p>Every report asks for "date between these two dates", and 0000-00-00 is inside
+       no range you can pick, so those bills were invisible in the Cash Flow report,
+       Today's Summary and Payments Received - permanently. The Sales Report uses a
+       different column, which is why the same sale shows up there and nowhere else.</p>
+    <p>This copies the date the database itself recorded when the bill was created
+       onto the bill and its payment lines. It only touches rows that are already
+       broken; a bill with a real date on it is left alone.</p>
+    <form method="post"><input type="hidden" name="action" value="v14">
+      <button type="submit">Run step 7</button></form>
+  </div>
+
+  <div class="box step">
+    <h3>Step 8 - The Advance Return module</h3>
+    <p>Adds the two tables the Advance Return page uses, and the Advance Return tick
+       box on the user permissions page. It only adds things - the existing Returns
+       and Exchange module and its tables are not touched at all.</p>
+    <p class="note">Nobody sees the new page until you tick Advance Return for them
+       under Users. Administrators see it straight away.</p>
+    <form method="post"><input type="hidden" name="action" value="v15">
+      <button type="submit">Run step 8</button></form>
   </div>
 
   <div class="box">

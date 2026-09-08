@@ -301,6 +301,17 @@
                                             </tr>
                                             <tr>
                                                 <td>
+                                                    <!-- Its own tick box on purpose: Advance Return is a separate
+                                                         module from Returns and Exchanges, and granting one must
+                                                         not grant the other. -->
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="advreturn" name="advreturn" type="checkbox" value=1>
+                                                    <label for="advreturn">Advance Return</label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
                                                     <div class="col-9 checkbox checkbox-custom">
                                                     <input id="cusreturn" name="cusreturn" type="checkbox" value=1>
                                                     <label for="cusreturn">Customer Return</label>
@@ -840,6 +851,15 @@
                                                     <input id="E_retailpos" name="E_retailpos" type="checkbox"
                                                     <?php echo (isset($user['priv_retailpos']) && $user['priv_retailpos']==1 ? 'checked' : '');?> value=1>
                                                     <label for="E_retailpos">Retail POS</label>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_advreturn" name="E_advreturn" type="checkbox"
+                                                    <?php echo (isset($user['priv_advreturn']) && $user['priv_advreturn']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_advreturn">Advance Return</label>
                                                     </div>
                                                 </td>
                                             </tr>

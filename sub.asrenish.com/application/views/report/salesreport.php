@@ -4,9 +4,10 @@
 <div class="wrapper">
     <div class="container">
 
-        <!-- Total for whatever the filters below are currently showing. It is
-             the first thing on the page because it is the number the owner
-             opens this report for. -->
+        <!-- Total Sales banner - COMMENTED OUT as asked on 08/09/2026.
+             The working code is untouched underneath: the spans below are
+             hidden, and updateTotalGrandTotal() still fills them, so putting
+             this block back is the only thing needed to bring it back.
         <div class="row">
             <div class="col-12">
                 <div class="card-box" style="background:#0d47a1;color:#fff;padding:14px 20px;margin-bottom:15px;">
@@ -25,6 +26,12 @@
                 </div>
             </div>
         </div>
+        -->
+        <!-- The spans the totals code writes to. Hidden, so nothing has to be
+             chased through the file to switch the banner off. -->
+        <span id="totalSalesTop" style="display:none;">0.00</span>
+        <span id="totalSalesScope" style="display:none;"></span>
+        <span id="totalSalesReturned" style="display:none;"></span>
 
         <!-- Filters Row -->
         <div class="row">                    
@@ -135,9 +142,10 @@ $(document).ready(function () {
                         <th>Type</th>
                         <th>Customer Name</th>
                         <th>Date</th>
-                        <th>Sub Total</th>
+                        <!-- Sub Total and Grand Total hidden as asked on 08/09/2026.
+                             reportRow() below keeps the matching cells commented
+                             out, so the two must be put back together. -->
                         <th>Discount</th>
-                        <th>Grand Total</th>
                         <th>Payment</th>
                         <th>Action</th>
                     </tr>
@@ -161,9 +169,7 @@ $(document).ready(function () {
                     <td>${kindHtml}</td>
                     <td>${esc(row.cus_name || '-')}</td>
                     <td>${esc(row.sale_createdat)}</td>
-                    <td style="text-align: right;">${row.sale_subtotal}</td>
                     <td style="text-align: right;">${row.sale_discount}</td>
-                    <td style="text-align: right;">${grandTotalCell(row)}</td>
                     <td><small>${esc(row.payment_info || '-')}</small></td>
                     <td style="text-align: right;">
                         <button class="btn btn-sm btn-info" onclick="load_bill_again(${row.sale_id})">

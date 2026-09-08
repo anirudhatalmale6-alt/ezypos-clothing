@@ -1,7 +1,7 @@
 FILES TO REPLACE - everything from 13/08/2026 to now
 ====================================================
 
-49 files in total: 8 brand new, 41 replaced.
+56 files in total: 15 brand new, 41 replaced.
 All paths are inside your site folder (the one holding index.php).
 
 Please put ALL of them up together. They depend on each other - for example
@@ -46,65 +46,89 @@ NEW FILES - upload these (they do not exist on your server yet)
       Database: records which bill a customer return came off, so the bill
       keeps the quantity it was sold at. Step 6 in migrate.php.
 
+ 9. application/migrations/v14_repair_empty_sale_dates.sql
+      Database: puts a real date back on the bills that were saved without
+      one - which is what hid gift voucher sales from the Cash Flow report.
+      Step 7 in migrate.php.
+
+10. application/migrations/v15_advance_return.sql
+      Database: the two Advance Return tables and its permission column.
+      Step 8 in migrate.php.
+
+11. application/controllers/AdvanceReturn.php
+      The Advance Return module. Separate from Returns and Exchanges.
+
+12. application/models/AdvanceReturn_model.php
+      Item lookup, the return itself, the stock movement and the refund.
+
+13. application/views/returns/advance_return.php
+      The Advance Return screen: scan, edit quantities, remove, refund.
+
+14. application/views/returns/advance_return_list.php
+      Past advance returns, with a branch and date filter.
+
+15. application/views/returns/advance_return_slip.php
+      The 80 mm slip handed to the customer.
+
 
 REPLACE - settings
 ------------------
- 9. index.php
+16. index.php
       Switches error display OFF. This is what stopped the PHP error
       printing on a customer's bill.
 
-10. application/config/autoload.php
+17. application/config/autoload.php
       Loads the two new helper files above. Without this file the bill
       numbers and the permissions will not work at all.
 
-11. application/config/routes.php
+18. application/config/routes.php
       Adds the address for the new Expense Categories page.
 
 
 REPLACE - controllers  (application/controllers/)
 -------------------------------------------------
-12. Sales.php
+19. Sales.php
       Gives every new bill its branch number, passes the sold and redeemed
       gift vouchers to the printed bill, removes an empty bill if no line
       could be saved.
 
-13. Returns.php
+20. Returns.php
       Cash returned / store credit choice, records how the refund money
       moved, files the return against the right branch, and works out the
       discount on an exchange. AND: refuses to return more of an item than
       is still outstanding on the bill.
 
-14. Reports.php
+21. Reports.php
       Cash Flow: the payment method filter now applies to the totals at the
       top, not only to the table. AND: Today's Summary now carries the gift
       voucher figure.
 
-15. Userauthentication.php
+22. Userauthentication.php
       Saves the new permission tick boxes when you create or edit a user,
       and lets the Expense Categories permission through to the menu.
 
-16. Expenses.php
+23. Expenses.php
       Sends the parent categories and their subcategories to the Expense
       screen.
 
-17. CustomerPayment.php
+24. CustomerPayment.php
       Accepts the new bill number (HG-B-001) as well as the old AS00 one
       when you look a bill up.
 
-18. ExpenCategories.php
+25. ExpenCategories.php
       The Expense Categories page. It existed but was never reachable.
       Now permission-checked, with activate / deactivate instead of delete.
 
-19. DeliveryCompany.php
-20. StoreItems.php
-21. RetailPosController.php
+26. DeliveryCompany.php
+27. StoreItems.php
+28. RetailPosController.php
       These three now check the user's permission before opening, which is
       what makes the tick boxes in user creation actually take effect.
 
 
 REPLACE - models  (application/models/)
 ---------------------------------------
-22. Report_model.php
+29. Report_model.php
       The cash flow engine (the change-given fix: a 4,900 bill paid with
       5,000 now shows 5,000 in and 100 out), plus the Sales Report now
       showing voucher sales, the receipt number and how each bill was paid.
@@ -114,125 +138,132 @@ REPLACE - models  (application/models/)
       and a refund taken on the Customer Return screen now shows as a
       Return instead of being mistaken for change given.
 
-23. Sales_model.php
+30. Sales_model.php
       Hands out the branch bill number safely when two tills save at the
       same moment, reads the bill lines from the sale itself, lists the
       vouchers on a bill. AND: a return no longer rewrites the quantity on
-      the original sale line.
+      the original sale line. AND: a bill can no longer be saved with an
+      empty date - that is what hid voucher sales from the Cash Flow report.
 
-24. Returns_model.php
+31. Returns_model.php
       Store credit against cash, the refund payment lines, and the discount
       on an exchange. AND: works out how much of each item has already been
       returned.
 
-25. Payment_model.php
+32. Payment_model.php
       Shows the printed bill number on the customer payment screen.
 
-26. CusPayment_model.php
+33. CusPayment_model.php
       Fixes the query behind the printed bill. On a stricter MySQL it
-      failed and the bill came out blank.
+      failed and the bill came out blank. AND: a payment is never filed
+      under an empty date, which no date range can ever match.
 
-27. User_model.php
-      The new permission columns.
+34. User_model.php
+      The new permission columns, including Advance Return.
 
-28. Stocks_model.php
+35. Stocks_model.php
       Fixes the stock list when "All items" is selected.
 
-29. ExpenCategories_model.php
+36. ExpenCategories_model.php
       Activate / deactivate, refuses two categories with the same name, and
       the new parent category / subcategory handling.
 
-30. Expenses_model.php
+37. Expenses_model.php
       The expense list shows the full "Transportation > Fuel" path.
 
 
 REPLACE - screens  (application/views/)
 ---------------------------------------
-31. transactions/addsale.php
+38. transactions/addsale.php
       The save button is disabled the moment it is pressed, so a double
       click can no longer save the sale twice. Refuses to save a bill with
       no branch on it. AND: a voucher-only sale now prints its bill - the
       program used to treat it as an empty sale and skip the print. AND:
       the New customer button beside the Customer box, and the new
-      Save & SMS button next to Save.
+      Save & SMS button next to Save. AND: the sale date is read the same
+      way as the branch, so a voucher-only bill is no longer saved with no
+      date on it.
 
-32. transactions/addexpense.php
+39. transactions/addexpense.php
       Copes with there being no active expense category. AND: the new
       Expense Category and Subcategory dropdowns - pick the parent, then
       the subcategory that belongs to it.
 
-33. expense-categry/expense-category.php
+40. expense-categry/expense-category.php
       The Expense Categories screen: add, edit, view, activate/deactivate,
       and now Parent Category / Subcategory with an "Under" column.
 
-34. returns/process_return.php
+41. returns/process_return.php
       The "Cash returned to customer" tick box, the branch default, AND the
       new Discount on exchanges plus the full Sales payment method list.
       AND: says how much of each item has already been returned.
 
-35. returns/return_invoice.php
+42. returns/return_invoice.php
       Prints the new bill number, and says "Left On Account As Store
       Credit" when no cash was handed over.
 
-36. returns/list_returns.php
+43. returns/list_returns.php
       Shows the new bill number in the list.
 
-37. invoice/invoice.php
+44. invoice/invoice.php
       Inv No. and Bill By right aligned, gift vouchers printed as their own
       lines with the card number under the right column headings, new bill
       number, no empty Address line.
 
-38. report/salesreport.php
+45. report/salesreport.php
       Receipt No instead of the internal Sale ID, a Type column marking
-      voucher sales, and a Payment column. AND: Total Sales across the top
-      of the page, and a bill that has had a return shows what it was rung
-      up at and what came off it.
+      voucher sales, and a Payment column. AND: as asked on 08/09/2026 the
+      Total Sales banner is commented out and the Sub Total and Grand Total
+      columns are hidden. Receipt No and the reprint button stay. The code
+      behind the total is untouched underneath, so it is one block to
+      uncomment if you want it back.
 
-39. customer/addcustomer.php
+46. customer/addcustomer.php
       Address, balance and credit limit hidden and no longer required.
 
-40. auth/register.php
+47. auth/register.php
       Every page now appears as a tick box when creating a user, including
-      Expense Categories.
+      Expense Categories and the new Advance Return.
 
-41. templates/header.php
+48. templates/header.php
       The menu only shows what the user is allowed to open, and Masters now
       has Expense Categories in it. AND: Supplier Return is a normal link
       under Transactions instead of a button floated off the end of the bar,
       where a full menu pushed it out of reach. AND: the Customer Return box
       shows how much of each item has already come back and will not let you
-      go past it.
+      go past it. AND: the two Advance Return links, shown only to users who
+      hold that permission.
 
-42. report/today-summary.php
+49. report/today-summary.php
       New "Change Given" line so the till balance tallies. AND: a
       "of which GIFT VOUCHERS SOLD" line under Sales.
 
-43. listing/allproductionsales.php
+50. listing/allproductionsales.php
       A tailoring payment can no longer be more than the amount still due.
 
-44. payment/Payment-Customer.php
+51. payment/Payment-Customer.php
       Shows the new bill number instead of AS00.
 
-45. listing/show-stock-list.php
+52. listing/show-stock-list.php
       The stock list was loading empty and had no search or export. Fixed.
 
-46. pages/index.php
+53. pages/index.php
       The Pending GRN list on the dashboard now shows the item code, the
       quantity pending on that bill, and the total pending for the item.
 
 
 REPLACE - other  (application/)
 -------------------------------
-47. libraries/HutchSMS.php
+54. libraries/HutchSMS.php
       The SMS gateway can answer "yes I got it" and still refuse the
       message - "Invalid mask" is the usual one. It used to be recorded as
       sent. It is now reported as failed, in the gateway's own words.
 
-48. models/Cusreturns_model.php
+55. models/Cusreturns_model.php
       Records which bill a customer return came off, and works out how much
       of each item has already been brought back.
 
-49. models/InsufficentStockSale_model.php
+56. models/InsufficentStockSale_model.php
       The Pending GRN query now returns the item code and the total pending
       per item.
 
@@ -243,5 +274,5 @@ ORDER OF WORK
 1. Back up the database (phpMyAdmin > Export > Go) and the site folder.
 2. Upload all the files above, replacing when asked.
 3. Open https://your-site/migrate.php, set the password inside the file
-   first, then run steps 2, 3, 4, 5 and 6.
+   first, then run steps 2 through 8 in order.
 4. Delete migrate.php with the button on that page.

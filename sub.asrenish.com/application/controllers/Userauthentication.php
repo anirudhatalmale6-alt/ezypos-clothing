@@ -118,7 +118,10 @@ class Userauthentication extends CI_Controller {
                 $pagePrivs = array(
                     'cusreturn', 'supreturn', 'paymentmethods', 'deliverycompany',
                     'warehouse', 'storeitems', 'retailpos', 'gatepass',
-                    're_commission', 're_cashflow', 're_itemsales', 're_production'
+                    're_commission', 're_cashflow', 're_itemsales', 're_production',
+                    // Advance Return. Deliberately not tied to priv_returns or
+                    // priv_exchanges - holding one does not grant the other.
+                    'advreturn'
                 );
                 $pagePrivValues = array();
                 foreach($pagePrivs as $pp){

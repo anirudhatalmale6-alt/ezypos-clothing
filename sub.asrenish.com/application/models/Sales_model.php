@@ -28,6 +28,16 @@ class Sales_model extends CI_Model {
         if($deliveryCharge == '' || $deliveryCharge == null){ $deliveryCharge = 0; }
         $discountType = $this->input->post('discount_type');
         if($discountType == '' || $discountType == null){ $discountType = 'percentage'; }
+        // An empty date is stored as 0000-00-00, and every report filters on
+        // sale_date BETWEEN two dates - so the bill disappears from all of them
+        // permanently. This is what hid gift-voucher-only sales from the Cash
+        // Flow report and Today's Summary. Never write a date no range can hold.
+        $saleDate = trim((string)$this->input->post('date'));
+        if($saleDate === '' || $saleDate === '0000-00-00' || strtotime($saleDate) === false){
+            $saleDate = date('Y-m-d');
+        } else {
+            $saleDate = date('Y-m-d', strtotime($saleDate));
+        }
         $data = array(
             'sale_cus_id'=>$this->input->post('cusID'),
             'sale_grandtotal'=>$this->input->post('grandtotal'),
@@ -35,7 +45,7 @@ class Sales_model extends CI_Model {
             'sale_discount'=>$this->input->post('invoiceDis'),
             'sale_less'=>0,
             'sale_createdby'=>$userid,
-            'sale_date'=>$this->input->post('date'),
+            'sale_date'=>$saleDate,
             'sale_location'=>$this->input->post('store'),
             'sale_status'=>1
         );

@@ -65,7 +65,14 @@ STEP 3 - RUN THE DATABASE UPDATES
 8. Press "Run step 6" - this adds the column that records which bill a
    customer return came off. It only adds things. From then on a return
    keeps the bill's quantity as it was sold and only the money comes down.
-9. Check the "Records still needing repair" boxes now read 0.
+9. Press "Run step 7" - this puts a real date back on the bills that were
+   saved without one. Those are the gift voucher sales that never showed in
+   the Cash Flow report: with no date on them, no date range could ever find
+   them. It only touches bills that are already broken.
+10. Press "Run step 8" - this adds the two Advance Return tables and the
+   Advance Return tick box on the user permissions page. It only adds things.
+   The existing Returns and Exchange module is not touched.
+11. Check the "Records still needing repair" boxes now read 0.
 
 Every line is shown with a green "done" or an amber "already there". If
 anything comes up red, stop and send me a screenshot of the page - do not
@@ -137,5 +144,18 @@ AFTER THE UPDATE - QUICK CHECKS
   to take more than 1.
 - Reports > Today Summary. There is a new "of which GIFT VOUCHERS SOLD" line
   under Sales.
+- Sell one gift voucher on its own, then open Reports > Cash Flow for today.
+  It must be in the list as Money In, marked "Voucher Sale". Before step 7 and
+  the new files, that sale was invisible on this report no matter what dates
+  you picked.
+- Transactions > Advance Return. Leave "Return without bill" ticked, scan an
+  item twice - it should become one line with a quantity of 2 - change the
+  quantity, remove a line, then Complete Return. A slip prints, the stock at
+  that branch goes up, and the refund appears in the Cash Flow report as money
+  out under "Advance Return".
+- Users > edit a member of staff. There is a new "Advance Return" tick box.
+  Untick it and that user should not see the menu entry, and typing the address
+  should give a Not Found page. It is separate from Returns and Exchanges - one
+  does not grant the other.
 
 If any of those look wrong, tell me what you see and I will sort it.

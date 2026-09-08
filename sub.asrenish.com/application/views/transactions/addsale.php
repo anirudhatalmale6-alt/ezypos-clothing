@@ -1305,6 +1305,16 @@ var chequeHTML ='<div id="chequeDIV">'+
                         unlockSaveButton();
                         return;
                     }
+                    // Same story as the branch above, and it is the one that hid
+                    // gift voucher sales from the Cash Flow report. `date` was
+                    // only ever set inside the add-item form, so a voucher-only
+                    // bill - which never adds a stock line - was saved with an
+                    // empty date. MySQL stored 0000-00-00, and every report that
+                    // filters on sale_date BETWEEN two dates skipped the bill
+                    // for good. The Sales Report reads sale_createdat, which is
+                    // why the sale was visible there and nowhere else.
+                    date = $('#datepicker').val();
+                    if(!date){ date = '<?php echo date('Y-m-d'); ?>'; }
                     var totalcheq=0;
                     if(moreChqs==true){
                         var chqv =$("input[name='amount[]']").map(function(){

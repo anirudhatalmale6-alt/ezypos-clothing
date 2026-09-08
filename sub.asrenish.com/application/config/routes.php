@@ -94,6 +94,9 @@ $route['gift-voucher-reports'] = 'GiftVoucher/reports/gift-voucher-reports';
 // Returns & Exchanges
 $route['returns'] = 'Returns/index';
 $route['all-returns'] = 'Returns/listReturns';
+// Advance Return - its own module, kept clear of the two lines above.
+$route['advance-return'] = 'AdvanceReturn/index';
+$route['advance-returns'] = 'AdvanceReturn/listing';
 
 // Stock Transfers
 $route['stock-transfers'] = 'StockTransfer/index';

@@ -290,6 +290,11 @@
                             // be clicked, so it looked hidden even to a user who had the
                             // permission. It is a normal Transactions link now.
                             $canSupreturn     = nav_can('privSupreturn');
+                            // Advance Return is its own module and its own permission. It is
+                            // deliberately NOT folded into $canReturns - a user given Returns
+                            // does not get this page, and a user given this page does not get
+                            // the Returns & Exchanges screen.
+                            $canAdvreturn     = nav_can('privAdvreturn');
                             // Item 7 (corrected): ONLY the Sales module is shown as an individual,
                             // permission-based nav link. Every other module keeps its original grouped
                             // "Transactions" submenu below. $showTxSubmenu = original condition minus Sales.
@@ -298,7 +303,7 @@
                                 (isset($_SESSION['privExpense']) && $_SESSION['privExpense'] == 1) ||
                                 $isAdmin || $canProduction || $canTailoring ||
                                 $canGiftvoucher || $canReturns || $canStocktransfer ||
-                                $canSupreturn
+                                $canSupreturn || $canAdvreturn
                             );
                             ?>
                             <?php if($isAdmin || (isset($_SESSION['privSales']) && $_SESSION['privSales'] == 1)){ ?>
@@ -328,6 +333,10 @@
                                     <?php } if($canReturns){ ?>
                                     <li><a href="<?php echo base_url('returns')?>"><i class="fa fa-undo"></i> Returns & Exchanges</a></li>
                                     <li><a href="<?php echo base_url('all-returns')?>"><i class="fa fa-list"></i> All Returns</a></li>
+                                    <li class="divider"></li>
+                                    <?php } if($canAdvreturn){ ?>
+                                    <li><a href="<?php echo base_url('advance-return')?>"><i class="fa fa-undo"></i> Advance Return</a></li>
+                                    <li><a href="<?php echo base_url('advance-returns')?>"><i class="fa fa-list"></i> All Advance Returns</a></li>
                                     <li class="divider"></li>
                                     <?php } if($canStocktransfer){ ?>
                                     <li><a href="<?php echo base_url('stock-transfers')?>"><i class="fa fa-exchange"></i> Stock Transfers</a></li>
