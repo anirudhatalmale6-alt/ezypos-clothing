@@ -77,9 +77,35 @@
                             <h5>Net Cash Flow: <span class="text-primary" id="summaryGrandTotal">0.00</span></h5>
                         </div>
                     </div>
+                    <!-- Gift vouchers, broken out. The money is already inside the
+                         totals above - a voucher goes on the bill like any other line -
+                         but it cannot be picked out of them by eye, so it is named here
+                         and every voucher bill is listed underneath. -->
+                    <div id="voucherBlock" style="display:none;">
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 style="color:#e65100;">
+                                    <i class="fa fa-gift"></i>
+                                    Gift vouchers sold: <span id="voucherTotal">0.00</span>
+                                </h5>
+                                <small class="text-muted">
+                                    Already counted in Money In above - this says how much of it was vouchers.
+                                </small>
+                            </div>
+                            <div class="col-md-6 text-right">
+                                <button type="button" class="btn btn-sm btn-outline-warning" id="btnVoucherDetail">
+                                    Show the voucher bills
+                                </button>
+                            </div>
+                        </div>
+                        <div id="voucherDetail" style="display:none;margin-top:10px;"></div>
+                    </div>
+                    <hr>
                     <small class="text-muted">
-                        Includes cash, cheque and card taken on sales; all tailoring order payments;
-                        money collected when an exchange costs more than the returned items; and refunds paid out.
+                        Includes cash, cheque and card taken on sales - including sales of gift
+                        vouchers; all tailoring order payments; money collected when an exchange
+                        costs more than the returned items; and refunds paid out.
                     </small>
                 </div>
             </div>
@@ -233,10 +259,47 @@ $(document).ready(function () {
                 $('#summaryTotalIn').text('LKR ' + (parseFloat(res.total_in) || 0).toFixed(2));
                 $('#summaryTotalOut').text('LKR ' + (parseFloat(res.total_out) || 0).toFixed(2));
                 $('#summaryGrandTotal').text('LKR ' + (parseFloat(res.net) || 0).toFixed(2));
+
+                // ---- gift vouchers ----
+                var vTotal = parseFloat(res.voucher_sales) || 0;
+                var vBills = (res && res.voucher_bills) ? res.voucher_bills : [];
+                if(vTotal > 0 || vBills.length > 0){
+                    $('#voucherTotal').text('LKR ' + vTotal.toFixed(2));
+                    var vh = '<table class="table table-sm table-bordered" style="font-size:13px;">'
+                           + '<thead><tr><th>Bill</th><th>Date</th><th>Branch</th><th>Cards</th>'
+                           + '<th class="text-right">Voucher value</th><th class="text-right">Cash</th>'
+                           + '<th class="text-right">Cheque</th><th class="text-right">Card</th>'
+                           + '<th class="text-right">Credit</th></tr></thead><tbody>';
+                    for(var v = 0; v < vBills.length; v++){
+                        var b = vBills[v];
+                        vh += '<tr>'
+                            + '<td>' + esc(b.bill_no || b.sale_id) + '</td>'
+                            + '<td>' + esc(b.sale_date) + '</td>'
+                            + '<td>' + esc(b.store_name || '-') + '</td>'
+                            + '<td><small>' + esc(b.card_numbers || '') + '</small></td>'
+                            + '<td class="text-right">' + (parseFloat(b.voucher_value)||0).toFixed(2) + '</td>'
+                            + '<td class="text-right">' + (parseFloat(b.cash)||0).toFixed(2) + '</td>'
+                            + '<td class="text-right">' + (parseFloat(b.cheque)||0).toFixed(2) + '</td>'
+                            + '<td class="text-right">' + (parseFloat(b.card)||0).toFixed(2) + '</td>'
+                            + '<td class="text-right">' + (parseFloat(b.credit)||0).toFixed(2) + '</td>'
+                            + '</tr>';
+                    }
+                    vh += '</tbody></table>';
+                    $('#voucherDetail').html(vh);
+                    $('#voucherBlock').show();
+                } else {
+                    $('#voucherBlock').hide();
+                    $('#voucherDetail').hide().empty();
+                }
+
                 $('#summaryCards').show();
             }
         });
     }
+
+    $('#btnVoucherDetail').click(function(){
+        $('#voucherDetail').slideToggle(150);
+    });
 
     // Filter button
     $('#btnFilter').click(function(){

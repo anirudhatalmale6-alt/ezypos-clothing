@@ -582,6 +582,14 @@ public function get_overall_expenses() {
         $method = $this->input->post('method');
         if (!$method) $method = 'all';
         $summary = $this->Report_model->getCashMovementSummary($from, $to, $storeId, $method);
+
+        // Face value of the gift vouchers sold in the same period. This money is
+        // already inside the totals above - a voucher goes on the bill like any
+        // other line - but it cannot be picked out of them by eye, and "is the
+        // voucher money in this report?" ought to be answerable by looking.
+        $summary['voucher_sales'] = $this->Report_model->getVoucherSalesTotal($from, $to, $storeId);
+        $summary['voucher_bills'] = $this->Report_model->getVoucherSaleRows($from, $to, $storeId);
+
         echo json_encode($summary);
     }
 

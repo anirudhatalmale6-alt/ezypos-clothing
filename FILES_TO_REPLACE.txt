@@ -71,6 +71,15 @@ NEW FILES - upload these (they do not exist on your server yet)
       The 80 mm slip handed to the customer.
 
 
+OPTIONAL EXTRA - not part of the system
+---------------------------------------
+    voucher-check.php
+      A read-only page that lists every bill which sold a gift voucher and
+      says, for each one, whether it will appear in the Cash Flow report and
+      why not if it will not. It changes nothing. Set the password inside it,
+      open it, read it, then delete it. Useful before and after step 7.
+
+
 REPLACE - settings
 ------------------
 16. index.php

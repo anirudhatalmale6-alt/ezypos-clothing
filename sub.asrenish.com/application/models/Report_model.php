@@ -1997,6 +1997,60 @@ class Report_model extends CI_Model {
         return $row ? round(floatval($row->t), 2) : 0;
     }
 
+    /**
+     * The gift voucher bills themselves, with what each one actually collected.
+     *
+     * This exists because "the voucher money is not in the Cash Flow report"
+     * cannot be answered with a yes or a no - it has to be shown, bill by bill.
+     * Each row carries the money recorded against that bill by tender, so a
+     * voucher sale that collected nothing is visible as such rather than being
+     * mistaken for a report that is dropping it.
+     */
+    public function getVoucherSaleRows($from, $to, $storeId = null){
+        if(!$this->db->table_exists('ezy_pos_gift_cards')){ return array(); }
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilterFor('s.sale_location', $storeId);
+
+        $saleFields = $this->db->list_fields('ezy_pos_sale');
+        $billCol    = (in_array('sale_bill_no', $saleFields) ? 's.sale_bill_no' : "'' AS sale_bill_no")
+                    .', s.sale_location'
+                    .(in_array('sale_bill_seq', $saleFields) ? ', s.sale_bill_seq' : ', NULL AS sale_bill_seq');
+
+        $chq = $this->db->table_exists('ezy_pos_cus_cheque')
+             ? "(SELECT COALESCE(SUM(cus_cheque_amount),0) FROM ezy_pos_cus_cheque WHERE cus_cheque_saleid = s.sale_id)"
+             : "0";
+        $card = $this->db->table_exists('ezy_pos_sale_payments')
+             ? "(SELECT COALESCE(SUM(sp_amount),0) FROM ezy_pos_sale_payments WHERE sp_sale_id = s.sale_id)"
+             : "0";
+
+        $str = "SELECT s.sale_id, s.sale_date, ".$billCol.",
+                       COALESCE(SUM(gc.gc_original_value),0) AS voucher_value,
+                       COUNT(gc.gc_id) AS cards,
+                       GROUP_CONCAT(gc.gc_card_number ORDER BY gc.gc_id SEPARATOR ', ') AS card_numbers,
+                       (SELECT COALESCE(SUM(cus_pay_cash),0) FROM ezy_pos_cus_payment WHERE cus_pay_saleid = s.sale_id) AS cash,
+                       (SELECT COALESCE(SUM(cus_pay_credit),0) FROM ezy_pos_cus_payment WHERE cus_pay_saleid = s.sale_id) AS credit,
+                       ".$chq." AS cheque,
+                       ".$card." AS card,
+                       st.store_name
+                FROM ezy_pos_gift_cards gc
+                INNER JOIN ezy_pos_sale s ON s.sale_id = gc.gc_sold_sale_id
+                LEFT JOIN ezy_pos_stores st ON st.store_id = s.sale_location
+                WHERE gc.gc_sold_sale_id IS NOT NULL
+                  AND s.sale_date BETWEEN ? AND ?
+                  AND s.sale_status = '1'"
+                .$sf."
+                GROUP BY s.sale_id
+                ORDER BY s.sale_id DESC";
+
+        $rows = $this->db->query($str, array($start, $end))->result();
+        foreach($rows as $r){
+            $r->bill_no   = bill_no($r);
+            $r->collected = round(floatval($r->cash) + floatval($r->cheque) + floatval($r->card), 2);
+        }
+        return $rows;
+    }
+
     public function getTodaySummaryByDates($from, $to, $storeId = null){
         $start = $from . " 00:00:00";
         $end   = $to   . " 23:59:59";
