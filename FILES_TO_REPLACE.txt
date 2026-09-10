@@ -79,6 +79,12 @@ OPTIONAL EXTRA - not part of the system
       why not if it will not. It changes nothing. Set the password inside it,
       open it, read it, then delete it. Useful before and after step 7.
 
+    sale-check.php
+      A read-only page that finds every bill whose stored lines do not add up
+      to the money on it - the Sale 881 fault - and shows any one bill in full,
+      line by line, with the time each line was saved. It changes nothing.
+      Set the password inside it, open it, read it, then delete it.
+
 
 REPLACE - settings
 ------------------

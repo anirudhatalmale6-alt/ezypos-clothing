@@ -18,6 +18,236 @@ class Sales_model extends CI_Model {
         }
     }
 
+    /**
+     * Build the ezy_pos_sale row from the posted fields.
+     *
+     * Split out of addSalePOST() so that createSaleWithItems() writes exactly
+     * the same header, with no second copy of these rules to drift apart.
+     */
+    protected function _saleHeaderData()
+    {
+        $userid = isset($_SESSION['userid']) ? $_SESSION['userid'] : 0;
+
+        $deliveryCompanyId = $this->input->post('delivery_company_id');
+        $deliveryCharge = $this->input->post('delivery_charge');
+        if($deliveryCompanyId == '' || $deliveryCompanyId == null){ $deliveryCompanyId = NULL; }
+        if($deliveryCharge == '' || $deliveryCharge == null){ $deliveryCharge = 0; }
+        $discountType = $this->input->post('discount_type');
+        if($discountType == '' || $discountType == null){ $discountType = 'percentage'; }
+        // An empty date is stored as 0000-00-00, and every report filters on
+        // sale_date BETWEEN two dates - so the bill disappears from all of them
+        // permanently. Never write a date no range can hold.
+        $saleDate = trim((string)$this->input->post('date'));
+        if($saleDate === '' || $saleDate === '0000-00-00' || strtotime($saleDate) === false){
+            $saleDate = date('Y-m-d');
+        } else {
+            $saleDate = date('Y-m-d', strtotime($saleDate));
+        }
+
+        $data = array(
+            'sale_cus_id'=>$this->input->post('cusID'),
+            'sale_grandtotal'=>$this->input->post('grandtotal'),
+            'sale_subtotal'=>$this->input->post('subtotal'),
+            'sale_discount'=>$this->input->post('invoiceDis'),
+            'sale_less'=>0,
+            'sale_createdby'=>$userid,
+            'sale_date'=>$saleDate,
+            'sale_location'=>$this->input->post('store'),
+            'sale_status'=>1
+        );
+        $fields = $this->db->list_fields('ezy_pos_sale');
+        if (in_array('sale_discount_type', $fields)) $data['sale_discount_type'] = $discountType;
+        if (in_array('sale_delivery_company_id', $fields)) $data['sale_delivery_company_id'] = $deliveryCompanyId;
+        if (in_array('sale_delivery_charge', $fields)) $data['sale_delivery_charge'] = $deliveryCharge;
+        if (in_array('sale_type', $fields)) {
+            $saleType = $this->input->post('sale_type');
+            $data['sale_type'] = $saleType ? $saleType : 'cash';
+        }
+        if (in_array('sale_online_id', $fields)) {
+            $onlineId = $this->input->post('online_sale_id');
+            $data['sale_online_id'] = $onlineId ? $onlineId : NULL;
+        }
+        if (in_array('sale_customer_phone', $fields)) {
+            $cusPhone = $this->input->post('customer_phone');
+            $data['sale_customer_phone'] = $cusPhone ? $cusPhone : NULL;
+        }
+        return $data;
+    }
+
+    /**
+     * One line of a bill, as a row ready for ezy_pos_sale_item.
+     *
+     * Returns null if the line is not something that can be sold - no item id,
+     * or no quantity. Every numeric column is NOT NULL, so an empty box (a
+     * blank discount, most often) has to become 0 rather than ''.
+     */
+    protected function _saleItemData($sale_id, $line)
+    {
+        $num = function($v){ return ($v === null || trim((string)$v) === '') ? 0 : floatval($v); };
+
+        $item_id = intval(isset($line['item_id']) ? $line['item_id'] : 0);
+        $qty     = $num(isset($line['quantity']) ? $line['quantity'] : 0);
+        if($item_id <= 0 || $qty <= 0){ return null; }
+
+        $data = array(
+            'saleitem_sale_id' => intval($sale_id),
+            'saleitem_item_id' => $item_id,
+            'saleitem_price'   => $num(isset($line['price']) ? $line['price'] : 0),
+            'saleitem_quantity'=> $qty,
+            'saleitem_total'   => $num(isset($line['total']) ? $line['total'] : 0),
+            'saleitem_discount'=> $num(isset($line['discount']) ? $line['discount'] : 0)
+        );
+        if (in_array('saleitem_discount_type', $this->db->list_fields('ezy_pos_sale_item'))) {
+            $t = isset($line['discount_type']) ? $line['discount_type'] : 'percentage';
+            $data['saleitem_discount_type'] = ($t === 'flat') ? 'flat' : 'percentage';
+        }
+        return $data;
+    }
+
+    /**
+     * Write the bill and EVERY line of it in one database transaction.
+     *
+     * THE FAULT THIS FIXES
+     * The old flow wrote the sale header - carrying the full grand total -
+     * in one request, and then each line in a request of its own, with
+     * nothing tying them together. Anything that cut the browser off part
+     * way through (a dropped connection, a closed tab, a refresh, a laptop
+     * lid) left a bill whose stored total was right and whose lines were
+     * only partly there. Nothing rolled back, nothing noticed, and the bill
+     * printed anyway. That is how a bill ends up saying 323,000 with only
+     * 179,000 of items behind it.
+     *
+     * Now there is one request. Either the whole bill lands or none of it
+     * does. A line that cannot be stored aborts the lot rather than being
+     * skipped in silence, and the count is checked before committing, so a
+     * partly-written bill cannot exist even in principle.
+     *
+     * Returns array(ok, msg, sale_id, items_expected, items_saved, items_total).
+     */
+    public function createSaleWithItems($lines)
+    {
+        if(!is_array($lines)){ $lines = array(); }
+
+        $prepared = array();
+        foreach($lines as $l){
+            $row = $this->_saleItemData(0, $l);
+            if($row === null){
+                return array('ok' => false,
+                             'msg' => 'One of the lines on this bill has no item or no quantity on it. Nothing has been saved - check the list and try again.',
+                             'sale_id' => 0, 'items_expected' => count($lines), 'items_saved' => 0);
+            }
+            $prepared[] = $row;
+        }
+
+        $store = intval($this->input->post('store'));
+        if($store <= 0){
+            return array('ok' => false, 'msg' => 'This bill has no branch on it. Nothing has been saved.',
+                         'sale_id' => 0, 'items_expected' => count($lines), 'items_saved' => 0);
+        }
+
+        $this->db->trans_begin();
+
+        $this->db->insert('ezy_pos_sale', $this->_saleHeaderData());
+        $sale_id = $this->db->insert_id();
+        if(!$sale_id){
+            $this->db->trans_rollback();
+            return array('ok' => false, 'msg' => 'The bill could not be created. Nothing has been saved.',
+                         'sale_id' => 0, 'items_expected' => count($lines), 'items_saved' => 0);
+        }
+        $this->assignBillNumber($sale_id, $store);
+
+        $saved = 0; $itemsTotal = 0;
+        foreach($prepared as $row){
+            $row['saleitem_sale_id'] = $sale_id;
+            if($this->db->insert('ezy_pos_sale_item', $row)){
+                $saved++;
+                $itemsTotal += floatval($row['saleitem_total']);
+            }
+        }
+
+        // The whole point: a bill that is missing even one line is not saved
+        // at all, rather than saved with a total nothing backs up.
+        if($saved !== count($prepared) || $this->db->trans_status() === FALSE){
+            $this->db->trans_rollback();
+            return array('ok' => false,
+                         'msg' => 'Only '.$saved.' of '.count($prepared).' lines could be stored, so the whole bill has been cancelled. Nothing was saved and no stock has moved. Try again.',
+                         'sale_id' => 0, 'items_expected' => count($prepared), 'items_saved' => 0);
+        }
+
+        $this->db->trans_commit();
+
+        return array('ok' => true, 'msg' => '', 'sale_id' => $sale_id,
+                     'items_expected' => count($prepared), 'items_saved' => $saved,
+                     'items_total' => round($itemsTotal, 2));
+    }
+
+    /**
+     * Read a bill back and say whether its stored lines add up to its stored
+     * total. Used by the sales screen the moment a sale is saved, and by the
+     * mismatch finder that sweeps the bills already in the database.
+     *
+     * A bill is only sound if the lines behind it account for the money on it.
+     * Gift vouchers are not stock lines, so their face value is counted here
+     * too, and so is anything already returned against the bill.
+     */
+    public function verifySale($sale_id)
+    {
+        $sale_id = intval($sale_id);
+        $sale = $this->db->get_where('ezy_pos_sale', array('sale_id' => $sale_id))->row();
+        if(!$sale){
+            return array('ok' => false, 'found' => false, 'msg' => 'That bill is not in the database.');
+        }
+
+        $row = $this->db->query("SELECT COUNT(*) AS n, COALESCE(SUM(saleitem_total),0) AS t
+                                 FROM ezy_pos_sale_item WHERE saleitem_sale_id = ?", array($sale_id))->row();
+        $lines = intval($row->n);
+        $lineTotal = round(floatval($row->t), 2);
+
+        // A gift voucher sold on the bill is money on it without a stock line.
+        $voucher = 0;
+        if($this->db->table_exists('ezy_pos_gift_cards')){
+            $v = $this->db->query("SELECT COALESCE(SUM(gc_original_value),0) AS t
+                                   FROM ezy_pos_gift_cards WHERE gc_sold_sale_id = ?", array($sale_id))->row();
+            if($v){ $voucher = round(floatval($v->t), 2); }
+        }
+        // Anything refunded off the bill has already been taken off its total.
+        $returned = 0;
+        if($this->db->table_exists('ezy_pos_returns')){
+            $r = $this->db->query("SELECT COALESCE(SUM(ret_net_amount),0) AS t
+                                   FROM ezy_pos_returns WHERE ret_sale_id = ? AND ret_status = 1", array($sale_id))->row();
+            if($r){ $returned = round(floatval($r->t), 2); }
+        }
+
+        $grand   = round(floatval($sale->sale_grandtotal), 2);
+        $discount= floatval($sale->sale_discount);
+        $dtype   = isset($sale->sale_discount_type) ? $sale->sale_discount_type : 'percentage';
+        $delivery= isset($sale->sale_delivery_charge) ? floatval($sale->sale_delivery_charge) : 0;
+
+        // What the stored lines say the bill should come to.
+        $expected = $lineTotal + $voucher;
+        $expected = ($dtype === 'flat') ? ($expected - $discount) : ($expected * (100 - $discount) / 100);
+        $expected = round($expected + $delivery - $returned, 2);
+
+        // Loyalty points and promotions come off the bill as well, and are not
+        // stored per line, so a bill can legitimately be lower than its lines.
+        // Money MISSING from the lines is the fault being looked for here.
+        $shortfall = round($grand - $expected, 2);
+
+        return array(
+            'ok'         => ($shortfall <= 0.05),
+            'found'      => true,
+            'sale_id'    => $sale_id,
+            'bill_no'    => isset($sale->sale_bill_no) ? $sale->sale_bill_no : '',
+            'lines'      => $lines,
+            'line_total' => $lineTotal,
+            'voucher'    => $voucher,
+            'returned'   => $returned,
+            'grand'      => $grand,
+            'expected'   => $expected,
+            'shortfall'  => $shortfall
+        );
+    }
+
     public function addSalePOST(){
         if(isset($_SESSION['userid'])){
             $userid = $_SESSION['userid'];

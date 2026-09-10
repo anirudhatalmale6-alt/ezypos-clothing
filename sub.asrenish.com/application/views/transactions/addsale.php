@@ -1335,15 +1335,46 @@ var chequeHTML ='<div id="chequeDIV">'+
                     lastSavedIsOnline = (saleType == 'online');
                     var customerPhone = $('#customer_phone').val().trim();
                     lastSavedPhone = customerPhone;
+
+                    // Read every line off the screen FIRST, then send the whole
+                    // bill in one request.
+                    //
+                    // It used to write the bill header - carrying the full grand
+                    // total - and then each line in a request of its own. Anything
+                    // that cut the browser off part way through (a dropped
+                    // connection, a closed tab, a refresh) left a bill whose total
+                    // was right and whose lines were only partly there. Nothing
+                    // rolled back and nothing noticed. That is how a bill ends up
+                    // reading 323,000 with 179,000 of items behind it.
+                    var saleLines = [];
+                    var lineRows = $("#datatable").find("tr").length;
+                    for (var L = 1; L < lineRows; L++) {
+                        var $lr = $("#datatable").find("tr").eq(L);
+                        saleLines.push({
+                            item_id:       $lr.find("td").eq(1).text(),
+                            price:         $lr.find("td").eq(3).text(),
+                            quantity:      $lr.find("td").eq(4).text(),
+                            total:         $lr.find("td").eq(5).text(),
+                            discount:      $lr.find("td").eq(6).find('input[type=text]').val(),
+                            discount_type: $lr.find("td").eq(6).find('select.itm_dis_type').val() || 'percentage'
+                        });
+                    }
+
+                    var saveFailed = null;
                     $.ajax({
                         type: "Post",
-                        url:"<?php echo base_url('Sales/addSalePOST'); ?>",
-                        data: {cusID:cusID,grandtotal:grandtotal,subtotal:subtotal,invoiceDis:invoiceDis,discount_type:discountType,delivery_company_id:deliveryCompanyId,delivery_charge:deliveryCharge,store:store,date:date,sale_type:saleType,online_sale_id:onlineSaleId,customer_phone:customerPhone},
+                        url:"<?php echo base_url('Sales/saveSaleWithItems'); ?>",
+                        data: {cusID:cusID,grandtotal:grandtotal,subtotal:subtotal,invoiceDis:invoiceDis,discount_type:discountType,delivery_company_id:deliveryCompanyId,delivery_charge:deliveryCharge,store:store,date:date,sale_type:saleType,online_sale_id:onlineSaleId,customer_phone:customerPhone,lines:JSON.stringify(saleLines)},
                         async: false,
                         dataType: "json",
-                        success: function (saleID) {
+                        success: function (res) {
+                            if(!res || !res.ok){
+                                saveFailed = (res && res.msg) ? res.msg : 'The bill could not be saved. Nothing has been stored.';
+                                return;
+                            }
+                            var saleID = res.sale_id;
                             sale_ID=saleID ;
-                        console.log(" saleid:"+saleID+" cusid:"+cusID);
+                        console.log(" saleid:"+saleID+" cusid:"+cusID+" lines:"+res.items_saved);
                         lastSavedSaleId = saleID;
                         // Save third-party payment method amounts with card refs
                         var pmPayments = [];
@@ -1370,9 +1401,19 @@ var chequeHTML ='<div id="chequeDIV">'+
                         }
                         },
                         error: function (err) {
-                            alert("sales error");
+                            saveFailed = 'Could not reach the server, so nothing has been saved. Check the connection and try again.';
                         }
                     });
+
+                    // Nothing was written, so nothing else must run - no payment
+                    // rows, no stock movement, no bill. The old code carried on
+                    // regardless, which is how a half-made bill got printed.
+                    if(saveFailed){
+                        swal({type:'error',title:'Sale NOT saved',text:saveFailed});
+                        unlockSaveButton();
+                        return;
+                    }
+
                     var salecrdit=0;
                     var pymnt4sale=0;
                     if(grandtotal<=cashvalue){
@@ -1489,7 +1530,12 @@ var chequeHTML ='<div id="chequeDIV">'+
                         total=$("#datatable").find("tr").eq(i).find("td").eq(5).text();
                         itmDis=$("#datatable").find("tr").eq(i).find("td").eq(6).find('input[type=text]').val();
                         var itmDisType=$("#datatable").find("tr").eq(i).find("td").eq(6).find('select.itm_dis_type').val() || 'percentage';
-                        var lineSaved = false;
+                        // The line is already in the database - it went in with the
+                        // bill, in one transaction. All that is left for this loop
+                        // is to move the stock.
+                        var lineSaved = true;
+                        itemsSaved++;
+                        itemAdded = true;
 
                     /* $.ajax({
                             type: "Post",
@@ -1504,21 +1550,6 @@ var chequeHTML ='<div id="chequeDIV">'+
                                 alert("error");
                             }
                         }); */
-
-                        $.ajax({
-                            type: "Post",
-                            url:"<?php echo base_url('Sales/addSaleItemPOST'); ?>",
-                            data: {sale_ID:sale_ID,itemid1:itemid1,price:price,quantity:quantity,total:total,itmDis:itmDis,itmDisType:itmDisType},
-                            async: false,
-                            dataType: "json",
-                            success: function (res) {
-                                if(res){ itemsSaved++; itemAdded = true; lineSaved = true; }
-                            },
-                            error: function (err) {
-                                alert("error");
-                                itemAdded = false;
-                            }
-                        });
 
                         // Stock is only moved for a line that actually stored. Otherwise
                         // a rejected line would still take the goods out of stock, and
@@ -1649,6 +1680,35 @@ var chequeHTML ='<div id="chequeDIV">'+
                         if(sale_ID > 0){ vouchersSold = processVoucherSales(sale_ID) || 0; }
                     } catch(e){ console.log('Voucher processing error:', e); }
                     if(vouchersSold > 0){ itemAdded = true; }
+
+                    // Read the bill back out of the database before anyone is
+                    // handed it. The lines and the total are written together
+                    // now, so this should never fire - but a bill whose figures
+                    // do not add up must never leave the counter unnoticed
+                    // again, whatever the cause turns out to be next time.
+                    if(sale_ID > 0){
+                        $.ajax({
+                            type:'Post',
+                            url:'<?php echo base_url("Sales/verifySale"); ?>',
+                            data:{ sale_id: sale_ID },
+                            async:false,
+                            dataType:'json',
+                            success:function(v){
+                                if(v && v.found && v.ok === false){
+                                    swal({
+                                        type:'error',
+                                        title:'CHECK THIS BILL - ' + (v.bill_no || sale_ID),
+                                        text:'The bill was saved for ' + v.grand.toFixed(2)
+                                             + ' but the lines stored against it only account for '
+                                             + v.expected.toFixed(2) + ' - a difference of '
+                                             + v.shortfall.toFixed(2) + '. Do not hand the goods over. '
+                                             + 'Tell your administrator, quoting bill '
+                                             + (v.bill_no || sale_ID) + '.'
+                                    });
+                                }
+                            }
+                        });
+                    }
 
                     //
                     $("#tbodyID").empty();

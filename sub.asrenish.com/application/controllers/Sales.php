@@ -70,6 +70,28 @@ class Sales extends CI_Controller {
                 echo json_encode($sale_id);
         }
         /**
+         * Save the bill and every line of it in one transaction.
+         *
+         * The sales screen used to write the header in one request and each
+         * line in a request of its own. An interruption in between left a bill
+         * with the full total and only some of its lines, and nothing noticed.
+         * This is the replacement: all or nothing.
+         */
+        public function saveSaleWithItems(){
+                $raw   = $this->input->post('lines');
+                $lines = is_string($raw) ? json_decode($raw, true) : $raw;
+                $res   = $this->Sales_model->createSaleWithItems($lines);
+                echo json_encode($res);
+        }
+        /**
+         * What the bill actually holds now, read back from the database.
+         * The screen calls this straight after saving, so a bill whose stored
+         * lines do not add up can never be handed over as if it were fine.
+         */
+        public function verifySale(){
+                echo json_encode($this->Sales_model->verifySale($this->input->post('sale_id')));
+        }
+        /**
          * Called by the sales screen when a bill ended up with no lines on it,
          * so a half-made bill is not left behind. Refuses if anything at all
          * did save - see Sales_model::discardEmptySale().
