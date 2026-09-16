@@ -17,34 +17,45 @@
 -- even when sale_date is not. These statements copy the date part of it onto the
 -- bill and onto the payment rows that were filed under the same empty date.
 --
--- It only touches rows that are already broken (0000-00-00 or NULL). A bill with
--- a real date on it is left exactly as it is. Safe to run twice - the second run
--- finds nothing to do.
+-- It only touches rows that are already broken. A bill with a real date on it is
+-- left exactly as it is. Safe to run twice - the second run finds nothing to do.
+--
+-- NOTE ON THE ZERO DATE
+-- On MySQL 8 the server usually runs with NO_ZERO_DATE, and then even WRITING
+-- '0000-00-00' in a WHERE clause is refused with "Incorrect date value" - the
+-- repair fails before it starts. So the broken rows are found with
+-- YEAR(sale_date) < 2000, which never mentions the value at all, and the
+-- session is relaxed for the length of this file.
+
+SET @OLD_SQL_MODE = @@SESSION.sql_mode;
+SET SESSION sql_mode = '';
 
 -- 1. the bills themselves
 UPDATE ezy_pos_sale
    SET sale_date = DATE(sale_createdat)
- WHERE (sale_date IS NULL OR sale_date = '0000-00-00')
+ WHERE (sale_date IS NULL OR YEAR(sale_date) < 2000)
    AND sale_createdat IS NOT NULL
-   AND DATE(sale_createdat) > '2000-01-01';
+   AND YEAR(sale_createdat) >= 2000;
 
 -- 2. the cash / credit line filed against those bills
 UPDATE ezy_pos_cus_payment p
   JOIN ezy_pos_sale s ON s.sale_id = p.cus_pay_saleid
    SET p.cus_pay_paiddate = s.sale_date
- WHERE (p.cus_pay_paiddate IS NULL OR p.cus_pay_paiddate = '0000-00-00')
-   AND s.sale_date > '2000-01-01';
+ WHERE (p.cus_pay_paiddate IS NULL OR YEAR(p.cus_pay_paiddate) < 2000)
+   AND YEAR(s.sale_date) >= 2000;
 
 -- 3. the payment log, which is what "Payments Received" adds up
 UPDATE ezy_pos_cus_paymnt_log l
   JOIN ezy_pos_sale s ON s.sale_id = l.pymntlog_saleid
    SET l.pymntlog_date = s.sale_date
- WHERE (l.pymntlog_date IS NULL OR l.pymntlog_date = '0000-00-00')
-   AND s.sale_date > '2000-01-01';
+ WHERE (l.pymntlog_date IS NULL OR YEAR(l.pymntlog_date) < 2000)
+   AND YEAR(s.sale_date) >= 2000;
 
 -- 4. cheques taken on those bills
 UPDATE ezy_pos_cus_cheque c
   JOIN ezy_pos_sale s ON s.sale_id = c.cus_cheque_saleid
    SET c.cus_cheque_givendate = s.sale_date
- WHERE (c.cus_cheque_givendate IS NULL OR c.cus_cheque_givendate = '0000-00-00')
-   AND s.sale_date > '2000-01-01';
+ WHERE (c.cus_cheque_givendate IS NULL OR YEAR(c.cus_cheque_givendate) < 2000)
+   AND YEAR(s.sale_date) >= 2000;
+
+SET SESSION sql_mode = @OLD_SQL_MODE;

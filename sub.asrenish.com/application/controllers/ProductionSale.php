@@ -209,12 +209,65 @@ class ProductionSale extends CI_Controller {
     public function addPayment()
     {
         $id = $this->input->post('prodsale_id');
-        $amount = $this->input->post('amount');
+        $amount = round(floatval($this->input->post('amount')), 2);
         $method = $this->input->post('method');
         $card_ref = $this->input->post('card_ref');
         if(!$method) $method = 'Cash';
+
+        // A gift voucher is money the shop already took when the card was sold.
+        // Spend it here for the amount used, so it cannot be spent twice.
+        if (strcasecmp($method, 'Gift Voucher') === 0) {
+            $this->load->model('GiftVoucher_model');
+            $card = $this->GiftVoucher_model->getCardByNumber(trim((string)$card_ref));
+            if (!$card) {
+                echo json_encode(array('ok' => false, 'msg' => 'No card with that number.'));
+                return;
+            }
+            if ($card->gc_status === 'Available') {
+                echo json_encode(array('ok' => false, 'msg' => 'That card has not been sold yet, so there is nothing on it.'));
+                return;
+            }
+            if ($card->gc_status === 'Expired') {
+                echo json_encode(array('ok' => false, 'msg' => 'That card has expired.'));
+                return;
+            }
+            $left = round(floatval($card->gc_remaining_value), 2);
+            if ($left <= 0) {
+                echo json_encode(array('ok' => false, 'msg' => 'That card has already been used up.'));
+                return;
+            }
+            if ($amount > $left + 0.004) {
+                echo json_encode(array('ok' => false,
+                    'msg' => 'That card has only ' . number_format($left, 2) . ' left on it.'));
+                return;
+            }
+            $this->GiftVoucher_model->redeemCard($card->gc_id, null, $amount,
+                                                 $this->session->userdata('userid'));
+        }
+
         $this->ProductionSale_model->addPayment($id, $amount, $method, $card_ref);
-        echo json_encode(true);
+        echo json_encode(array('ok' => true));
+    }
+
+    /** Check a gift card before it is used to pay for a tailoring order. */
+    public function checkVoucher()
+    {
+        $this->load->model('GiftVoucher_model');
+        $card = $this->GiftVoucher_model->getCardByNumber(trim((string)$this->input->post('card_number')));
+        if (!$card) { echo json_encode(array('ok' => false, 'msg' => 'No card with that number.')); return; }
+        if ($card->gc_status === 'Available') {
+            echo json_encode(array('ok' => false, 'msg' => 'That card has not been sold yet.')); return;
+        }
+        if ($card->gc_status === 'Expired') {
+            echo json_encode(array('ok' => false, 'msg' => 'That card has expired.')); return;
+        }
+        $left = round(floatval($card->gc_remaining_value), 2);
+        if ($left <= 0) {
+            echo json_encode(array('ok' => false, 'msg' => 'That card has already been used up.')); return;
+        }
+        echo json_encode(array('ok' => true, 'gc_id' => $card->gc_id,
+                               'card_number' => $card->gc_card_number, 'remaining' => $left,
+                               'one_off' => !empty($card->vcat_is_oneoff)));
     }
 
     // Assign a Tailor to an order (done LATER during processing, not at creation)

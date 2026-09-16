@@ -572,6 +572,61 @@ public function get_overall_expenses() {
         echo json_encode($result ? $result : array());
     }
 
+    /** Who printed the slip. Read straight off the users table so this page
+     *  does not depend on a model it is the only caller of. */
+    protected function _slipUserName()
+    {
+        $u = $this->db->get_where('ezy_pos_users',
+                array('user_id' => intval($this->session->userdata('userid'))))->row();
+        return $u ? $u->user_name : '';
+    }
+
+    /**
+     * The cash flow figures on an 80 mm slip, so the till can be counted
+     * against a printed sheet instead of a screen.
+     */
+    public function cash_flow_slip()
+    {
+        require_priv('privRe_cashflow');
+
+        $from    = $this->input->get('from');
+        $to      = $this->input->get('to');
+        $storeId = $this->input->get('store_id');
+        $method  = $this->input->get('method');
+        if (!$from) { $from = date('Y-m-d'); }
+        if (!$to)   { $to   = $from; }
+        if (!$method) { $method = 'all'; }
+
+        $storeName = 'All Branches';
+        if ($storeId && $storeId !== 'all' && intval($storeId) > 0) {
+            $st = $this->db->get_where('ezy_pos_stores', array('store_id' => intval($storeId)))->row();
+            if ($st) { $storeName = $st->store_name; }
+        }
+
+        $methodName = 'All Payment Methods';
+        if ($method === 'cash') {
+            $methodName = 'Cash';
+        } elseif ($method !== 'all' && intval($method) > 0) {
+            $pm = $this->db->get_where('ezy_pos_payment_methods', array('pm_id' => intval($method)))->row();
+            if ($pm) { $methodName = $pm->pm_name; }
+        }
+
+        $data = array(
+            'from'         => $from,
+            'to'           => $to,
+            'storeName'    => $storeName,
+            'methodName'   => $methodName,
+            'summary'      => $this->Report_model->getCashMovementSummary($from, $to, $storeId, $method),
+            'bySource'     => $this->Report_model->getCashMovementBySource($from, $to, $storeId),
+            'voucherSales' => $this->Report_model->getVoucherSalesTotal($from, $to, $storeId),
+            'userName'     => $this->_slipUserName(),
+            'comName'      => $this->Configs_model->getConfigName(),
+            'addLine1'     => $this->Configs_model->getConfigAdd1(),
+            'telephone'    => $this->Configs_model->getConfigTel()
+        );
+        $this->load->view('report/cash_flow_slip', $data);
+    }
+
     public function getCashFlowSummaryData()
     {
         $from = $this->input->post('from');

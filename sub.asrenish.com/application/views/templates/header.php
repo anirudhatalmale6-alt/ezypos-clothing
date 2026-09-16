@@ -335,8 +335,8 @@
                                     <li><a href="<?php echo base_url('all-returns')?>"><i class="fa fa-list"></i> All Returns</a></li>
                                     <li class="divider"></li>
                                     <?php } if($canAdvreturn){ ?>
-                                    <li><a href="<?php echo base_url('advance-return')?>"><i class="fa fa-undo"></i> Advance Return</a></li>
-                                    <li><a href="<?php echo base_url('advance-returns')?>"><i class="fa fa-list"></i> All Advance Returns</a></li>
+                                    <li><a href="<?php echo base_url('advance-exchange')?>"><i class="fa fa-exchange"></i> Advance Exchange</a></li>
+                                    <li><a href="<?php echo base_url('advance-exchanges')?>"><i class="fa fa-list"></i> All Advance Exchanges</a></li>
                                     <li class="divider"></li>
                                     <?php } if($canStocktransfer){ ?>
                                     <li><a href="<?php echo base_url('stock-transfers')?>"><i class="fa fa-exchange"></i> Stock Transfers</a></li>

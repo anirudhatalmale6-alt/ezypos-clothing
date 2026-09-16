@@ -97,12 +97,17 @@ $route['all-returns'] = 'Returns/listReturns';
 // Advance Return - its own module, kept clear of the two lines above.
 $route['advance-return'] = 'AdvanceReturn/index';
 $route['advance-returns'] = 'AdvanceReturn/listing';
+// The page is now Advance Exchange. The two addresses above still work so any
+// bookmark or old link keeps opening it.
+$route['advance-exchange'] = 'AdvanceReturn/index';
+$route['advance-exchanges'] = 'AdvanceReturn/listing';
 
 // Stock Transfers
 $route['stock-transfers'] = 'StockTransfer/index';
 
 // New Reports
 $route['cash-flow-report'] = 'reports/cash_flow_report/cash-flow-report';
+$route['cash-flow-slip'] = 'reports/cash_flow_slip';
 $route['item-sales-report'] = 'reports/item_sales_report/item-sales-report';
 $route['production-report'] = 'reports/production_report/production-report';
 

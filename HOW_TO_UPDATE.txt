@@ -72,7 +72,9 @@ STEP 3 - RUN THE DATABASE UPDATES
 10. Press "Run step 8" - this adds the two Advance Return tables and the
    Advance Return tick box on the user permissions page. It only adds things.
    The existing Returns and Exchange module is not touched.
-11. Check the "Records still needing repair" boxes now read 0.
+11. Press "Run step 9" - this turns Advance Return into Advance Exchange:
+   the goods going out, and how the difference was paid. It only adds things.
+12. Check the "Records still needing repair" boxes now read 0.
 
 Every line is shown with a green "done" or an amber "already there". If
 anything comes up red, stop and send me a screenshot of the page - do not
@@ -153,7 +155,19 @@ AFTER THE UPDATE - QUICK CHECKS
   quantity, remove a line, then Complete Return. A slip prints, the stock at
   that branch goes up, and the refund appears in the Cash Flow report as money
   out under "Advance Return".
-- Users > edit a member of staff. There is a new "Advance Return" tick box.
+- Reports > Cash Flow. Pick the dates, press Search, then "Print cash flow".
+  An 80 mm slip comes off the bill printer with money in, money out, net, each
+  payment method, and the cash that should be in the drawer. The same button is
+  on the Sales Report page.
+- Transactions > Advance Exchange. Scan something on the left (coming back) and
+  two things on the right (going out). The panel on the right says who owes
+  whom. Settle it with a card - the reference popup appears just like a sale -
+  and a gift voucher. A single-use voucher warns you before it is taken that
+  the unused balance will be lost.
+- Transactions > All Tailoring Orders > Pay. "Gift Voucher" is now in the method
+  list; type the card number and it tells you what is left on it before you
+  confirm.
+- Users > edit a member of staff. There is a new "Advance Exchange" tick box.
   Untick it and that user should not see the menu entry, and typing the address
   should give a Not Found page. It is separate from Returns and Exchanges - one
   does not grant the other.

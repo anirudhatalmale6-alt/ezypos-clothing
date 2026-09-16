@@ -3,7 +3,7 @@
     <div class="container">
         <div class="row">
             <div class="col-lg-6">
-                <h4 class="page-title"><i class="fa fa-list"></i> Advance Returns</h4>
+                <h4 class="page-title"><i class="fa fa-list"></i> Advance Exchanges</h4>
             </div>
             <div class="col-lg-6">
                 <div class="row">
@@ -30,8 +30,9 @@
                     <table id="datatable-buttons" class="table table-striped table-bordered" width="100%">
                         <thead>
                             <tr>
-                                <th>Ref</th><th>Date</th><th>Branch</th><th>Customer</th>
-                                <th>Bill</th><th>Lines</th><th>Qty</th><th>Refund</th><th>As</th><th>Slip</th>
+                                <th>Ref</th><th>Date</th><th>Branch</th><th>Customer</th><th>Bill</th>
+                                <th>Back</th><th>Out</th><th>Returned</th><th>Taken away</th>
+                                <th>Settled</th><th>Slip</th>
                             </tr>
                         </thead>
                         <tbody id="al_body"><tr><td colspan="10" class="text-center text-muted">Press search.</td></tr></tbody>
@@ -60,12 +61,20 @@ $(function(){
             dataType:'json',
             success:function(rows){
                 if(!rows || rows.length === 0){
-                    $('#al_body').html('<tr><td colspan="10" class="text-center text-muted">Nothing found.</td></tr>');
+                    $('#al_body').html('<tr><td colspan="11" class="text-center text-muted">Nothing found.</td></tr>');
                     return;
                 }
                 var html = '';
                 for(var i=0; i<rows.length; i++){
                     var r = rows[i];
+                    // Positive net = the customer paid; negative = we refunded.
+                    var netAmt = parseFloat(r.net_amount || 0);
+                    var settled = Math.abs(netAmt) < 0.005
+                        ? '<span class="text-muted">straight swap</span>'
+                        : (netAmt > 0
+                            ? '<span class="text-success">paid ' + money(netAmt) + '</span>'
+                            : '<span class="text-danger">refund ' + money(-netAmt) + '</span>'
+                              + (r.adv_refund_mode === 'store_credit' ? ' <small>(credit)</small>' : ''));
                     html += '<tr>'
                          +  '<td>'+esc(r.adv_ref_no)+'</td>'
                          +  '<td>'+esc(r.adv_created_at)+'</td>'
@@ -73,9 +82,10 @@ $(function(){
                          +  '<td>'+esc(r.cus_name || '-')+'</td>'
                          +  '<td>'+(r.adv_without_bill == 1 ? '<span class="text-muted">no bill</span>' : esc(r.adv_bill_ref))+'</td>'
                          +  '<td style="text-align:right;">'+esc(r.line_count)+'</td>'
-                         +  '<td style="text-align:right;">'+money(r.qty_total)+'</td>'
+                         +  '<td style="text-align:right;">'+esc(r.exchange_count || 0)+'</td>'
                          +  '<td style="text-align:right;">'+money(r.adv_total)+'</td>'
-                         +  '<td>'+(r.adv_refund_mode === 'store_credit' ? 'Store credit' : 'Cash')+'</td>'
+                         +  '<td style="text-align:right;">'+money(r.exchange_total || 0)+'</td>'
+                         +  '<td>'+settled+'</td>'
                          +  '<td><a class="btn btn-sm btn-info" target="_blank" href="<?php echo base_url("AdvanceReturn/slip/"); ?>'+r.adv_id+'"><i class="fa fa-print"></i></a></td>'
                          +  '</tr>';
                 }

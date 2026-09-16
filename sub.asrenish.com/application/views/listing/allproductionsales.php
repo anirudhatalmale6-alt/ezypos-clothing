@@ -53,11 +53,16 @@
                         <?php if(isset($paymentMethods) && $paymentMethods){ foreach($paymentMethods as $pm){ ?>
                         <option value="<?php echo htmlspecialchars($pm->pm_name); ?>"><?php echo htmlspecialchars($pm->pm_name); ?></option>
                         <?php }} ?>
+                        <!-- A tailoring order can be settled with a gift voucher the same
+                             way a sale can. The card is checked before the payment is
+                             taken, and spent for the amount used. -->
+                        <option value="Gift Voucher">Gift Voucher</option>
                     </select>
                 </div>
                 <div class="form-group" id="list_card_ref_group" style="display:none;">
-                    <label>Card Number / Reference No</label>
+                    <label id="list_card_ref_label">Card Number / Reference No</label>
                     <input type="text" class="form-control" id="list_card_ref" placeholder="Enter card number / reference no">
+                    <small id="list_voucher_note" class="text-muted"></small>
                 </div>
                 <div class="form-group">
                     <label>Payment Amount</label>
@@ -86,12 +91,40 @@ $(function(){
     // Any non-Cash method needs a reference (card machine ref / cheque no),
     // matching the rule used on the Sales and Add Tailoring Order screens.
     $('#list_pm_method').change(function(){
-        if($(this).val() !== 'Cash'){
+        var m = $(this).val();
+        $('#list_voucher_note').text('');
+        if(m !== 'Cash'){
             $('#list_card_ref_group').show();
+            var voucher = (m === 'Gift Voucher');
+            $('#list_card_ref_label').text(voucher ? 'Gift card number' : 'Card Number / Reference No');
+            $('#list_card_ref').attr('placeholder', voucher ? 'Scan or type the card number'
+                                                            : 'Enter card number / reference no');
         } else {
             $('#list_card_ref_group').hide();
             $('#list_card_ref').val('');
         }
+    });
+
+    // Check the card as soon as it is entered, so the balance on it is known
+    // before the payment is confirmed rather than after.
+    $('#list_card_ref').on('blur', function(){
+        if($('#list_pm_method').val() !== 'Gift Voucher') return;
+        var cn = $(this).val().trim();
+        if(!cn){ $('#list_voucher_note').text(''); return; }
+        $.post(BASE_URL + 'ProductionSale/checkVoucher', { card_number: cn }, function(v){
+            if(!v || !v.ok){
+                $('#list_voucher_note').text((v && v.msg) ? v.msg : 'That card cannot be used.').css('color','#c62828');
+            } else {
+                var note = 'LKR ' + parseFloat(v.remaining).toFixed(2) + ' left on this card.';
+                if(v.one_off){
+                    // Single-use: whatever is not used on this payment is lost.
+                    note += ' Single-use card - anything not used now is lost.';
+                    $('#list_voucher_note').text(note).css('color','#8a6d00');
+                } else {
+                    $('#list_voucher_note').text(note).css('color','#2e7d32');
+                }
+            }
+        }, 'json');
     });
 
     $('#list_btn_confirm_payment').click(function(){
@@ -118,7 +151,13 @@ $(function(){
 
         $.post(BASE_URL + 'ProductionSale/addPayment', {
             prodsale_id: listPayPsId, amount: amt, method: method, card_ref: cardRef
-        }, function(){
+        }, function(res){
+            // A voucher that is expired, unsold or short is refused by the
+            // server. Say so instead of closing as though it worked.
+            if(res && res.ok === false){
+                swal({type:'error', title:'Payment not taken', text:res.msg || 'That payment could not be taken.'});
+                return;
+            }
             $('#listPaymentModal').modal('hide');
 
             if(listPayDeliverAfter){

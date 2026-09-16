@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Advance Return</title>
+    <title>Advance Exchange</title>
     <style>
         /* 80 mm thermal, same width as the sale receipt. */
         @page { size: 80mm auto; margin: 0; }
@@ -34,7 +34,8 @@
         <div class="c">Tel: <?php echo htmlspecialchars($telephone[0]->config_value); ?></div>
     <?php } ?>
     <hr>
-    <div class="c"><strong>GOODS RETURN</strong></div>
+    <?php $isExc = (!empty($ret->exchange_items) && count($ret->exchange_items) > 0); ?>
+    <div class="c"><strong><?php echo $isExc ? 'EXCHANGE' : 'GOODS RETURN'; ?></strong></div>
     <hr>
     <div>Ref&nbsp;&nbsp;&nbsp;: <?php echo htmlspecialchars($ret->adv_ref_no); ?></div>
     <div>Date&nbsp;&nbsp;: <?php echo htmlspecialchars($ret->adv_created_at); ?></div>
@@ -57,12 +58,57 @@
         <?php } ?>
         </tbody>
     </table>
+    <?php if ($isExc) { ?>
     <hr>
+    <div class="c"><strong>TAKEN AWAY</strong></div>
     <table>
-        <tr class="tot"><td>REFUND</td><td class="r">LKR <?php echo number_format($ret->adv_total, 2); ?></td></tr>
-        <tr><td>Paid as</td><td class="r"><?php echo $ret->adv_refund_mode === 'store_credit' ? 'Store credit' : 'Cash'; ?></td></tr>
+        <thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Price</th><th class="r">Total</th></tr></thead>
+        <tbody>
+        <?php foreach ($ret->exchange_items as $e) { ?>
+            <tr>
+                <td><?php echo htmlspecialchars($e->adve_item_code); ?><br>
+                    <small><?php echo htmlspecialchars($e->adve_item_name); ?></small></td>
+                <td class="r"><?php echo number_format($e->adve_qty, 2); ?></td>
+                <td class="r"><?php echo number_format($e->adve_price, 2); ?></td>
+                <td class="r"><?php echo number_format($e->adve_total, 2); ?></td>
+            </tr>
+        <?php } ?>
+        </tbody>
+    </table>
+    <?php } ?>
+    <hr>
+    <?php
+        $net = isset($ret->adv_net_amount) ? floatval($ret->adv_net_amount) : -floatval($ret->adv_total);
+    ?>
+    <table>
+        <tr><td>Returned</td><td class="r"><?php echo number_format($ret->adv_total, 2); ?></td></tr>
+        <?php if ($isExc) { ?>
+        <tr><td>Taken away</td><td class="r"><?php echo number_format($ret->adv_exchange_total, 2); ?></td></tr>
+        <?php } ?>
+        <?php if ($net > 0.004) { ?>
+        <tr class="tot"><td>CUSTOMER PAID</td><td class="r">LKR <?php echo number_format($net, 2); ?></td></tr>
+        <?php } elseif ($net < -0.004) { ?>
+        <tr class="tot"><td>REFUND</td><td class="r">LKR <?php echo number_format(abs($net), 2); ?></td></tr>
+        <tr><td>Given as</td><td class="r"><?php echo $ret->adv_refund_mode === 'store_credit' ? 'Store credit' : 'Cash'; ?></td></tr>
+        <?php } else { ?>
+        <tr class="tot"><td>STRAIGHT SWAP</td><td class="r">0.00</td></tr>
+        <?php } ?>
         <tr><td>Stock</td><td class="r"><?php echo $ret->adv_restock ? 'returned to shelf' : 'not restocked'; ?></td></tr>
     </table>
+    <?php if (!empty($ret->payments) && count($ret->payments) > 0) { ?>
+    <hr>
+    <table>
+        <tr><th colspan="2">HOW IT WAS SETTLED</th></tr>
+        <?php foreach ($ret->payments as $p) { ?>
+        <tr>
+            <td><?php echo htmlspecialchars($p->advp_method); ?>
+                <?php if (trim($p->advp_reference) !== '') { ?><br><small><?php echo htmlspecialchars($p->advp_reference); ?></small><?php } ?>
+            </td>
+            <td class="r"><?php echo ($p->advp_direction === 'out' ? '-' : ''); ?><?php echo number_format($p->advp_amount, 2); ?></td>
+        </tr>
+        <?php } ?>
+    </table>
+    <?php } ?>
     <hr>
     <div class="c">Served by <?php echo htmlspecialchars($ret->user_name); ?></div>
     <div class="c">Thank you</div>

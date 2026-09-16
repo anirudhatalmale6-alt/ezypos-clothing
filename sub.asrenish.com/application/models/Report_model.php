@@ -1422,23 +1422,59 @@ class Report_model extends CI_Model {
         //    same till, so it has to be here or the drawer will not tally.
         //    Store-credit refunds are excluded on purpose: no cash moved.
         // ------------------------------------------------------------------
-        if($wantCash && $this->db->table_exists('ezy_pos_adv_return')){
+        if($this->db->table_exists('ezy_pos_adv_return')){
             $sf = $this->_storeFilterFor('a.adv_store_id', $storeId);
-            $str = "SELECT a.adv_id, a.adv_ref_no, a.adv_total, a.adv_created_at,
-                           c.cus_name, st.store_name
-                    FROM ezy_pos_adv_return a
-                    LEFT JOIN ezy_pos_customers c ON c.cus_id = a.adv_cus_id
-                    LEFT JOIN ezy_pos_stores st ON st.store_id = a.adv_store_id
-                    WHERE a.adv_created_at BETWEEN ? AND ?
-                      AND a.adv_status = 1
-                      AND a.adv_refund_mode = 'cash'
-                      AND a.adv_total > 0"
-                    .$sf.
-                    " ORDER BY a.adv_id DESC";
-            foreach($this->db->query($str, array($start, $end))->result() as $r){
-                $rows[] = $mk(substr($r->adv_created_at, 0, 10), 'Advance Return',
-                              $r->adv_ref_no, $r->cus_name, 'Cash', '',
-                              'out', $r->adv_total, $r->store_name);
+            $hasPay = $this->db->table_exists('ezy_pos_adv_payment');
+
+            if($hasPay){
+                // Once an exchange can be settled by any method, the money is on
+                // the payment lines and can go either way. Read those, exactly
+                // as sale payments are read.
+                $str = "SELECT p.advp_method, p.advp_reference, p.advp_amount, p.advp_direction,
+                               a.adv_ref_no, a.adv_created_at, c.cus_name, st.store_name
+                        FROM ezy_pos_adv_payment p
+                        INNER JOIN ezy_pos_adv_return a ON a.adv_id = p.advp_adv_id
+                        LEFT JOIN ezy_pos_customers c ON c.cus_id = a.adv_cus_id
+                        LEFT JOIN ezy_pos_stores st ON st.store_id = a.adv_store_id
+                        WHERE a.adv_created_at BETWEEN ? AND ?
+                          AND a.adv_status = 1
+                          AND p.advp_amount > 0"
+                        .$sf.
+                        " ORDER BY p.advp_id DESC";
+                foreach($this->db->query($str, array($start, $end))->result() as $r){
+                    $mName = $r->advp_method ? $r->advp_method : 'Cash';
+                    // A gift voucher is not money moving - it was paid for when
+                    // the voucher was sold, and counting it again would show the
+                    // same rupee twice.
+                    if(strcasecmp($mName, 'Gift Voucher') === 0){ continue; }
+                    if($method === 'cash' && strtolower($mName) !== 'cash') continue;
+                    if($wantPmId > 0){
+                        $pmRow = $this->db->query("SELECT pm_name FROM ezy_pos_payment_methods WHERE pm_id = ?", array($wantPmId))->row();
+                        if(!$pmRow || strtolower($pmRow->pm_name) !== strtolower($mName)) continue;
+                    }
+                    $rows[] = $mk(substr($r->adv_created_at, 0, 10), 'Advance Exchange',
+                                  $r->adv_ref_no, $r->cus_name, $mName, $r->advp_reference,
+                                  ($r->advp_direction === 'out' ? 'out' : 'in'),
+                                  $r->advp_amount, $r->store_name);
+                }
+            } elseif($wantCash){
+                // Before v16 an advance return was always a cash refund.
+                $str = "SELECT a.adv_id, a.adv_ref_no, a.adv_total, a.adv_created_at,
+                               c.cus_name, st.store_name
+                        FROM ezy_pos_adv_return a
+                        LEFT JOIN ezy_pos_customers c ON c.cus_id = a.adv_cus_id
+                        LEFT JOIN ezy_pos_stores st ON st.store_id = a.adv_store_id
+                        WHERE a.adv_created_at BETWEEN ? AND ?
+                          AND a.adv_status = 1
+                          AND a.adv_refund_mode = 'cash'
+                          AND a.adv_total > 0"
+                        .$sf.
+                        " ORDER BY a.adv_id DESC";
+                foreach($this->db->query($str, array($start, $end))->result() as $r){
+                    $rows[] = $mk(substr($r->adv_created_at, 0, 10), 'Advance Return',
+                                  $r->adv_ref_no, $r->cus_name, 'Cash', '',
+                                  'out', $r->adv_total, $r->store_name);
+                }
             }
         }
 
@@ -1529,7 +1565,7 @@ class Report_model extends CI_Model {
                 $out['total_out'] += $r->amount;
                 if($isCash) $out['cash_out'] += $r->amount;
                 if($r->source === 'Change Given')  $out['change_out']   += $r->amount;
-                elseif($r->source === 'Exchange')  $out['exchange_out'] += $r->amount;
+                elseif($r->source === 'Exchange' || $r->source === 'Advance Exchange') $out['exchange_out'] += $r->amount;
                 // An Advance Return refund is a refund - it belongs with the
                 // others under money out, not in a bucket of its own that
                 // nothing on Today's Summary reads.
@@ -1552,7 +1588,7 @@ class Report_model extends CI_Model {
                     $out['tailoring_in'] += $r->amount;
                     if($isCash) $out['tailoring_cash'] += $r->amount;
                 }
-                elseif($r->source === 'Exchange'){ $out['exchange_in'] += $r->amount; }
+                elseif($r->source === 'Exchange' || $r->source === 'Advance Exchange'){ $out['exchange_in'] += $r->amount; }
             }
         }
         foreach($out as $k => $v){ $out[$k] = round($v, 2); }

@@ -131,7 +131,12 @@
                             </button>
                         </div>
                         <div class="text-right">
-                            <h5>Net (In - Out): <span class="text-success" id="totalAmount">0.00</span></h5>
+                            <!-- Prints the figures above on the 80 mm till roll, so the
+                                 drawer can be counted against a printed sheet. -->
+                            <button id="btnPrintCashFlow" class="btn btn-sm btn-dark" style="margin-right:12px;">
+                                <i class="fa fa-print"></i> Print cash flow
+                            </button>
+                            <h5 style="display:inline-block;margin:0;">Net (In - Out): <span class="text-success" id="totalAmount">0.00</span></h5>
                         </div>
                     </div>
                     <table id="datatable-buttons" class="table table-striped table-bordered" cellspacing="0" width="100%">
@@ -299,6 +304,22 @@ $(document).ready(function () {
 
     $('#btnVoucherDetail').click(function(){
         $('#voucherDetail').slideToggle(150);
+    });
+
+    // Print the cash flow as a bill. Same dates, branch and payment method as
+    // the screen is showing, so the slip can never disagree with it.
+    $('#btnPrintCashFlow').click(function(){
+        var from = $('#datepicFrom').val(), to = $('#datepicTo').val();
+        if(!from || !to){
+            swal({type:'error',title:'Pick the dates first',text:'Choose a From and To date, press Search, then print.'});
+            return;
+        }
+        var url = '<?php echo base_url("cash-flow-slip"); ?>'
+                + '?from=' + encodeURIComponent(from)
+                + '&to=' + encodeURIComponent(to)
+                + '&store_id=' + encodeURIComponent($('#store_select').val())
+                + '&method=' + encodeURIComponent($('#method_select').val());
+        window.open(url, '_blank', 'width=420,height=680,scrollbars=yes');
     });
 
     // Filter button

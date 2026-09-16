@@ -104,9 +104,16 @@
                         PDF
                     </button>
                 </div>
-                <!-- The figure itself lives in the banner at the top of the page.
-                     This hidden span is what the table code has always written
-                     to, so it is kept rather than chased through the file. -->
+                <div class="text-right">
+                    <!-- The cash flow figures for the same dates and branch, on the
+                         till roll. The money in / out / net and the per-method
+                         breakdown all live in the Cash Flow report, so this prints
+                         exactly that rather than a second version of it. -->
+                    <button id="btnPrintCashFlow" class="btn btn-sm btn-dark">
+                        <i class="fa fa-print"></i> Print cash flow
+                    </button>
+                </div>
+                <!-- The total itself is written here by the table code. -->
                 <span id="totalGrandTotal" style="display:none;">0.00</span>
             </div>
             <table id="datatable-buttons" class="table table-striped table-bordered" cellspacing="0" width="100%">
@@ -351,6 +358,21 @@ $(document).ready(function () {
     });
 
     // Reset button logic
+    $('#btnPrintCashFlow').click(function(){
+        var from = $('#datepicFrom').val(), to = $('#datepicTo').val();
+        if(!from || !to){
+            swal({type:'error',title:'Pick the dates first',
+                  text:'Choose a From and To date, then press Print cash flow.'});
+            return;
+        }
+        var url = '<?php echo base_url("cash-flow-slip"); ?>'
+                + '?from=' + encodeURIComponent(from)
+                + '&to=' + encodeURIComponent(to)
+                + '&store_id=' + encodeURIComponent($('#store_select').val())
+                + '&method=all';
+        window.open(url, '_blank', 'width=420,height=680,scrollbars=yes');
+    });
+
     $('#reset').click(function () {
         $('#datatable-buttons').DataTable().destroy();
         $('#datatable-buttons').html('<thead><tr><th>No Data Available</th></tr></thead>');

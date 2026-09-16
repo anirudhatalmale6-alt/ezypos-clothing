@@ -291,6 +291,8 @@ function status_checks($conn)
     $rows[] = array('Bill number on customer returns (cusrtrn_saleID)', $hasCol('ezy_pos_cus_return', 'cusrtrn_saleID'));
     $rows[] = array('Advance Return tables (ezy_pos_adv_return)', $hasTable('ezy_pos_adv_return'));
     $rows[] = array('Advance Return permission (priv_advreturn)', $hasCol('ezy_pos_privileges', 'priv_advreturn'));
+    $rows[] = array('Advance Exchange - goods going out', $hasTable('ezy_pos_adv_exchange_item'));
+    $rows[] = array('Advance Exchange - payments', $hasTable('ezy_pos_adv_payment'));
 
     echo '<div class="box"><h3>What is already in place</h3><table class="data">';
     foreach ($rows as $r) {
@@ -409,7 +411,7 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
         $action = isset($_POST['action']) ? $_POST['action'] : '';
 
         /* ----------------------------------------------------------- actions */
-        if (in_array($action, array('v9','v10','v11','v12','v13','v14','v15'), true)) {
+        if (in_array($action, array('v9','v10','v11','v12','v13','v14','v15','v16'), true)) {
             $files = array(
                 'v9'  => array(MIGRATE_DIR . '/v9_billno_storecredit_privileges.sql',
                                'Step 2 - new columns and tables (v9)'),
@@ -425,6 +427,8 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
                                'Step 7 - put a date back on the bills saved without one (v14)'),
                 'v15' => array(MIGRATE_DIR . '/v15_advance_return.sql',
                                'Step 8 - the Advance Return module (v15)'),
+                'v16' => array(MIGRATE_DIR . '/v16_advance_exchange.sql',
+                               'Step 9 - Advance Return becomes Advance Exchange (v16)'),
             );
             $file = $files[$action][0];
             $name = $files[$action][1];
@@ -579,6 +583,18 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
        under Users. Administrators see it straight away.</p>
     <form method="post"><input type="hidden" name="action" value="v15">
       <button type="submit">Run step 8</button></form>
+  </div>
+
+  <div class="box step">
+    <h3>Step 9 - Advance Return becomes Advance Exchange</h3>
+    <p>Adds the two tables the exchange side needs - the goods going out, and how the
+       difference was paid - plus three columns on the existing table. It only adds
+       things. Advance Returns you have already taken are left exactly as they are;
+       they simply read as an exchange with nothing going out.</p>
+    <p class="note">After this, the page can take goods back AND hand goods over, and
+       settle the difference by cash, cheque, any card machine or a gift voucher.</p>
+    <form method="post"><input type="hidden" name="action" value="v16">
+      <button type="submit">Run step 9</button></form>
   </div>
 
   <div class="box">

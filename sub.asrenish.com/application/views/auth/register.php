@@ -306,7 +306,7 @@
                                                          not grant the other. -->
                                                     <div class="col-9 checkbox checkbox-custom">
                                                     <input id="advreturn" name="advreturn" type="checkbox" value=1>
-                                                    <label for="advreturn">Advance Return</label>
+                                                    <label for="advreturn">Advance Exchange</label>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -859,7 +859,7 @@
                                                     <div class="col-9 checkbox checkbox-custom">
                                                     <input id="E_advreturn" name="E_advreturn" type="checkbox"
                                                     <?php echo (isset($user['priv_advreturn']) && $user['priv_advreturn']==1 ? 'checked' : '');?> value=1>
-                                                    <label for="E_advreturn">Advance Return</label>
+                                                    <label for="E_advreturn">Advance Exchange</label>
                                                     </div>
                                                 </td>
                                             </tr>
