@@ -95,17 +95,21 @@ namespace EzyLabel.Core
             var shrunk = new List<string>();
             foreach (var it in flat)
             {
+                // An item can ask for its own bar width, so the answer depends
+                // on the code AND on what was asked for - not the code alone.
+                int want = it.NarrowDots > 0 ? it.NarrowDots : spec.BarcodeNarrowDots;
                 string code = it.EffectiveBarcode;
-                if (narrowFor.ContainsKey(code)) continue;
+                string key = code + "\u0001" + want;
+                if (narrowFor.ContainsKey(key)) continue;
                 if (string.IsNullOrEmpty(code))
                 {
-                    narrowFor[code] = 0;
+                    narrowFor[key] = 0;
                     continue;
                 }
-                int n = Code128.FitNarrowDots(code, usable, spec.BarcodeNarrowDots);
-                narrowFor[code] = n;
+                int n = Code128.FitNarrowDots(code, usable, want);
+                narrowFor[key] = n;
                 if (n == 0) tooLong.Add(code);
-                else if (n < spec.BarcodeNarrowDots) shrunk.Add(code);
+                else if (n < want) shrunk.Add(code);
             }
 
             if (tooLong.Count > 0)
@@ -136,6 +140,30 @@ namespace EzyLabel.Core
                     + "Add one more label to fill it if you would rather not waste it.");
             }
 
+            // A nudge is free to move a column or a row - that is the point of
+            // it - but it can also push the printing off the edge of the paper,
+            // where it simply will not appear. Say so before the run starts.
+            // Measured in dots the same way the columns are, so rounding the
+            // millimetres does not make a column look one dot too wide.
+            int webDots = spec.LeftMarginDots + cols * spec.LabelWidthDots + (cols - 1) * spec.ColumnGapDots;
+            var offPaper = new List<string>();
+            for (int c = 0; c < cols; c++)
+            {
+                int x0 = spec.ColumnOriginDots(c);
+                if (x0 < 0) offPaper.Add("column " + (c + 1) + " goes off the left edge");
+                else if (x0 + spec.LabelWidthDots > webDots) offPaper.Add("column " + (c + 1) + " goes off the right edge");
+            }
+            for (int r = 0; r < Math.Min(rows, 2); r++)
+            {
+                if (spec.CellOffsetYDots(r, 0) < 0) offPaper.Add("row " + (r + 1) + " starts above the sticker");
+            }
+            if (offPaper.Count > 0)
+            {
+                result.Warnings.Add(
+                    "Some of the printing has been moved off the paper - " + string.Join(", ", offPaper)
+                    + ". Reduce the move on the Layout tab, or nothing will appear there.");
+            }
+
             var sb = new StringBuilder();
             AppendJobHeader(sb, spec, flat.Count, rows);
 
@@ -147,8 +175,14 @@ namespace EzyLabel.Core
                     int idx = r * cols + c;
                     if (idx >= flat.Count) break;         // odd total: last cell stays empty
                     var item = flat[idx];
-                    int narrow = narrowFor[item.EffectiveBarcode];
-                    AppendOneLabel(sb, spec, item, spec.ColumnOriginDots(c), narrow);
+                    int narrow = narrowFor[item.EffectiveBarcode + "\u0001"
+                                           + (item.NarrowDots > 0 ? item.NarrowDots : spec.BarcodeNarrowDots)];
+                    // Where this one sticker lands: the column, plus that
+                    // column's nudge, plus this row's nudge, plus anything set
+                    // on the item itself.
+                    int ox = spec.ColumnOriginDots(c) + spec.RowOffsetXDots(r) + spec.Mm(item.OffsetXMm);
+                    int oy = spec.CellOffsetYDots(r, c) + spec.Mm(item.OffsetYMm);
+                    AppendOneLabel(sb, spec, item, ox, oy, narrow);
                     result.Placed.Add(new PlacedLabel { Row = r, Column = c, Item = item, NarrowDots = narrow });
                 }
                 // One row at a time. Letting the printer repeat with PRINT n,1
@@ -210,7 +244,8 @@ namespace EzyLabel.Core
             return !string.Equals(bar.Trim(), item.ItemCode.Trim(), StringComparison.OrdinalIgnoreCase);
         }
 
-        private static void AppendOneLabel(StringBuilder sb, LabelSpec spec, LabelItem item, int originX, int narrowDots)
+        private static void AppendOneLabel(StringBuilder sb, LabelSpec spec, LabelItem item,
+                                           int originX, int originY, int narrowDots)
         {
             var inv = CultureInfo.InvariantCulture;
             int x0 = originX + spec.InnerMarginDots;
@@ -233,49 +268,82 @@ namespace EzyLabel.Core
             bool wantBars  = !string.IsNullOrEmpty(code) && narrowDots > 0;
             bool wantPrice = spec.ShowPrice;
 
-            int shopH  = wantShop  ? FontHeight("1") : 0;
-            int nameH  = wantName  ? FontHeight(spec.NameFont) : 0;
-            int codeH  = wantCode  ? FontHeight(spec.CodeFont) : 0;
-            int barH   = spec.Mm(spec.BarcodeHeightMm);
+            // Each line's own font and size. An item can override the name
+            // font, and every line can be re-sized from the Layout tab; 0 or an
+            // empty string anywhere means "as it was".
+            var tShop = spec.ShopLineTweak ?? new ElementTweak();
+            var tName = spec.NameTweak     ?? new ElementTweak();
+            var tCode = spec.CodeTweak     ?? new ElementTweak();
+            var tBar  = spec.BarcodeTweak  ?? new ElementTweak();
+            var tPrice= spec.PriceTweak    ?? new ElementTweak();
+
+            string shopFont  = tShop.FontOr("1");
+            // The item's own font wins: it is the most specific setting there is,
+            // and it was set precisely because this one name would not fit.
+            string nameFont  = !string.IsNullOrWhiteSpace(item.NameFont)
+                             ? item.NameFont.Trim()
+                             : tName.FontOr(spec.NameFont);
+            string codeFont  = tCode.FontOr(spec.CodeFont);
+            string priceFont = tPrice.FontOr(spec.PriceFont);
+
+            int shopSX = tShop.ScaleXOr(1),  shopSY = tShop.ScaleYOr(1);
+            int nameSX = tName.ScaleXOr(1),  nameSY = tName.ScaleYOr(1);
+            int codeSX = tCode.ScaleXOr(1),  codeSY = tCode.ScaleYOr(1);
+            int priceSX = tPrice.ScaleXOr(spec.PriceMultiplier);
+            int priceSY = tPrice.ScaleYOr(spec.PriceMultiplier);
+
+            // Bar height and bar width can be set for this item alone.
+            double barMm = item.BarcodeHeightMm > 0.001 ? item.BarcodeHeightMm : spec.BarcodeHeightMm;
+
+            int shopH  = wantShop  ? FontHeight(shopFont) * shopSY : 0;
+            int nameH  = wantName  ? FontHeight(nameFont) * nameSY : 0;
+            int codeH  = wantCode  ? FontHeight(codeFont) * codeSY : 0;
+            int barH   = spec.Mm(barMm);
             // The human-readable number the printer draws under the bars.
             int readH  = spec.ShowBarcodeText ? 20 : 0;
             int barsH  = wantBars ? barH + readH : 0;
-            int priceH = wantPrice ? FontHeight(spec.PriceFont) * spec.PriceMultiplier : 0;
+            int priceH = wantPrice ? FontHeight(priceFont) * priceSY : 0;
 
             int blocks = (wantShop ? 1 : 0) + (wantName ? 1 : 0) + (wantCode ? 1 : 0)
                        + (wantBars ? 1 : 0) + (wantPrice ? 1 : 0);
             int total = shopH + nameH + codeH + barsH + priceH + (blocks > 1 ? (blocks - 1) * gap : 0);
 
             int inner = spec.LabelHeightDots - 2 * spec.InnerMarginDots;
-            int y = spec.InnerMarginDots + Math.Max(0, (inner - total) / 2);
+            int y = originY + spec.InnerMarginDots + Math.Max(0, (inner - total) / 2);
 
             if (wantShop)
             {
-                sb.Append(Centred(x0, y, usable, "1", 1, Fit(spec.ShopLine, usable, FontWidth("1"))));
+                int cw = FontWidth(shopFont) * shopSX;
+                sb.Append(Placed(spec, tShop, x0, y, usable, shopFont, shopSX, shopSY,
+                                 Fit(spec.ShopLine, usable, cw)));
                 y += shopH + gap;
             }
 
             if (wantName)
             {
-                int cw = FontWidth(spec.NameFont);
-                sb.Append(Centred(x0, y, usable, spec.NameFont, 1, Fit(item.ItemName, usable, cw)));
+                int cw = FontWidth(nameFont) * nameSX;
+                sb.Append(Placed(spec, tName, x0, y, usable, nameFont, nameSX, nameSY,
+                                 Fit(item.ItemName, usable, cw)));
                 y += nameH + gap;
             }
 
             if (wantCode)
             {
-                int cw = FontWidth(spec.CodeFont);
-                sb.Append(Centred(x0, y, usable, spec.CodeFont, 1, Fit(item.ItemCode, usable, cw)));
+                int cw = FontWidth(codeFont) * codeSX;
+                sb.Append(Placed(spec, tCode, x0, y, usable, codeFont, codeSX, codeSY,
+                                 Fit(item.ItemCode, usable, cw)));
                 y += codeH + gap;
             }
 
             if (wantBars)
             {
-                // Centre the bars inside the sticker so a short code does not sit
+                // Lined up inside the sticker the way the Layout tab asks -
+                // centred unless told otherwise, so a short code does not sit
                 // hard against the left edge while a long one fills the width.
                 int barW = Code128.WidthDots(code, narrowDots);
-                int barX = x0 + Math.Max(0, (usable - barW) / 2);
-                sb.Append("BARCODE ").Append(barX).Append(",").Append(y)
+                int barX = AlignedX(x0, usable, barW, tBar.Align) + spec.Mm(tBar.OffsetXMm);
+                int barY = y + spec.Mm(tBar.OffsetYMm);
+                sb.Append("BARCODE ").Append(barX).Append(",").Append(barY)
                   .Append(",\"128\",").Append(barH).Append(",")
                   .Append(spec.ShowBarcodeText ? 1 : 0).Append(",0,")
                   .Append(narrowDots).Append(",").Append(narrowDots * 2)
@@ -286,19 +354,29 @@ namespace EzyLabel.Core
             if (wantPrice)
             {
                 string price = spec.CurrencyPrefix + " " + item.SellingPrice.ToString("N2", inv);
-                int cw = FontWidth(spec.PriceFont) * spec.PriceMultiplier;
-                sb.Append(Centred(x0, y, usable, spec.PriceFont, spec.PriceMultiplier,
-                                  Fit(price, usable, cw)));
+                int cw = FontWidth(priceFont) * priceSX;
+                sb.Append(Placed(spec, tPrice, x0, y, usable, priceFont, priceSX, priceSY,
+                                 Fit(price, usable, cw)));
             }
         }
 
-        /// <summary>Draw one line of text centred across the sticker.</summary>
-        private static string Centred(int x0, int y, int usableDots, string font, int mult, string content)
+        /// <summary>Left edge of something <paramref name="w"/> dots wide, lined up as asked.</summary>
+        public static int AlignedX(int x0, int usableDots, int w, string align)
         {
-            int cw = FontWidth(font) * mult;
+            if (string.Equals(align, "left", StringComparison.OrdinalIgnoreCase)) return x0;
+            if (string.Equals(align, "right", StringComparison.OrdinalIgnoreCase))
+                return x0 + Math.Max(0, usableDots - w);
+            return x0 + Math.Max(0, (usableDots - w) / 2);
+        }
+
+        /// <summary>One line of text, lined up and nudged the way the Layout tab asks.</summary>
+        private static string Placed(LabelSpec spec, ElementTweak t, int x0, int y, int usableDots,
+                                     string font, int sx, int sy, string content)
+        {
+            int cw = FontWidth(font) * sx;
             int w = content.Length * cw;
-            int x = x0 + Math.Max(0, (usableDots - w) / 2);
-            return Text(x, y, font, mult, mult, content);
+            int x = AlignedX(x0, usableDots, w, t.Align) + spec.Mm(t.OffsetXMm);
+            return Text(x, y + spec.Mm(t.OffsetYMm), font, sx, sy, content);
         }
 
         private static string Text(int x, int y, string font, int xm, int ym, string content)

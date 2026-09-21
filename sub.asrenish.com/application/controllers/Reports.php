@@ -587,7 +587,18 @@ public function get_overall_expenses() {
      */
     public function cash_flow_slip()
     {
-        require_priv('privRe_cashflow');
+        // The Print cash flow button also sits on the Sales Report, and a user
+        // who is allowed to open that page must be able to print from it. So
+        // this does NOT demand the Cash Flow permission - holding either one is
+        // enough. It is still not open to anyone who has no report access at
+        // all, and the figures stay scoped to the branches the user is assigned
+        // to, exactly as every other report is.
+        if ($this->session->userdata('userrole') != 1
+            && !$this->session->userdata('privRe_cashflow')
+            && !$this->session->userdata('privRe_salesReport')
+            && !$this->session->userdata('privRe_todaySummary')) {
+            show_404();
+        }
 
         $from    = $this->input->get('from');
         $to      = $this->input->get('to');

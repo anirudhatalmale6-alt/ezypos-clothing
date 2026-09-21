@@ -22,6 +22,31 @@ namespace EzyLabel.Core
         /// <summary>Shown in the queue: Ready, Printed, or the reason it cannot print.</summary>
         [JsonIgnore] public string Status { get; set; } = "Ready";
 
+        // ---- this item's own sticker ---------------------------------------
+        // One item can need treating differently - a name too long for the
+        // usual font, or a code that wants thinner bars. Everything here is
+        // "leave it alone" by default: 0 means use the roll's setting.
+
+        /// <summary>Shift this item's whole sticker, in millimetres.</summary>
+        [JsonPropertyName("offset_x_mm")] public double OffsetXMm { get; set; } = 0;
+        [JsonPropertyName("offset_y_mm")] public double OffsetYMm { get; set; } = 0;
+
+        /// <summary>Override the item-name font for this item. Empty = use the roll's.</summary>
+        [JsonPropertyName("name_font")] public string NameFont { get; set; } = "";
+
+        /// <summary>Override the bar height for this item, in mm. 0 = use the roll's.</summary>
+        [JsonPropertyName("barcode_height_mm")] public double BarcodeHeightMm { get; set; } = 0;
+
+        /// <summary>Override the narrow bar width for this item, in dots. 0 = use the roll's.</summary>
+        [JsonPropertyName("narrow_dots")] public int NarrowDots { get; set; } = 0;
+
+        /// <summary>True when anything about this item's sticker has been changed by hand.</summary>
+        [JsonIgnore]
+        public bool HasOwnLayout =>
+            System.Math.Abs(OffsetXMm) > 0.001 || System.Math.Abs(OffsetYMm) > 0.001
+            || !string.IsNullOrWhiteSpace(NameFont)
+            || BarcodeHeightMm > 0.001 || NarrowDots > 0;
+
         /// <summary>What actually goes under the bars. Falls back to the item code.</summary>
         [JsonIgnore]
         public string EffectiveBarcode =>

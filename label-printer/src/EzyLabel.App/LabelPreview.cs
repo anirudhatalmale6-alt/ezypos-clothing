@@ -58,8 +58,15 @@ namespace EzyLabel.App
                 foreach (var p in built.Placed)
                 {
                     if (p.Row >= rows) continue;
-                    DrawLabel(g, spec, p.Item, spec.ColumnOriginDots(p.Column),
-                              p.Row * rowPitch + topOffset, p.NarrowDots);
+                    // Same arithmetic the printer is given - column nudge, row
+                    // nudge and the item's own offset. If this drifted from
+                    // TsplBuilder the preview would be showing a label the TSC
+                    // never prints, which is worse than no preview at all.
+                    int ox = spec.ColumnOriginDots(p.Column) + spec.RowOffsetXDots(p.Row)
+                           + spec.Mm(p.Item.OffsetXMm);
+                    int oy = p.Row * rowPitch + topOffset
+                           + spec.CellOffsetYDots(p.Row, p.Column) + spec.Mm(p.Item.OffsetYMm);
+                    DrawLabel(g, spec, p.Item, ox, oy, p.NarrowDots);
                 }
             }
             return bmp;
@@ -78,6 +85,12 @@ namespace EzyLabel.App
             int gap = spec.Mm(spec.LineGapMm);
             if (gap < 1) gap = 1;
 
+            var tShop = spec.ShopLineTweak ?? new ElementTweak();
+            var tName = spec.NameTweak     ?? new ElementTweak();
+            var tCode = spec.CodeTweak     ?? new ElementTweak();
+            var tBar  = spec.BarcodeTweak  ?? new ElementTweak();
+            var tPrice= spec.PriceTweak    ?? new ElementTweak();
+
             bool wantShop  = spec.ShopLine.Length > 0;
             bool wantName  = spec.ShowItemName && !string.IsNullOrWhiteSpace(item.ItemName);
             bool wantCode  = TsplBuilder.WantsCodeLine(spec, item);
@@ -85,13 +98,30 @@ namespace EzyLabel.App
             bool wantBars  = !string.IsNullOrEmpty(code) && narrowDots > 0;
             bool wantPrice = spec.ShowPrice;
 
-            int shopH  = wantShop ? TsplBuilder.FontHeight("1") : 0;
-            int nameH  = wantName ? TsplBuilder.FontHeight(spec.NameFont) : 0;
-            int codeH  = wantCode ? TsplBuilder.FontHeight(spec.CodeFont) : 0;
-            int barH   = spec.Mm(spec.BarcodeHeightMm);
+            string shopFont  = tShop.FontOr("1");
+            // The item's own font wins: it is the most specific setting there is,
+            // and it was set precisely because this one name would not fit.
+            string nameFont  = !string.IsNullOrWhiteSpace(item.NameFont)
+                             ? item.NameFont.Trim()
+                             : tName.FontOr(spec.NameFont);
+            string codeFont  = tCode.FontOr(spec.CodeFont);
+            string priceFont = tPrice.FontOr(spec.PriceFont);
+
+            int shopSX = tShop.ScaleXOr(1),  shopSY = tShop.ScaleYOr(1);
+            int nameSX = tName.ScaleXOr(1),  nameSY = tName.ScaleYOr(1);
+            int codeSX = tCode.ScaleXOr(1),  codeSY = tCode.ScaleYOr(1);
+            int priceSX = tPrice.ScaleXOr(spec.PriceMultiplier);
+            int priceSY = tPrice.ScaleYOr(spec.PriceMultiplier);
+
+            double barMm = item.BarcodeHeightMm > 0.001 ? item.BarcodeHeightMm : spec.BarcodeHeightMm;
+
+            int shopH  = wantShop ? TsplBuilder.FontHeight(shopFont) * shopSY : 0;
+            int nameH  = wantName ? TsplBuilder.FontHeight(nameFont) * nameSY : 0;
+            int codeH  = wantCode ? TsplBuilder.FontHeight(codeFont) * codeSY : 0;
+            int barH   = spec.Mm(barMm);
             int readableH = spec.ShowBarcodeText ? 20 : 0;
             int barsH  = wantBars ? barH + readableH : 0;
-            int priceH = wantPrice ? TsplBuilder.FontHeight(spec.PriceFont) * spec.PriceMultiplier : 0;
+            int priceH = wantPrice ? TsplBuilder.FontHeight(priceFont) * priceSY : 0;
 
             int blocks = (wantShop ? 1 : 0) + (wantName ? 1 : 0) + (wantCode ? 1 : 0)
                        + (wantBars ? 1 : 0) + (wantPrice ? 1 : 0);
@@ -102,33 +132,36 @@ namespace EzyLabel.App
 
             if (wantShop)
             {
-                int cw = TsplBuilder.FontWidth("1");
+                int cw = TsplBuilder.FontWidth(shopFont) * shopSX;
                 string t = TsplBuilder.Fit(spec.ShopLine, usable, cw);
-                FixedPitch(g, x0 + Math.Max(0, (usable - t.Length * cw) / 2), y, t, cw, shopH);
+                FixedPitch(g, TsplBuilder.AlignedX(x0, usable, t.Length * cw, tShop.Align) + spec.Mm(tShop.OffsetXMm),
+                           y + spec.Mm(tShop.OffsetYMm), t, cw, shopH);
                 y += shopH + gap;
             }
             if (wantName)
             {
-                int cw = TsplBuilder.FontWidth(spec.NameFont);
+                int cw = TsplBuilder.FontWidth(nameFont) * nameSX;
                 string t = TsplBuilder.Fit(item.ItemName, usable, cw);
-                FixedPitch(g, x0 + Math.Max(0, (usable - t.Length * cw) / 2), y, t, cw, nameH);
+                FixedPitch(g, TsplBuilder.AlignedX(x0, usable, t.Length * cw, tName.Align) + spec.Mm(tName.OffsetXMm),
+                           y + spec.Mm(tName.OffsetYMm), t, cw, nameH);
                 y += nameH + gap;
             }
             if (wantCode)
             {
-                int cw = TsplBuilder.FontWidth(spec.CodeFont);
+                int cw = TsplBuilder.FontWidth(codeFont) * codeSX;
                 string t = TsplBuilder.Fit(item.ItemCode, usable, cw);
-                FixedPitch(g, x0 + Math.Max(0, (usable - t.Length * cw) / 2), y, t, cw, codeH);
+                FixedPitch(g, TsplBuilder.AlignedX(x0, usable, t.Length * cw, tCode.Align) + spec.Mm(tCode.OffsetXMm),
+                           y + spec.Mm(tCode.OffsetYMm), t, cw, codeH);
                 y += codeH + gap;
             }
 
-            int barY = y;
+            int barY = y + spec.Mm(tBar.OffsetYMm);
             int priceY = y + barsH + (wantBars ? gap : 0);
 
             if (wantBars)
             {
                 int barW = Code128.WidthDots(code, narrowDots);
-                int barX = x0 + Math.Max(0, (usable - barW) / 2);
+                int barX = TsplBuilder.AlignedX(x0, usable, barW, tBar.Align) + spec.Mm(tBar.OffsetXMm);
                 int cx = barX;
                 using (var black = new SolidBrush(Color.Black))
                 {
@@ -149,11 +182,11 @@ namespace EzyLabel.App
             if (spec.ShowPrice)
             {
                 string price = spec.CurrencyPrefix + " " + item.SellingPrice.ToString("N2", inv);
-                int cw = TsplBuilder.FontWidth(spec.PriceFont) * spec.PriceMultiplier;
-                int ch = TsplBuilder.FontHeight(spec.PriceFont) * spec.PriceMultiplier;
+                int cw = TsplBuilder.FontWidth(priceFont) * priceSX;
+                int ch = TsplBuilder.FontHeight(priceFont) * priceSY;
                 string txt = TsplBuilder.Fit(price, usable, cw);
-                int px = x0 + Math.Max(0, (usable - txt.Length * cw) / 2);
-                FixedPitch(g, px, priceY, txt, cw, ch);
+                int px = TsplBuilder.AlignedX(x0, usable, txt.Length * cw, tPrice.Align) + spec.Mm(tPrice.OffsetXMm);
+                FixedPitch(g, px, priceY + spec.Mm(tPrice.OffsetYMm), txt, cw, ch);
             }
         }
 

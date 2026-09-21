@@ -116,6 +116,73 @@ Everything except the order of the lines is a settings change, no rebuild.
 
 ---
 
+## Changing the layout yourself
+
+Everything above is the default. None of it is fixed — the **Layout** tab in
+the Windows program changes it, and there are three levels of control, from the
+whole roll down to one sticker.
+
+### 1. Every line on the sticker
+
+One row per line — shop name, item name, item code, barcode, price. For each:
+
+| Setting | What it does |
+|---|---|
+| **Font** | `auto` leaves that line's normal font alone; 1–5 pick one from the table above. |
+| **Align** | `left`, `center` or `right` inside the sticker's clear area. |
+| **Wide / Tall** | The TSC's own multipliers. `0` means "the size it normally is". Wide 2 means each character is drawn twice as wide. For the barcode these are the narrow-bar width and the bar height instead. |
+| **Move right / Move down** | Millimetres, and negative moves left or up. This shifts that one line only, on every sticker. |
+
+So a shop name pushed to the top-left in the smallest font, a price in double
+height on the right, and a barcode left where it is, is four numbers.
+
+### 2. Column by column, row by row
+
+Under it are the nudges. A **column** nudge moves everything in that column of
+the roll; there is one row of boxes per sticker across, and they light up and
+grey out as **Stickers across** changes on the Settings tab.
+
+The **row** nudges have two lines: *Every row* shifts all of them, and *Every
+other row* shifts only the 2nd, 4th, 6th… That second one is there for a roll
+whose two halves are not quite level — a fault that otherwise shows up as every
+alternate sticker being slightly high.
+
+If a nudge pushes a column past the edge of the paper, the job says so before it
+prints:
+
+```
+Note: Some of the printing has been moved off the paper - column 2 goes off the
+right edge. Reduce the move on the Layout tab, or nothing will appear there.
+```
+
+**Put everything back to normal** clears the lot, and **See it** draws the
+preview without having to go back to the queue.
+
+### 3. One sticker on its own
+
+On the **Print queue** tab, select a line and press **Adjust this label**. That
+item gets its own item-name font, its own nudge in millimetres, its own barcode
+height and its own narrow-bar width — and nothing else on the roll changes.
+
+This is for the one item that will not behave: a name three words too long for
+the font the rest of the roll uses, or a long code whose bars need to be a shade
+thinner. The item's own setting always wins over the roll's. **Use the roll's
+settings** puts that item back.
+
+Every box here is "leave it alone" by default: an empty font and a zero mean the
+roll's setting is used, so an item with nothing set behaves exactly as before.
+
+### Where it is kept
+
+All of it lives in `settings.json` next to the program, under `Label`
+(`NameTweak`, `PriceTweak`, `ColumnNudges`, `RowNudges` …), so it survives a
+restart and can be copied to another till. The per-item settings travel with the
+queue file (`name_font`, `offset_x_mm`, `offset_y_mm`, `barcode_height_mm`,
+`narrow_dots`), so `ezylabel emit --queue ...` produces exactly what the window
+shows.
+
+---
+
 ## The proof, and what it does and does not prove
 
 `tools/tspl_render.py` draws the job at 203 dpi, one pixel per printer dot, from

@@ -75,6 +75,7 @@ namespace EzyLabel.App
             _tabPreview = BuildPreviewTab();
             _tabs.TabPages.Add(_tabPreview);
             _tabs.TabPages.Add(BuildSettingsTab());
+            _tabs.TabPages.Add(BuildLayoutTab());
 
             _lblStatus = new Label
             {
@@ -133,8 +134,14 @@ namespace EzyLabel.App
             _btnClear = new Button { Text = "Clear queue", Left = 400, Top = 8, Width = 110, Height = 32 };
             _btnClear.Click += (s, e) => { _queue.Clear(); _queueSource.ResetBindings(false); UpdateTotals(); };
 
-            _lblTotals = new Label { Left = 540, Top = 16, Width = 460, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
-            bar.Controls.AddRange(new Control[] { _btnPrint, _btnPreview, _btnRemove, _btnClear, _lblTotals });
+            // One item can need its own treatment - a name too long for the
+            // usual font, bars that want to be thinner. This changes that item
+            // only; the rest of the roll is untouched.
+            var btnAdjust = new Button { Text = "Adjust this label", Left = 520, Top = 8, Width = 140, Height = 32 };
+            btnAdjust.Click += (s, e) => AdjustSelected();
+
+            _lblTotals = new Label { Left = 672, Top = 16, Width = 420, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
+            bar.Controls.AddRange(new Control[] { _btnPrint, _btnPreview, _btnRemove, _btnClear, btnAdjust, _lblTotals });
 
             _gridQueue = MakeGrid();
             _gridQueue.ReadOnly = false;
@@ -157,6 +164,286 @@ namespace EzyLabel.App
             page.Controls.Add(scroll);
             page.Controls.Add(_lblPreviewInfo);
             return page;
+        }
+
+        // ---- the Layout tab ------------------------------------------------
+        // Rows of controls, one per line of the sticker, plus a nudge per
+        // column and per row of the roll. Everything writes straight into the
+        // spec and redraws the preview, so a change can be seen before any
+        // paper is used.
+        private class TweakRow
+        {
+            public ComboBox Font, Align;
+            public NumericUpDown ScaleX, ScaleY, OffX, OffY;
+
+            public void Read(ElementTweak t)
+            {
+                t.Font   = (Font != null && Font.SelectedIndex > 0) ? Font.Text : "";
+                t.Align  = Align.Text.ToLowerInvariant();
+                t.ScaleX = ScaleX != null ? (int)ScaleX.Value : 0;
+                t.ScaleY = ScaleY != null ? (int)ScaleY.Value : 0;
+                t.OffsetXMm = (double)OffX.Value;
+                t.OffsetYMm = (double)OffY.Value;
+            }
+            public void Write(ElementTweak t)
+            {
+                if (Font != null) { Font.Text = string.IsNullOrWhiteSpace(t.Font) ? "auto" : t.Font; }
+                Align.Text = string.IsNullOrWhiteSpace(t.Align) ? "center" : t.Align;
+                if (ScaleX != null) ScaleX.Value = Clamp(t.ScaleX, ScaleX);
+                if (ScaleY != null) ScaleY.Value = Clamp(t.ScaleY, ScaleY);
+                OffX.Value = Clamp(t.OffsetXMm, OffX);
+                OffY.Value = Clamp(t.OffsetYMm, OffY);
+            }
+            private static decimal Clamp(double v, NumericUpDown n)
+            {
+                decimal d = (decimal)v;
+                if (d < n.Minimum) return n.Minimum;
+                if (d > n.Maximum) return n.Maximum;
+                return d;
+            }
+        }
+
+        private TweakRow _rowShop, _rowName, _rowCode, _rowBar, _rowPrice;
+        private readonly List<NumericUpDown> _colX = new List<NumericUpDown>();
+        private readonly List<NumericUpDown> _colY = new List<NumericUpDown>();
+        private readonly List<NumericUpDown> _rowX = new List<NumericUpDown>();
+        private readonly List<NumericUpDown> _rowY = new List<NumericUpDown>();
+
+        private TabPage BuildLayoutTab()
+        {
+            var page = new TabPage("5. Layout") { Padding = new Padding(10), AutoScroll = true };
+            int y = 8;
+
+            void Head(string t, string sub = null)
+            {
+                page.Controls.Add(new Label { Text = t, Left = 0, Top = y, Width = 600,
+                                              Font = new Font("Segoe UI", 10F, FontStyle.Bold) });
+                y += 22;
+                if (sub != null)
+                {
+                    page.Controls.Add(new Label { Text = sub, Left = 0, Top = y, Width = 900, ForeColor = Color.Gray });
+                    y += 20;
+                }
+                y += 4;
+            }
+
+            NumericUpDown Spin(int left, int top, decimal min, decimal max, int dec, int width = 62)
+            {
+                var n = new NumericUpDown { Left = left, Top = top, Width = width,
+                                            Minimum = min, Maximum = max, DecimalPlaces = dec,
+                                            Increment = dec > 0 ? 0.1M : 1M };
+                n.ValueChanged += (s, e) => LayoutChanged();
+                page.Controls.Add(n);
+                return n;
+            }
+
+            Head("Every line on the sticker",
+                 "Size, where it sits and how it lines up. Font 'auto' and size 0 mean leave it as it is. Offsets are millimetres - negative moves left or up.");;
+
+            // column captions
+            int[] cx = { 0, 130, 210, 300, 360, 430, 500 };
+            string[] caps = { "Line", "Font", "Line up", "Width x", "Height x", "Move right", "Move down" };
+            for (int i = 0; i < caps.Length; i++)
+                page.Controls.Add(new Label { Text = caps[i], Left = cx[i], Top = y, Width = 90, Font = new Font("Segoe UI", 8F, FontStyle.Bold) });
+            y += 20;
+
+            TweakRow AddRow(string caption, bool hasFont, bool hasScale)
+            {
+                page.Controls.Add(new Label { Text = caption, Left = cx[0], Top = y + 4, Width = 125 });
+                var r = new TweakRow();
+                if (hasFont)
+                {
+                    r.Font = new ComboBox { Left = cx[1], Top = y, Width = 70, DropDownStyle = ComboBoxStyle.DropDownList };
+                    r.Font.Items.AddRange(new object[] { "auto", "1", "2", "3", "4", "5" });
+                    r.Font.SelectedIndex = 0;
+                    r.Font.SelectedIndexChanged += (s, e) => LayoutChanged();
+                    page.Controls.Add(r.Font);
+                }
+                r.Align = new ComboBox { Left = cx[2], Top = y, Width = 80, DropDownStyle = ComboBoxStyle.DropDownList };
+                r.Align.Items.AddRange(new object[] { "left", "center", "right" });
+                r.Align.SelectedIndex = 1;
+                r.Align.SelectedIndexChanged += (s, e) => LayoutChanged();
+                page.Controls.Add(r.Align);
+                if (hasScale)
+                {
+                    r.ScaleX = Spin(cx[3], y, 0, 10, 0, 50);
+                    r.ScaleY = Spin(cx[4], y, 0, 10, 0, 50);
+                }
+                r.OffX = Spin(cx[5], y, -60, 60, 1);
+                r.OffY = Spin(cx[6], y, -60, 60, 1);
+                y += 30;
+                return r;
+            }
+
+            _rowShop  = AddRow("Shop name line", true, true);
+            _rowName  = AddRow("Item name", true, true);
+            _rowCode  = AddRow("Item code", true, true);
+            _rowBar   = AddRow("Barcode", false, false);
+            _rowPrice = AddRow("Price", true, true);
+            y += 10;
+
+            Head("Each column of the roll",
+                 "A die-cut roll is rarely perfect. If the right-hand sticker prints a fraction out, correct it here once instead of moving the whole layout.");
+            _colX.Clear(); _colY.Clear();
+            for (int c = 0; c < 4; c++)
+            {
+                var lbl = new Label { Text = "Column " + (c + 1), Left = 0, Top = y + 4, Width = 125, Tag = "col" + c };
+                page.Controls.Add(lbl);
+                page.Controls.Add(new Label { Text = "right", Left = cx[4], Top = y + 4, Width = 60, ForeColor = Color.Gray });
+                _colX.Add(Spin(cx[5], y, -60, 60, 1));
+                page.Controls.Add(new Label { Text = "down", Left = cx[6] + 70, Top = y + 4, Width = 60, ForeColor = Color.Gray });
+                _colY.Add(Spin(cx[6], y, -60, 60, 1));
+                y += 30;
+            }
+            y += 10;
+
+            Head("Rows as they print",
+                 "These repeat down the roll. Fill in the first one only and every row shifts; fill in both and they alternate, which is what a roll that wanders every other row needs.");
+            _rowX.Clear(); _rowY.Clear();
+            for (int r = 0; r < 2; r++)
+            {
+                page.Controls.Add(new Label { Text = (r == 0 ? "Every row" : "Every other row"), Left = 0, Top = y + 4, Width = 125 });
+                page.Controls.Add(new Label { Text = "right", Left = cx[4], Top = y + 4, Width = 60, ForeColor = Color.Gray });
+                _rowX.Add(Spin(cx[5], y, -60, 60, 1));
+                page.Controls.Add(new Label { Text = "down", Left = cx[6] + 70, Top = y + 4, Width = 60, ForeColor = Color.Gray });
+                _rowY.Add(Spin(cx[6], y, -60, 60, 1));
+                y += 30;
+            }
+            y += 14;
+
+            var btnReset = new Button { Text = "Put everything back to normal", Left = 0, Top = y, Width = 220, Height = 30 };
+            btnReset.Click += (s, e) => ResetLayout();
+            page.Controls.Add(btnReset);
+
+            var btnSaveLayout = new Button { Text = "Save layout", Left = 232, Top = y, Width = 130, Height = 30 };
+            btnSaveLayout.Click += (s, e) => { ReadLayoutFromUi(); SaveSettingsFromUi(true); };
+            page.Controls.Add(btnSaveLayout);
+
+            var btnPrev = new Button { Text = "See it", Left = 374, Top = y, Width = 110, Height = 30 };
+            btnPrev.Click += (s, e) => { ReadLayoutFromUi(); DoPreview(); };
+            page.Controls.Add(btnPrev);
+
+            page.Controls.Add(new Label
+            {
+                Left = 0, Top = y + 40, Width = 900, Height = 34, ForeColor = Color.Gray,
+                Text = "One sticker on its own can also be changed: on the Print queue tab, select a line and press 'Adjust this label'."
+            });
+
+            return page;
+        }
+
+        /// <summary>Open the per-item layout box for the selected queue row.</summary>
+        private void AdjustSelected()
+        {
+            if (_gridQueue.CurrentRow == null || _gridQueue.CurrentRow.Index < 0
+                || _gridQueue.CurrentRow.Index >= _queue.Count)
+            {
+                MessageBox.Show(this, "Pick a line in the queue first.", "Adjust this label",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            var item = _queue[_gridQueue.CurrentRow.Index];
+            using (var dlg = new ItemLayoutDialog(item, _settings.Label))
+            {
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    _queueSource.ResetBindings(false);
+                    Log(item.HasOwnLayout
+                        ? item.ItemCode + " now has its own label settings."
+                        : item.ItemCode + " is back to the roll's settings.");
+                    DoPreview();
+                }
+            }
+        }
+
+        /// <summary>A control on the Layout tab moved. Keep the spec and the preview with it.</summary>
+        private bool _layoutLoading;
+        private void LayoutChanged()
+        {
+            if (_layoutLoading) return;
+            ReadLayoutFromUi();
+        }
+
+        /// <summary>
+        /// The number of stickers across changed on the Settings tab. The Layout
+        /// tab has one nudge row per column, so light up (or grey out) the right
+        /// ones - keeping whatever the user had already typed.
+        /// </summary>
+        private void ColumnCountChanged()
+        {
+            if (_layoutLoading || _rowName == null) return;
+            ReadLayoutFromUi();
+            _settings.Label.Columns = (int)_numCols.Value;
+            _settings.Label.EnsureNudgeSlots();
+            WriteLayoutToUi();
+        }
+
+        private void ReadLayoutFromUi()
+        {
+            if (_rowName == null) return;
+            var L = _settings.Label;
+            _rowShop.Read(L.ShopLineTweak);
+            _rowName.Read(L.NameTweak);
+            _rowCode.Read(L.CodeTweak);
+            _rowBar.Read(L.BarcodeTweak);
+            _rowPrice.Read(L.PriceTweak);
+
+            L.EnsureNudgeSlots();
+            for (int c = 0; c < L.ColumnNudges.Count && c < _colX.Count; c++)
+            {
+                L.ColumnNudges[c].XMm = (double)_colX[c].Value;
+                L.ColumnNudges[c].YMm = (double)_colY[c].Value;
+            }
+            for (int r = 0; r < L.RowNudges.Count && r < _rowX.Count; r++)
+            {
+                L.RowNudges[r].XMm = (double)_rowX[r].Value;
+                L.RowNudges[r].YMm = (double)_rowY[r].Value;
+            }
+        }
+
+        private void WriteLayoutToUi()
+        {
+            if (_rowName == null) return;
+            _layoutLoading = true;
+            try
+            {
+                var L = _settings.Label;
+                L.EnsureNudgeSlots();
+                _rowShop.Write(L.ShopLineTweak);
+                _rowName.Write(L.NameTweak);
+                _rowCode.Write(L.CodeTweak);
+                _rowBar.Write(L.BarcodeTweak);
+                _rowPrice.Write(L.PriceTweak);
+
+                for (int c = 0; c < _colX.Count; c++)
+                {
+                    bool live = c < L.Columns;
+                    _colX[c].Enabled = _colY[c].Enabled = live;
+                    _colX[c].Value = (c < L.ColumnNudges.Count) ? (decimal)L.ColumnNudges[c].XMm : 0;
+                    _colY[c].Value = (c < L.ColumnNudges.Count) ? (decimal)L.ColumnNudges[c].YMm : 0;
+                }
+                for (int r = 0; r < _rowX.Count; r++)
+                {
+                    _rowX[r].Value = (r < L.RowNudges.Count) ? (decimal)L.RowNudges[r].XMm : 0;
+                    _rowY[r].Value = (r < L.RowNudges.Count) ? (decimal)L.RowNudges[r].YMm : 0;
+                }
+            }
+            finally { _layoutLoading = false; }
+        }
+
+        private void ResetLayout()
+        {
+            var L = _settings.Label;
+            L.ShopLineTweak = new ElementTweak();
+            L.NameTweak     = new ElementTweak();
+            L.CodeTweak     = new ElementTweak();
+            L.BarcodeTweak  = new ElementTweak();
+            L.PriceTweak    = new ElementTweak();
+            L.ColumnNudges  = new List<Nudge>();
+            L.RowNudges     = new List<Nudge>();
+            L.EnsureNudgeSlots();
+            WriteLayoutToUi();
+            Log("Layout put back to normal.");
         }
 
         private TabPage BuildSettingsTab()
@@ -224,6 +511,7 @@ namespace EzyLabel.App
             _numW      = Num("Sticker width",        1, 300, 1, "38 for this roll");
             _numH      = Num("Sticker height",       1, 300, 1, "25 for this roll");
             _numCols   = Num("Stickers across",      1, 4,   0, "2 for a 2-up roll. This is the setting that matters most.");
+            _numCols.ValueChanged += (s, e) => ColumnCountChanged();
             _numColGap = Num("Gap between them",     0, 50,  1, "measure between the two stickers");
             _numRowGap = Num("Gap between rows",     0, 50,  1, "the die-cut gap the printer's sensor sees");
             _numLeft   = Num("Left margin",          0, 50,  1, "paper edge to the first sticker");
@@ -562,6 +850,10 @@ namespace EzyLabel.App
             _txtShopLine.Text = L.ShopLine;
             _chkAgent.Checked = s.AgentEnabled;
             _numPort.Value = s.AgentPort;
+
+            // The Layout tab reads from the same spec, so it has to be refilled
+            // whenever the settings are reloaded.
+            WriteLayoutToUi();
         }
 
         private void SaveSettingsFromUi(bool toDisk)
@@ -591,6 +883,9 @@ namespace EzyLabel.App
             L.HideCodeWhenSameAsBarcode = _chkHideDupCode.Checked;
             L.CurrencyPrefix = _txtCurrency.Text;
             L.ShopLine = _txtShopLine.Text;
+
+            // Whatever is on the Layout tab is part of the spec too.
+            ReadLayoutFromUi();
 
             bool agentChanged = s.AgentEnabled != _chkAgent.Checked || s.AgentPort != (int)_numPort.Value;
             s.AgentEnabled = _chkAgent.Checked;

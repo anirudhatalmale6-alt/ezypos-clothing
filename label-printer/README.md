@@ -32,6 +32,12 @@ not a change of program.
 5. Items tab: search, set a quantity, add to queue.
 6. Queue tab: check it, press Preview, press PRINT.
 
+Nothing about the sticker is fixed. The **Layout** tab changes the font, the
+alignment, the size and the position of every line on the label, and nudges a
+whole column or every other row of the roll. One awkward item can be given its
+own settings with **Adjust this label** on the queue tab, leaving the rest of
+the roll alone. See [docs/LABEL_LAYOUT.md](docs/LABEL_LAYOUT.md#changing-the-layout-yourself).
+
 Full instructions: [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md).
 
 ---

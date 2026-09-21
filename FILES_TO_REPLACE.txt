@@ -124,7 +124,11 @@ REPLACE - controllers  (application/controllers/)
 23. Reports.php
       Cash Flow: the payment method filter now applies to the totals at the
       top, not only to the table. AND: Today's Summary now carries the gift
-      voucher figure.
+      voucher figure. AND: the Print cash flow button on the Sales Report now
+      works for a user who has the Sales Report permission but not the Cash
+      Flow one - it no longer asks for a permission the button's own page
+      does not need. A user with no report permission at all still cannot
+      reach it, and the figures are still limited to that user's branches.
 
 24. Userauthentication.php
       Saves the new permission tick boxes when you create or edit a user,

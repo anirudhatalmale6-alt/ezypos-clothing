@@ -1,8 +1,52 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace EzyLabel.Core
 {
+    /// <summary>
+    /// A nudge in millimetres. Used to shift one column of the roll, one row,
+    /// or one item's sticker, without disturbing anything else.
+    ///
+    /// Die-cut rolls are not perfect. The right-hand sticker is often a
+    /// fraction out from the left one, and that fraction is constant for the
+    /// whole roll - so it belongs here and not in the layout.
+    /// </summary>
+    public class Nudge
+    {
+        public double XMm { get; set; } = 0;
+        public double YMm { get; set; } = 0;
+
+        [JsonIgnore] public bool IsZero => Math.Abs(XMm) < 0.001 && Math.Abs(YMm) < 0.001;
+        public Nudge Clone() => new Nudge { XMm = XMm, YMm = YMm };
+    }
+
+    /// <summary>
+    /// Per-line control: where one line sits, how big it is, how it lines up.
+    ///
+    /// Every value here is "leave it alone" by default - an empty font and a
+    /// scale of 0 mean "use the setting this element already had", so an older
+    /// settings.json keeps printing exactly as it did.
+    /// </summary>
+    public class ElementTweak
+    {
+        /// <summary>left | center | right. Centre is what the label has always done.</summary>
+        public string Align { get; set; } = "center";
+        public double OffsetXMm { get; set; } = 0;
+        public double OffsetYMm { get; set; } = 0;
+        /// <summary>TSPL character multiplier. 0 means use this element's normal size.</summary>
+        public int ScaleX { get; set; } = 0;
+        public int ScaleY { get; set; } = 0;
+        /// <summary>TSPL built-in font number. Empty means use this element's normal font.</summary>
+        public string Font { get; set; } = "";
+
+        public string FontOr(string fallback) => string.IsNullOrWhiteSpace(Font) ? fallback : Font.Trim();
+        public int ScaleXOr(int fallback) => ScaleX > 0 ? ScaleX : fallback;
+        public int ScaleYOr(int fallback) => ScaleY > 0 ? ScaleY : fallback;
+
+        public ElementTweak Clone() => (ElementTweak)MemberwiseClone();
+    }
+
     /// <summary>
     /// The physical shape of the label roll, in millimetres, plus the printer
     /// settings that go with it.
@@ -97,6 +141,54 @@ namespace EzyLabel.Core
         /// </summary>
         public int BarcodeNarrowDots { get; set; } = 2;
 
+        // ---- per line: where it sits, how big, how it lines up --------------
+        // These default to "leave it alone", so a settings.json written before
+        // they existed prints exactly as it did.
+        public ElementTweak ShopLineTweak { get; set; } = new ElementTweak();
+        public ElementTweak NameTweak     { get; set; } = new ElementTweak();
+        public ElementTweak CodeTweak     { get; set; } = new ElementTweak();
+        public ElementTweak BarcodeTweak  { get; set; } = new ElementTweak();
+        public ElementTweak PriceTweak    { get; set; } = new ElementTweak();
+
+        // ---- per column and per row ----------------------------------------
+        /// <summary>
+        /// One nudge per sticker across the web. Index 0 is the left column.
+        /// A die-cut roll whose right-hand sticker sits 0.3 mm low is fixed
+        /// here, once, instead of by moving the whole layout.
+        /// </summary>
+        public List<Nudge> ColumnNudges { get; set; } = new List<Nudge>();
+
+        /// <summary>
+        /// Nudges applied to rows as they print, repeating. One entry shifts
+        /// every row; two entries alternate, which is what a roll that wanders
+        /// by a fixed amount every other row needs.
+        /// </summary>
+        public List<Nudge> RowNudges { get; set; } = new List<Nudge>();
+
+        /// <summary>The nudge for a column, or nothing if none is set.</summary>
+        public Nudge ColumnNudge(int col)
+        {
+            if (ColumnNudges == null || col < 0 || col >= ColumnNudges.Count) return null;
+            return ColumnNudges[col];
+        }
+
+        /// <summary>The nudge for a row. The list repeats, so two entries alternate.</summary>
+        public Nudge RowNudge(int row)
+        {
+            if (RowNudges == null || RowNudges.Count == 0 || row < 0) return null;
+            return RowNudges[row % RowNudges.Count];
+        }
+
+        /// <summary>Make sure there is one nudge per column, so the editor has something to bind to.</summary>
+        public void EnsureNudgeSlots()
+        {
+            if (ColumnNudges == null) ColumnNudges = new List<Nudge>();
+            while (ColumnNudges.Count < Columns) ColumnNudges.Add(new Nudge());
+            while (ColumnNudges.Count > Columns && ColumnNudges.Count > 0) ColumnNudges.RemoveAt(ColumnNudges.Count - 1);
+            if (RowNudges == null) RowNudges = new List<Nudge>();
+            while (RowNudges.Count < 2) RowNudges.Add(new Nudge());
+        }
+
         // ---- font sizes, as TSPL built-in font numbers ----------------------
         public string NameFont { get; set; } = "2";
         public string CodeFont { get; set; } = "1";
@@ -122,10 +214,53 @@ namespace EzyLabel.Core
 
         public int Mm(double mm) => (int)Math.Round(mm * DotsPerMm);
 
-        /// <summary>Left edge of sticker <paramref name="col"/> (0-based), in dots.</summary>
-        public int ColumnOriginDots(int col) => LeftMarginDots + col * (LabelWidthDots + ColumnGapDots);
+        /// <summary>
+        /// Left edge of sticker <paramref name="col"/> (0-based), in dots,
+        /// including that column's own nudge.
+        /// </summary>
+        public int ColumnOriginDots(int col)
+        {
+            int x = LeftMarginDots + col * (LabelWidthDots + ColumnGapDots);
+            var n = ColumnNudge(col);
+            if (n != null) { x += Mm(n.XMm); }
+            return x;
+        }
 
-        public LabelSpec Clone() => (LabelSpec)MemberwiseClone();
+        /// <summary>The extra vertical shift for a sticker, from its column and its row.</summary>
+        public int CellOffsetYDots(int row, int col)
+        {
+            int y = 0;
+            var c = ColumnNudge(col); if (c != null) { y += Mm(c.YMm); }
+            var r = RowNudge(row);    if (r != null) { y += Mm(r.YMm); }
+            return y;
+        }
+
+        /// <summary>The extra horizontal shift a row asks for, on top of the column.</summary>
+        public int RowOffsetXDots(int row)
+        {
+            var r = RowNudge(row);
+            return r != null ? Mm(r.XMm) : 0;
+        }
+
+        /// <summary>
+        /// A deep copy. MemberwiseClone alone would hand the copy the SAME
+        /// tweak and nudge objects, so editing the copy would silently edit the
+        /// original - which is exactly what a preview must not do.
+        /// </summary>
+        public LabelSpec Clone()
+        {
+            var c = (LabelSpec)MemberwiseClone();
+            c.ShopLineTweak = ShopLineTweak != null ? ShopLineTweak.Clone() : new ElementTweak();
+            c.NameTweak     = NameTweak     != null ? NameTweak.Clone()     : new ElementTweak();
+            c.CodeTweak     = CodeTweak     != null ? CodeTweak.Clone()     : new ElementTweak();
+            c.BarcodeTweak  = BarcodeTweak  != null ? BarcodeTweak.Clone()  : new ElementTweak();
+            c.PriceTweak    = PriceTweak    != null ? PriceTweak.Clone()    : new ElementTweak();
+            c.ColumnNudges  = new List<Nudge>();
+            if (ColumnNudges != null) { foreach (var n in ColumnNudges) c.ColumnNudges.Add(n.Clone()); }
+            c.RowNudges = new List<Nudge>();
+            if (RowNudges != null) { foreach (var n in RowNudges) c.RowNudges.Add(n.Clone()); }
+            return c;
+        }
 
         /// <summary>
         /// Sanity check before anything is sent to the printer. Returns null if
