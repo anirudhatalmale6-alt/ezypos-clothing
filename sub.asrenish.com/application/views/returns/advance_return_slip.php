@@ -84,6 +84,17 @@
         <tr><td>Returned</td><td class="r"><?php echo number_format($ret->adv_total, 2); ?></td></tr>
         <?php if ($isExc) { ?>
         <tr><td>Taken away</td><td class="r"><?php echo number_format($ret->adv_exchange_total, 2); ?></td></tr>
+        <?php }
+           // Only printed when there actually was one. The rate is shown next
+           // to it so the customer can see 10% rather than just a figure.
+           $disc = isset($ret->adv_discount) ? floatval($ret->adv_discount) : 0;
+           if ($disc > 0.004) {
+               $dLabel = 'Discount';
+               if (isset($ret->adv_discount_type) && $ret->adv_discount_type === 'percentage') {
+                   $dLabel .= ' ('.rtrim(rtrim(number_format(floatval($ret->adv_discount_rate), 2), '0'), '.').'%)';
+               }
+        ?>
+        <tr><td><?php echo $dLabel; ?></td><td class="r">-<?php echo number_format($disc, 2); ?></td></tr>
         <?php } ?>
         <?php if ($net > 0.004) { ?>
         <tr class="tot"><td>CUSTOMER PAID</td><td class="r">LKR <?php echo number_format($net, 2); ?></td></tr>

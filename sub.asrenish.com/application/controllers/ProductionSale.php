@@ -88,6 +88,35 @@ class ProductionSale extends CI_Controller {
         echo json_encode(array('success' => true));
     }
 
+    /**
+     * Set the discount on an order. Flat rupees or a percentage, the same two
+     * choices the Sales window offers.
+     */
+    public function setDiscount()
+    {
+        $id    = intval($this->input->post('prodsale_id'));
+        $order = $this->ProductionSale_model->getOrderDetails($id);
+        if (!$order) {
+            echo json_encode(array('success' => false, 'msg' => 'Order not found'));
+            return;
+        }
+        // A delivered order has been paid and printed. Changing what it came
+        // to afterwards would leave the receipt in the customer's hand wrong.
+        if ($order->prodsale_status == 'Delivered') {
+            echo json_encode(array('success' => false, 'msg' => 'This order has been delivered, so the discount cannot be changed.'));
+            return;
+        }
+        $ok = $this->ProductionSale_model->setDiscount(
+            $id, $this->input->post('discount'), $this->input->post('discount_type'));
+        if (!$ok) {
+            echo json_encode(array('success' => false,
+                'msg' => 'The discount columns are not there yet. Run step 10 in migrate.php.'));
+            return;
+        }
+        $fresh = $this->ProductionSale_model->getOrderDetails($id);
+        echo json_encode(array('success' => true, 'order' => $fresh));
+    }
+
     public function createOrder()
     {
         $data = array(
@@ -110,6 +139,14 @@ class ProductionSale extends CI_Controller {
             }
         }
         $id = $this->ProductionSale_model->createOrder($data);
+        // The totals were never worked out at creation, only when the order was
+        // edited or an item was added. So an order created with an estimated
+        // cost and nothing else sat at a total of 0.00 - and the estimate bill
+        // that prints straight afterwards said 0.00 while the customer was
+        // handing over an advance.
+        if ($id) {
+            $this->ProductionSale_model->recalculateTotals($id);
+        }
         echo json_encode($id);
     }
 

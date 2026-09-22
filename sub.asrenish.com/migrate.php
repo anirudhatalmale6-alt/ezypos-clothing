@@ -429,6 +429,8 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
                                'Step 8 - the Advance Return module (v15)'),
                 'v16' => array(MIGRATE_DIR . '/v16_advance_exchange.sql',
                                'Step 9 - Advance Return becomes Advance Exchange (v16)'),
+                'v17' => array(MIGRATE_DIR . '/v17_exchange_tailoring_discount.sql',
+                               'Step 10 - discount on exchanges and tailoring orders (v17)'),
             );
             $file = $files[$action][0];
             $name = $files[$action][1];
@@ -595,6 +597,19 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
        settle the difference by cash, cheque, any card machine or a gift voucher.</p>
     <form method="post"><input type="hidden" name="action" value="v16">
       <button type="submit">Run step 9</button></form>
+  </div>
+
+  <div class="box step">
+    <h3>Step 10 - Discount on exchanges and tailoring orders</h3>
+    <p>Adds three columns to the Advance Exchange table and three to the tailoring
+       orders table: the discount in rupees, whether a flat amount or a percentage
+       was typed, and the number that was typed. It only adds columns, all starting
+       at zero, so every exchange and every order you already have is unchanged.</p>
+    <p class="note">After this, both screens have a Discount box that takes either a
+       flat rupee amount or a percentage, the same as the Sales window. The figure is
+       printed on the slip and on the tailoring estimate and final bill.</p>
+    <form method="post"><input type="hidden" name="action" value="v17">
+      <button type="submit">Run step 10</button></form>
   </div>
 
   <div class="box">

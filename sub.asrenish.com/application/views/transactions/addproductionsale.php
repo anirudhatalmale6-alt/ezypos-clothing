@@ -79,6 +79,11 @@
                                 <?php if(isset($paymentMethods)){ foreach($paymentMethods as $pm){ ?>
                                 <option value="<?php echo $pm->pm_name; ?>"><?php echo $pm->pm_name; ?></option>
                                 <?php }} ?>
+                                <!-- The advance on a tailoring order can be paid with a gift
+                                     card, the same as on the Sales window and on Manage
+                                     Payments. The card is checked before the order is
+                                     created and spent for the amount used. -->
+                                <option value="Gift Voucher">Gift Voucher</option>
                             </select>
                         </div>
                     </div>
@@ -86,6 +91,7 @@
                         <label class="col-5 col-form-label">Card No / Reference</label>
                         <div class="col-7">
                             <input type="text" class="form-control" id="ps_advance_cardref" placeholder="Enter card number / reference no">
+                            <small id="ps_advance_voucher_note" class="text-muted"></small>
                         </div>
                     </div>
                     <div class="form-group row">
@@ -109,6 +115,20 @@
                     <div class="form-group row mb-1">
                         <label class="col-7 col-form-label"><strong>Service Charges:</strong></label>
                         <label class="col-form-label">LKR <span id="ps_service_cost_lbl">0.00</span></label>
+                    </div>
+                    <div class="form-group row mb-1" id="ps_discount_row">
+                        <label class="col-5 col-form-label"><strong>Discount:</strong></label>
+                        <div class="col-7">
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control" id="ps_discount_value"
+                                       value="0" step="0.01" min="0">
+                                <select class="form-control" id="ps_discount_type" style="max-width:96px;">
+                                    <option value="flat">Flat (LKR)</option>
+                                    <option value="percentage">%</option>
+                                </select>
+                            </div>
+                            <small class="text-muted">Taken off: LKR <span id="ps_discount_lbl">0.00</span></small>
+                        </div>
                     </div>
                     <hr>
                     <div class="form-group row mb-1">
@@ -370,12 +390,40 @@ $(document).ready(function() {
 
     // Advance payment: show card/reference field for any non-Cash method (same as Sales)
     $('#ps_advance_method').change(function(){
-        if($(this).val() !== 'Cash'){
+        var m = $(this).val();
+        $('#ps_advance_voucher_note').text('');
+        if(m !== 'Cash'){
             $('#advance_cardref_row').show();
+            var voucher = (m === 'Gift Voucher');
+            $('#ps_advance_cardref').attr('placeholder', voucher ? 'Scan or type the card number'
+                                                                 : 'Enter card number / reference no');
         } else {
             $('#advance_cardref_row').hide();
             $('#ps_advance_cardref').val('');
         }
+    });
+
+    // Check the card while the counter staff still have it in their hand,
+    // rather than after the order has been created.
+    $('#ps_advance_cardref').on('blur', function(){
+        if($('#ps_advance_method').val() !== 'Gift Voucher') return;
+        var cn = $(this).val().trim();
+        if(!cn){ $('#ps_advance_voucher_note').text(''); return; }
+        $.post(BASE_URL + 'ProductionSale/checkVoucher', { card_number: cn }, function(v){
+            if(!v || !v.ok){
+                $('#ps_advance_voucher_note').text((v && v.msg) ? v.msg : 'That card cannot be used.')
+                                             .css('color','#c62828');
+                return;
+            }
+            var note = 'LKR ' + parseFloat(v.remaining).toFixed(2) + ' left on this card.';
+            if(v.one_off){
+                // Single-use: whatever is not used on this payment is lost.
+                $('#ps_advance_voucher_note')
+                    .text(note + ' Single-use card - anything not used now is lost.').css('color','#8a6d00');
+            } else {
+                $('#ps_advance_voucher_note').text(note).css('color','#2e7d32');
+            }
+        }, 'json');
     });
 
     // Item autocomplete
@@ -449,13 +497,23 @@ $(document).ready(function() {
                     currentPsStoreId = $('#ps_store').val();
                     // Process advance payment if any
                     var advAmt = parseFloat($('#ps_advance_payment').val()) || 0;
+                    var advFailed = '';
                     if(advAmt > 0){
                         var advMethod = $('#ps_advance_method').val() || 'Cash';
                         var advRef = (advMethod !== 'Cash') ? $('#ps_advance_cardref').val().trim() : '';
+                        // The reply was being thrown away, so a refused gift card
+                        // still produced "Order created with advance payment of...".
+                        // The order is real either way - only the payment failed.
                         $.ajax({
                             type: 'POST', url: BASE_URL + 'ProductionSale/addPayment',
                             data: { prodsale_id: id, amount: advAmt, method: advMethod, card_ref: advRef },
-                            async: false, dataType: 'json'
+                            async: false, dataType: 'json',
+                            success: function(pr){
+                                if(pr && pr.ok === false){
+                                    advFailed = pr.msg || 'The payment could not be taken.';
+                                    advAmt = 0;
+                                }
+                            }
                         });
                     }
                     $('#ps_code, #ps_store, #ps_pickup_store, #ps_customer_search, #ps_date, #ps_delivery_date, #ps_tailoring_charge, #ps_notes, #ps_advance_payment, #ps_advance_method').prop('disabled', true);
@@ -463,8 +521,13 @@ $(document).ready(function() {
                     $('#ps_items_section, #ps_services_section, #ps_status_section, #ps_status_buttons, #ps_tailor_section').show();
                     setPrintLinks();
                     refreshPsOrder();
-                    var msg = advAmt > 0 ? 'Order created with advance payment of LKR ' + advAmt.toFixed(2) + '. Estimate bill is opening in a new tab.' : 'Order created. Estimate bill is opening in a new tab.';
-                    swal({type:'success', title:'Order Created!', text: msg});
+                    if(advFailed){
+                        swal({type:'warning', title:'Order created, advance NOT taken',
+                              text: advFailed + ' Take the advance from Manage Payments on the orders list.'});
+                    } else {
+                        var msg = advAmt > 0 ? 'Order created with advance payment of LKR ' + advAmt.toFixed(2) + '. Estimate bill is opening in a new tab.' : 'Order created. Estimate bill is opening in a new tab.';
+                        swal({type:'success', title:'Order Created!', text: msg});
+                    }
                     // Print the estimate bill immediately after creation + advance
                     window.open(BASE_URL + 'tailoring-estimate/' + currentPsId, '_blank');
                 }
@@ -767,20 +830,55 @@ function setPrintLinks(){
 function refreshPsOrder(){
     $.post(BASE_URL + 'ProductionSale/getOrderDetails', { prodsale_id: currentPsId }, function(res){
         var o = JSON.parse(res);
-        var matCost = parseFloat(o.prodsale_material_cost) || 0;
-        var tailoring = parseFloat(o.prodsale_tailoring_charge) || 0;
-        var total = parseFloat(o.prodsale_total) || 0;
-        var paid = parseFloat(o.prodsale_paid) || 0;
-        var balance = parseFloat(o.prodsale_balance) || 0;
-        var svcCost = total - matCost - tailoring;
-        if(svcCost < 0) svcCost = 0;
-
-        $('#ps_material_cost_lbl').text(matCost.toFixed(2));
-        $('#ps_tailoring_cost_lbl').text(tailoring.toFixed(2));
-        $('#ps_service_cost_lbl').text(svcCost.toFixed(2));
-        $('#ps_total_lbl').text(total.toFixed(2));
-        $('#ps_paid_lbl').text(paid.toFixed(2));
-        $('#ps_balance_lbl').text(balance.toFixed(2));
+        showPsTotals(o);
     });
 }
+
+// One place that fills the cost summary, so the figures after a discount and
+// the figures after adding an item are drawn by the same code.
+function showPsTotals(o){
+    var matCost = parseFloat(o.prodsale_material_cost) || 0;
+    var tailoring = parseFloat(o.prodsale_tailoring_charge) || 0;
+    var total = parseFloat(o.prodsale_total) || 0;
+    var paid = parseFloat(o.prodsale_paid) || 0;
+    var balance = parseFloat(o.prodsale_balance) || 0;
+    var discount = parseFloat(o.prodsale_discount) || 0;
+    // The service charge is whatever is left once the cloth and the tailoring
+    // charge are taken out - and the discount has already come off the total,
+    // so it has to be added back before that subtraction, or the service line
+    // would silently absorb it.
+    var svcCost = (total + discount) - matCost - tailoring;
+    if(svcCost < 0) svcCost = 0;
+
+    $('#ps_material_cost_lbl').text(matCost.toFixed(2));
+    $('#ps_tailoring_cost_lbl').text(tailoring.toFixed(2));
+    $('#ps_service_cost_lbl').text(svcCost.toFixed(2));
+    $('#ps_discount_lbl').text(discount.toFixed(2));
+    $('#ps_total_lbl').text(total.toFixed(2));
+    $('#ps_paid_lbl').text(paid.toFixed(2));
+    $('#ps_balance_lbl').text(balance.toFixed(2));
+    if(document.activeElement && document.activeElement.id !== 'ps_discount_value'){
+        $('#ps_discount_value').val((parseFloat(o.prodsale_discount_rate) || 0).toFixed(2));
+    }
+    $('#ps_discount_type').val(o.prodsale_discount_type === 'percentage' ? 'percentage' : 'flat');
+}
+
+// Saved when the box is left or the type is changed, not on every keystroke -
+// a half-typed "25" must not spend a moment being a 2% discount.
+function savePsDiscount(){
+    if(!currentPsId) return;
+    $.post(BASE_URL + 'ProductionSale/setDiscount', {
+        prodsale_id: currentPsId,
+        discount: $('#ps_discount_value').val() || 0,
+        discount_type: $('#ps_discount_type').val()
+    }, function(res){
+        var r = (typeof res === 'string') ? JSON.parse(res) : res;
+        if(!r.success){
+            swal({type:'error', title:'Discount not saved', text: r.msg || 'It could not be saved.'});
+            return;
+        }
+        showPsTotals(r.order);
+    });
+}
+$(document).on('change', '#ps_discount_value, #ps_discount_type', savePsDiscount);
 </script>

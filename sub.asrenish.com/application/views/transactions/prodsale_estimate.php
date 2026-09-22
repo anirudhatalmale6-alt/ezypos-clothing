@@ -80,10 +80,22 @@
     $total     = floatval($order->prodsale_total);
     $paid      = floatval($order->prodsale_paid);
     $balance   = floatval($order->prodsale_balance);
+    // The discount has already come off prodsale_total, so it has to be added
+    // back before working out the tailoring line - otherwise that line quietly
+    // absorbs the discount and the customer never sees it.
+    $discount  = isset($order->prodsale_discount) ? floatval($order->prodsale_discount) : 0;
+    $discLabel = 'Discount';
+    if ($discount > 0.004 && isset($order->prodsale_discount_type)
+        && $order->prodsale_discount_type === 'percentage') {
+        $discLabel .= ' ('.rtrim(rtrim(number_format(floatval($order->prodsale_discount_rate), 2), '0'), '.').'%)';
+    }
   ?>
   <table class="totals">
     <tr><td>Material Cost</td><td class="text-right">LKR <?php echo number_format($matCost,2); ?></td></tr>
-    <tr><td>Tailoring / Service Charges</td><td class="text-right">LKR <?php echo number_format($total-$matCost,2); ?></td></tr>
+    <tr><td>Tailoring / Service Charges</td><td class="text-right">LKR <?php echo number_format($total+$discount-$matCost,2); ?></td></tr>
+    <?php if($discount > 0.004){ ?>
+    <tr><td><?php echo $discLabel; ?></td><td class="text-right">- LKR <?php echo number_format($discount,2); ?></td></tr>
+    <?php } ?>
     <tr class="grand"><td>Estimated Total</td><td class="text-right">LKR <?php echo number_format($total,2); ?></td></tr>
     <tr><td>Advance Paid</td><td class="text-right">LKR <?php echo number_format($paid,2); ?></td></tr>
     <tr class="grand"><td>Remaining Estimated Balance</td><td class="text-right">LKR <?php echo number_format($balance,2); ?></td></tr>

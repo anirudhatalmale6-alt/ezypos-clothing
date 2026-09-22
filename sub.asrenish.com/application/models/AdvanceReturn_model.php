@@ -299,8 +299,23 @@ class AdvanceReturn_model extends CI_Model {
             return array('ok' => false, 'msg' => 'Scan what is coming back, what is going out, or both.');
         }
 
+        // The discount comes off the goods going out. It is worked out here
+        // again rather than trusting the figure the browser sent - the browser
+        // can be edited, the prices in $exc cannot.
+        $discType = (isset($header['discount_type']) && $header['discount_type'] === 'percentage')
+                  ? 'percentage' : 'flat';
+        $discRate = round(floatval(isset($header['discount']) ? $header['discount'] : 0), 2);
+        if ($discRate < 0) { $discRate = 0; }
+        $discount = ($discType === 'percentage')
+                  ? round($exc['total'] * $discRate / 100, 2)
+                  : $discRate;
+        // A discount can never be worth more than the goods it comes off,
+        // otherwise a big enough number turns an exchange into a payout.
+        if ($discount > $exc['total']) { $discount = $exc['total']; }
+        if ($discount < 0) { $discount = 0; }
+
         // Positive: the customer owes us. Negative: we owe the customer.
-        $net = round($exc['total'] - $ret['total'], 2);
+        $net = round($exc['total'] - $discount - $ret['total'], 2);
 
         $mode   = (isset($header['refund_mode']) && $header['refund_mode'] === 'store_credit') ? 'store_credit' : 'cash';
         $cus_id = intval($header['cus_id']);
@@ -358,7 +373,7 @@ class AdvanceReturn_model extends CI_Model {
         list($seq, $ref) = $this->_nextRef($store_id);
         $type = (count($exc['rows']) > 0) ? 'exchange' : 'return';
 
-        $this->db->insert('ezy_pos_adv_return', array(
+        $head = array(
             'adv_ref_no'         => $ref,
             'adv_seq'            => $seq,
             'adv_store_id'       => $store_id,
@@ -376,7 +391,19 @@ class AdvanceReturn_model extends CI_Model {
             'adv_status'         => 1,
             'adv_created_by'     => intval($this->session->userdata('userid')),
             'adv_created_at'     => date('Y-m-d H:i:s')
-        ));
+        );
+
+        // The discount columns arrive with v17. Only write them when they are
+        // there, so this page keeps working on a server where the migration
+        // has not been run yet.
+        $advFields = $this->db->list_fields('ezy_pos_adv_return');
+        if (in_array('adv_discount', $advFields)) {
+            $head['adv_discount']      = $discount;
+            $head['adv_discount_type'] = $discType;
+            $head['adv_discount_rate'] = $discRate;
+        }
+
+        $this->db->insert('ezy_pos_adv_return', $head);
         $adv_id = $this->db->insert_id();
         if (!$adv_id) {
             $this->db->trans_rollback();

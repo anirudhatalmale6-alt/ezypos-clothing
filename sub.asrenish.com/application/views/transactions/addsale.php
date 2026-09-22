@@ -1988,15 +1988,44 @@ var chequeHTML ='<div id="chequeDIV">'+
     });
 
 //load items
+    // The list the search box works from. Only the raw fields are written
+    // out here; the two strings the screen actually shows are built by
+    // decorateItems() below, so the shop's list and the list that comes back
+    // when the branch is changed are worded the same way.
     var availableItems = [
         <?php
          foreach ($items as $item)
         {
            $sp = isset($item->itm_sellingprice) ? $item->itm_sellingprice : '0';
-           echo '{ label: "'.addslashes($item->itm_name).' - '.$item->itm_code.' /stock =  '.$item->stock_qty.'", value:"'.$item->itm_id.'", code:"'.$item->itm_code.'", price:"'.$sp.'" },';
+           echo '{ name: "'.addslashes($item->itm_name).'", value:"'.$item->itm_id.'", code:"'.$item->itm_code.'", price:"'.$sp.'" },';
         }
         ?>
     ];
+
+    // The counter staff need the price while they are still looking for the
+    // item, and the stock figure is not theirs to show a customer leaning over
+    // the desk. So the search list carries the price and no stock at all.
+    //
+    // Two strings, deliberately: "label" is what the drop-down shows, and
+    // "display" is what is dropped into the box once an item is picked. The
+    // box's text becomes the item name on the bill, so the price must not be
+    // part of it - otherwise every line on the receipt would read
+    // "Cotton Shirt - SH-1001  Rs. 2,450.00".
+    function moneyText(v){
+        var n = parseFloat(v);
+        if(isNaN(n)) n = 0;
+        return 'Rs. ' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    function decorateItems(list){
+        for(var d=0; d<list.length; d++){
+            var o = list[d];
+            o.display = o.name + ' - ' + o.code;
+            o.label   = o.display + '   ' + moneyText(o.price);
+        }
+        return list;
+    }
+    decorateItems(availableItems);
+
     // Build a lookup map by item code for barcode scanning
     var itemByCode = {};
     for(var ix=0; ix<availableItems.length; ix++){
@@ -2009,7 +2038,7 @@ var chequeHTML ='<div id="chequeDIV">'+
         source: availableItems,
         select: function(event, ui) {
                 event.preventDefault();
-                $("#saleitem-auto").val(ui.item.label);
+                $("#saleitem-auto").val(ui.item.display);
                 $('#saleitem-id').val(ui.item.value);
                 ItemChangedEvent();
             },
@@ -2029,13 +2058,13 @@ var chequeHTML ='<div id="chequeDIV">'+
                     for(var i=0; i<data.length; i++){
                         var it = data[i];
                         var sp = it.itm_sellingprice || '0';
-                        var sq = it.stock_qty || '0';
-                        var obj = { label: it.itm_name + ' - ' + it.itm_code + ' /stock =  ' + sq, value: it.itm_id, code: it.itm_code, price: sp };
+                        var obj = { name: it.itm_name, value: it.itm_id, code: it.itm_code, price: sp };
                         availableItems.push(obj);
                         if(it.itm_code){
                             itemByCode[it.itm_code.toUpperCase()] = obj;
                         }
                     }
+                    decorateItems(availableItems);
                 }
                 $("#saleitem-auto").autocomplete("option", "source", availableItems);
             }
@@ -2063,7 +2092,7 @@ var chequeHTML ='<div id="chequeDIV">'+
             if(code && itemByCode[code]){
                 var matched = itemByCode[code];
                 $('#saleitem-id').val(matched.value);
-                $('#saleitem-auto').val(matched.label);
+                $('#saleitem-auto').val(matched.display);
                 $('#itemprice').val(matched.price);
                 $('#itemquantity').val('1');
                 // Auto-submit the add-item form
@@ -2086,7 +2115,7 @@ var chequeHTML ='<div id="chequeDIV">'+
             if(code && itemByCode[code]){
                 var matched = itemByCode[code];
                 $('#saleitem-id').val(matched.value);
-                $('#saleitem-auto').val(matched.label);
+                $('#saleitem-auto').val(matched.display);
                 $('#itemprice').val(matched.price);
                 $('#itemquantity').val('1');
                 $('#formid').submit();

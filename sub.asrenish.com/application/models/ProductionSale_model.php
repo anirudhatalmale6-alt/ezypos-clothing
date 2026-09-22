@@ -121,21 +121,67 @@ class ProductionSale_model extends CI_Model {
         $svc_cost = $q2->row()->svc_cost;
 
         // Get existing tailoring charge from header
-        $q3 = $this->db->query("SELECT prodsale_tailoring_charge, prodsale_paid FROM ezy_pos_prodsale WHERE prodsale_id = '" . intval($prodsale_id) . "'");
+        $q3 = $this->db->query("SELECT * FROM ezy_pos_prodsale WHERE prodsale_id = '" . intval($prodsale_id) . "'");
         $order = $q3->row();
         $tailoring = $order ? $order->prodsale_tailoring_charge : 0;
         $paid = $order ? $order->prodsale_paid : 0;
 
         $total_tailoring = $tailoring + $svc_cost;
-        $total = $mat_cost + $total_tailoring;
-        $balance = $total - $paid;
+        $gross = $mat_cost + $total_tailoring;
+
+        // The discount comes off the whole order - cloth, tailoring and any
+        // service charges together - so a percentage means what the customer
+        // thinks it means. It is worked out again on every recalculation: add
+        // another item to a 10% order and the 10% follows it, which is why the
+        // rupee figure is stored rather than trusted from before.
+        $update = array(
+            'prodsale_material_cost' => $mat_cost
+        );
+        $discount = 0;
+        $fields = $this->db->list_fields('ezy_pos_prodsale');
+        if ($order && in_array('prodsale_discount', $fields)) {
+            $type = ($order->prodsale_discount_type === 'percentage') ? 'percentage' : 'flat';
+            $rate = floatval($order->prodsale_discount_rate);
+            if ($rate < 0) { $rate = 0; }
+            $discount = ($type === 'percentage') ? round($gross * $rate / 100, 2) : round($rate, 2);
+            // Never more than the order is worth - a discount must not turn
+            // into money owed to the customer.
+            if ($discount > $gross) { $discount = $gross; }
+            if ($discount < 0) { $discount = 0; }
+            $update['prodsale_discount'] = $discount;
+        }
+
+        $total = round($gross - $discount, 2);
+        $update['prodsale_total'] = $total;
+        $update['prodsale_balance'] = round($total - $paid, 2);
 
         $this->db->where('prodsale_id', $prodsale_id);
+        $this->db->update('ezy_pos_prodsale', $update);
+    }
+
+    /**
+     * Record the discount that was typed, then let recalculateTotals turn it
+     * into rupees. Nothing is worked out here, so there is only one place in
+     * the system that decides what an order comes to.
+     */
+    public function setDiscount($prodsale_id, $value, $type)
+    {
+        $fields = $this->db->list_fields('ezy_pos_prodsale');
+        if (!in_array('prodsale_discount_rate', $fields)) {
+            return false;   // v17 not run yet
+        }
+        $value = floatval($value);
+        if ($value < 0) { $value = 0; }
+        $type = ($type === 'percentage') ? 'percentage' : 'flat';
+        if ($type === 'percentage' && $value > 100) { $value = 100; }
+
+        $this->db->where('prodsale_id', intval($prodsale_id));
         $this->db->update('ezy_pos_prodsale', array(
-            'prodsale_material_cost' => $mat_cost,
-            'prodsale_total' => $total,
-            'prodsale_balance' => $balance
+            'prodsale_discount_rate' => $value,
+            'prodsale_discount_type' => $type
         ));
+        $this->recalculateTotals($prodsale_id);
+        return true;
     }
 
     public function updateStatus($id, $status)

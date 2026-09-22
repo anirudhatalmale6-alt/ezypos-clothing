@@ -166,6 +166,19 @@
                     <table class="table table-sm">
                         <tr><td>Coming back</td><td class="text-right">LKR <span id="sum_ret">0.00</span></td></tr>
                         <tr><td>Going out</td><td class="text-right">LKR <span id="sum_exc">0.00</span></td></tr>
+                        <tr>
+                            <td style="padding-right:4px;">
+                                <div class="input-group input-group-sm">
+                                    <input type="number" step="0.01" min="0" class="form-control"
+                                           id="ar_disc_value" placeholder="Discount" value="0">
+                                    <select class="form-control" id="ar_disc_type" style="max-width:86px;">
+                                        <option value="flat">Flat (LKR)</option>
+                                        <option value="percentage">%</option>
+                                    </select>
+                                </div>
+                            </td>
+                            <td class="text-right">- LKR <span id="sum_disc">0.00</span></td>
+                        </tr>
                         <tr style="font-size:18px;font-weight:600;">
                             <td id="sum_label">Nothing to settle</td>
                             <td class="text-right">LKR <span id="sum_net">0.00</span></td></tr>
@@ -182,6 +195,9 @@
                         </select>
                     </div>
 
+                    <div id="ar_disc_note" class="text-danger" style="display:none;font-size:12px;margin-bottom:6px;">
+                        The discount changed after the payments were entered - check the amounts below still add up.
+                    </div>
                     <button class="btn btn-danger btn-block" id="ar_save" <?php echo empty($ready) ? 'disabled' : ''; ?>>
                         <i class="fa fa-check"></i> Complete
                     </button>
@@ -338,7 +354,19 @@ $(function(){
     wireEdit('ax', excRows);
 
     // ------------------------------------------------------------- the money
-    function net(){ return +(sumRows(excRows) - sumRows(retRows)).toFixed(2); }
+    // The discount is taken off what the customer is TAKING AWAY, not off
+    // what they brought back - a shop does not discount its own refund. So a
+    // straight refund is never reduced by it, and a percentage is a percentage
+    // of the new goods.
+    function discountAmount(){
+        var base = sumRows(excRows);
+        var v = parseFloat($('#ar_disc_value').val());
+        if(isNaN(v) || v <= 0) return 0;
+        var d = ($('#ar_disc_type').val() === 'percentage') ? (base * v / 100) : v;
+        if(d > base) d = base;          // never more than the goods are worth
+        return +d.toFixed(2);
+    }
+    function net(){ return +(sumRows(excRows) - discountAmount() - sumRows(retRows)).toFixed(2); }
     function paidIn(){
         var t=0; for(var i=0;i<payRows.length;i++){ if(payRows[i].direction==='in') t+=payRows[i].amount; }
         return +t.toFixed(2);
@@ -352,6 +380,7 @@ $(function(){
         var n = net();
         $('#sum_ret').text(money(sumRows(retRows)));
         $('#sum_exc').text(money(sumRows(excRows)));
+        $('#sum_disc').text(money(discountAmount()));
         $('#sum_net').text(money(Math.abs(n)));
 
         if(n > 0.004){
@@ -376,6 +405,14 @@ $(function(){
         }
     }
     $('#ar_mode').change(recalc);
+    // Retyping the discount changes what is owed, so the payments already
+    // entered are no longer right. Say so rather than letting the two drift.
+    $('#ar_disc_value, #ar_disc_type').on('input change', function(){
+        recalc();
+        if(payRows.length > 0){
+            $('#ar_disc_note').show();
+        }
+    });
 
     function renderPayments(){
         var html = '';
@@ -573,6 +610,8 @@ $(function(){
                     bill_ref: $('#ar_nobill').is(':checked') ? '' : $('#ar_bill_ref').val(),
                     sale_id:  $('#ar_nobill').is(':checked') ? '' : arSaleId,
                     refund_mode: mode,
+                    discount:      $('#ar_disc_value').val() || 0,
+                    discount_type: $('#ar_disc_type').val(),
                     restock:  $('#ar_restock').is(':checked') ? 1 : 0,
                     reason:   $('#ar_reason').val(),
                     lines:          JSON.stringify(retRows),

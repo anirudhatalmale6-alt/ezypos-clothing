@@ -74,7 +74,10 @@ STEP 3 - RUN THE DATABASE UPDATES
    The existing Returns and Exchange module is not touched.
 11. Press "Run step 9" - this turns Advance Return into Advance Exchange:
    the goods going out, and how the difference was paid. It only adds things.
-12. Check the "Records still needing repair" boxes now read 0.
+12. Press "Run step 10" - this adds the discount columns to Advance Exchange
+   and to tailoring orders. Three columns on each table, all starting at
+   zero, so every exchange and every order you already have is unchanged.
+13. Check the "Records still needing repair" boxes now read 0.
 
 Every line is shown with a green "done" or an amber "already there". If
 anything comes up red, stop and send me a screenshot of the page - do not

@@ -120,6 +120,8 @@ class AdvanceReturn extends CI_Controller {
             'bill_ref'    => $this->input->post('bill_ref'),
             'sale_id'     => $this->input->post('sale_id'),
             'refund_mode' => $this->input->post('refund_mode'),
+            'discount'      => $this->input->post('discount'),
+            'discount_type' => $this->input->post('discount_type'),
             'restock'     => $this->input->post('restock'),
             'reason'      => $this->input->post('reason')
         );
