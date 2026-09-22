@@ -296,6 +296,10 @@ REPLACE - screens  (application/views/)
       and the advance payment can now be taken on a gift voucher, with the
       card checked and its remaining balance shown before the order is
       created. A refused card no longer reports the advance as taken.
+      AND: the New button beside the Customer box - the same quick-add
+      popup as the Sales window. The customer is saved, put on the order
+      being written, and is searchable straight away without reloading the
+      page, which would have thrown the half-written order away.
 
 56. transactions/prodsale_estimate.php
 57. transactions/prodsale_final.php

@@ -28,7 +28,19 @@
                     <div class="form-group row">
                         <label class="col-5 col-form-label">Customer<span class="text-danger">*</span></label>
                         <div class="col-7">
-                            <input class="form-control" id="ps_customer_search" placeholder="Search customer..." autocomplete="off">
+                            <div class="input-group">
+                                <input class="form-control" id="ps_customer_search" placeholder="Search customer..." autocomplete="off">
+                                <div class="input-group-append">
+                                    <!-- A new face at the counter should not send the
+                                         staff off to the Customers page and back. Same
+                                         quick-add box as the Sales window, and the new
+                                         customer goes straight on this order. -->
+                                    <button id="ps_btn_add_customer" type="button" class="btn btn-success"
+                                            title="Add a new customer">
+                                        <i class="fa fa-user-plus"></i> New
+                                    </button>
+                                </div>
+                            </div>
                             <input type="hidden" id="ps_customer_id" value="">
                             <span id="ps_cus_name" class="text-primary" style="font-weight:bold;"></span>
                         </div>
@@ -358,6 +370,35 @@
     </div>
 </div>
 
+<!-- New Customer popup - the same one the Sales window uses, same two fields
+     and the same Customers/quickAddCustomer endpoint, so a customer added
+     from either screen is the same record. -->
+<div class="modal" id="psNewCustomerModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa fa-user-plus"></i> Add New Customer</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">The customer is saved and put on this order straight away.</p>
+                <div class="form-group">
+                    <label>Name<span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="ps_nc_name" placeholder="Customer name">
+                </div>
+                <div class="form-group">
+                    <label>Phone<span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="ps_nc_phone" placeholder="Phone number">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="ps_btn_save_customer"><i class="fa fa-save"></i> Save Customer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 var BASE_URL = '<?php echo base_url(); ?>';
 var currentPsId = <?php echo isset($editPsId) && $editPsId ? $editPsId : 'null'; ?>;
@@ -379,6 +420,71 @@ $(document).ready(function() {
             $('#ps_customer_id').val(ui.item.value);
             $('#ps_cus_name').text(ui.item.cusname);
         }
+    });
+
+    // =========== ADD CUSTOMER FROM THE TAILORING ORDER SCREEN ===========
+    $('#ps_btn_add_customer').click(function(){
+        if($('#ps_customer_search').prop('disabled')){
+            // The order already exists; its customer cannot be changed.
+            return;
+        }
+        $('#ps_nc_name').val('');
+        $('#ps_nc_phone').val('');
+        $('#psNewCustomerModal').modal('show');
+        setTimeout(function(){ $('#ps_nc_name').focus(); }, 300);
+    });
+
+    // A customer created here has to be findable straight away without
+    // reloading - the page load is what built this list, and reloading would
+    // throw away everything typed into the order so far.
+    function psAddToCustomerList(id, name, phone){
+        var entry = { label: name + (phone ? ' - ' + phone : ''),
+                      cusname: name, value: String(id) };
+        psCustomers.push(entry);
+        try{
+            $('#ps_customer_search').autocomplete('option', 'source', psCustomers);
+        }catch(e){ /* widget not ready - the new customer is selected regardless */ }
+    }
+
+    $('#ps_btn_save_customer').click(function(){
+        var name  = $('#ps_nc_name').val().trim();
+        var phone = $('#ps_nc_phone').val().trim();
+        if(!name){  swal({type:'error', title:'Name needed',  text:'Enter the customer name.'});  return; }
+        if(!phone){ swal({type:'error', title:'Phone needed', text:'Enter the customer phone number.'}); return; }
+        var btn = $(this);
+        btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Saving...');
+        $.ajax({
+            type: 'POST',
+            url: BASE_URL + 'Customers/quickAddCustomer',
+            data: { name: name, contact: phone, address: '', creditlimit: 0 },
+            dataType: 'json',
+            success: function(newCusId){
+                btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Customer');
+                if(newCusId > 0){
+                    $('#ps_customer_id').val(newCusId);
+                    $('#ps_customer_search').val(name);
+                    $('#ps_cus_name').text(name);
+                    psAddToCustomerList(newCusId, name, phone);
+                    $('#psNewCustomerModal').modal('hide');
+                    swal({type:'success', title:'Customer added',
+                          text: name + ' is now on this order.',
+                          showConfirmButton:false, timer:1500});
+                } else {
+                    swal({type:'error', title:'Not saved',
+                          text:'The customer could not be created. Check the phone number is not already used.'});
+                }
+            },
+            error: function(xhr){
+                btn.prop('disabled', false).html('<i class="fa fa-save"></i> Save Customer');
+                // Adding a customer goes through the Customers page, which has
+                // its own permission. Saying so beats "could not reach the
+                // server" when the server answered perfectly well.
+                var msg = (xhr && xhr.status === 404)
+                        ? 'You do not have the Customers permission, so a customer cannot be added from here. Ask an administrator to tick it under Users.'
+                        : 'Could not reach the server. Try again.';
+                swal({type:'error', title:'Not saved', text: msg});
+            }
+        });
     });
 
     // Show advance payment method when amount > 0
@@ -517,6 +623,9 @@ $(document).ready(function() {
                         });
                     }
                     $('#ps_code, #ps_store, #ps_pickup_store, #ps_customer_search, #ps_date, #ps_delivery_date, #ps_tailoring_charge, #ps_notes, #ps_advance_payment, #ps_advance_method').prop('disabled', true);
+                    // The customer on an existing order cannot be changed, so
+                    // the button that would change it goes away with the box.
+                    $('#ps_btn_add_customer').hide();
                     $('#ps_create_btn, #advance_payment_row, #advance_pm_row').hide();
                     $('#ps_items_section, #ps_services_section, #ps_status_section, #ps_status_buttons, #ps_tailor_section').show();
                     setPrintLinks();
@@ -704,6 +813,7 @@ $(document).ready(function() {
             }
             // Disable customer and store (can't change after creation)
             $('#ps_code, #ps_store, #ps_customer_search').prop('disabled', true);
+            $('#ps_btn_add_customer').hide();
             var st = o.prodsale_status;
             var stClass = 'info';
             if(st === 'Cutting') stClass = 'warning';
