@@ -26,8 +26,16 @@ class ProductionSale extends CI_Controller {
         $data['title'] = ucfirst($page);
         $data['config'] = $this->Configs_model->getConfigName();
 
-        // All stores visible for tailoring orders (cross-store pickup)
+        // All stores stay in the list - an order can be picked up at a
+        // different branch from the one that took it, and that was asked for
+        // deliberately. What changes here is only which one starts selected.
         $data['storeLoc'] = $this->Stores_model->getStoresOnly();
+
+        // The branch the user was given when their login was created. Both
+        // Store and Pickup Store start on it, the same way the Sales window
+        // already starts on it, so the counter staff do not pick their own
+        // branch from a list every single time.
+        $data['userStoreId'] = $this->_defaultStoreId();
 
         $data['customers'] = $this->Customers_model->getAllCustomers();
         $data['items'] = $this->ProductionSale_model->getAllActiveItems();
@@ -40,6 +48,17 @@ class ProductionSale extends CI_Controller {
         $this->load->view('templates/footer');
         $this->load->view('templates/rightslidebar');
         $this->load->view('templates/footerscripts');
+    }
+
+    /**
+     * The branch this user belongs to, or 0 if they are not tied to one.
+     * A user with more than one branch gets the first - the same one the
+     * Sales window would land on.
+     */
+    protected function _defaultStoreId()
+    {
+        $mine = $this->Stores_model->getStoresOnlyForUser($this->session->userdata('userid'));
+        return ($mine && count($mine) > 0) ? intval($mine[0]->store_id) : 0;
     }
 
     // Edit existing tailoring order

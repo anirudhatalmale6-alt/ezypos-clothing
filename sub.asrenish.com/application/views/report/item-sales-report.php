@@ -51,13 +51,15 @@
                 <div class="card-box">
                     <h4 class="header-title m-t-0 m-b-20"><i class="fa fa-bar-chart"></i> Item Sales Summary</h4>
                     <div class="row">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <h5>Total Items Sold: <span class="text-primary" id="summaryTotalItems">0</span></h5>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <h5>Total Quantity: <span class="text-info" id="summaryTotalQty">0</span></h5>
                         </div>
-                        <div class="col-md-4">
+                        <!-- Total Revenue hidden on request. Kept in the page, not
+                             deleted, so it is one line to put back. -->
+                        <div class="col-md-4" style="display:none;">
                             <h5>Total Revenue: <span class="text-success" id="summaryTotalRevenue">0.00</span></h5>
                         </div>
                     </div>
@@ -107,7 +109,9 @@
                                 PDF
                             </button>
                         </div>
-                        <div class="text-right">
+                        <!-- Total Revenue hidden on request. The span stays in the
+                             page because the PDF button and the reset both read it. -->
+                        <div class="text-right" style="display:none;">
                             <h5>Total Revenue: <span class="text-success" id="totalRevenue">0.00</span></h5>
                         </div>
                     </div>
@@ -172,7 +176,8 @@ $(document).ready(function () {
                     var grnQty = parseFloat(row.grn_qty) || 0;
                     var grnCost = parseFloat(row.grn_cost) || 0;
                     totalSoldQty += soldQty;
-                    totalRevenue += rev;
+                    // Total Revenue is not added up any more - hidden on request.
+                    // totalRevenue += rev;
                     totalGrnQty += grnQty;
                     totalGrnCost += grnCost;
 
@@ -198,10 +203,10 @@ $(document).ready(function () {
                     order: [[6, 'desc']]
                 });
 
-                $('#totalRevenue').text(totalRevenue.toFixed(2));
                 $('#summaryTotalItems').text(data.length);
                 $('#summaryTotalQty').text(totalSoldQty.toFixed(2));
-                $('#summaryTotalRevenue').text('LKR ' + totalRevenue.toFixed(2));
+                // $('#totalRevenue').text(totalRevenue.toFixed(2));
+                // $('#summaryTotalRevenue').text('LKR ' + totalRevenue.toFixed(2));
                 $('#summaryCards').show();
             },
             error: function(){
@@ -319,9 +324,11 @@ document.getElementById('exportPDF').addEventListener('click', function () {
         headStyles: { fillColor: [45, 65, 84] }
     });
 
-    var totalRev = document.getElementById('totalRevenue').textContent;
-    doc.setFontSize(10);
-    doc.text('Total Revenue: LKR ' + totalRev, 14, doc.lastAutoTable.finalY + 10);
+    // Total Revenue is hidden on the screen, so it does not go on the PDF
+    // either - a figure taken off the page would have printed as 0.00.
+    // var totalRev = document.getElementById('totalRevenue').textContent;
+    // doc.setFontSize(10);
+    // doc.text('Total Revenue: LKR ' + totalRev, 14, doc.lastAutoTable.finalY + 10);
 
     doc.save('Item_Report.pdf');
 });

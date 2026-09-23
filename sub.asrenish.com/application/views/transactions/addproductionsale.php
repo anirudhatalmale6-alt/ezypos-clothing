@@ -15,12 +15,18 @@
                     <div class="form-group row">
                         <label class="col-5 col-form-label">Store<span class="text-danger">*</span></label>
                         <div class="col-7">
+                            <?php
+                                // The branch this login belongs to. Both store boxes
+                                // start on it. Every branch is still in the list - an
+                                // order taken at one shop can be collected at another.
+                                $psMyStore = isset($userStoreId) ? intval($userStoreId) : 0;
+                            ?>
                             <select class="form-control" id="ps_store">
-                                <?php if($this->session->userdata('userrole')==1): ?>
+                                <?php if($this->session->userdata('userrole')==1 || !$psMyStore): ?>
                                 <option value="0">Select Store</option>
                                 <?php endif; ?>
                                 <?php if($storeLoc): foreach($storeLoc as $s): ?>
-                                <option value="<?php echo $s->store_id; ?>"><?php echo $s->store_name; ?></option>
+                                <option value="<?php echo $s->store_id; ?>"<?php echo ($psMyStore && $psMyStore == $s->store_id) ? ' selected' : ''; ?>><?php echo $s->store_name; ?></option>
                                 <?php endforeach; endif; ?>
                             </select>
                         </div>
@@ -63,9 +69,10 @@
                             <select class="form-control" id="ps_pickup_store">
                                 <option value="">Same as Order Store</option>
                                 <?php if($storeLoc): foreach($storeLoc as $s): ?>
-                                <option value="<?php echo $s->store_id; ?>"><?php echo $s->store_name; ?></option>
+                                <option value="<?php echo $s->store_id; ?>"<?php echo ($psMyStore && $psMyStore == $s->store_id) ? ' selected' : ''; ?>><?php echo $s->store_name; ?></option>
                                 <?php endforeach; endif; ?>
                             </select>
+                            <small class="text-muted">Change this only if the customer is collecting from another branch.</small>
                         </div>
                     </div>
                     <div class="form-group row">
