@@ -21,7 +21,14 @@ $route['show-stock-list'] = 'stocks/showStocks_list/show-stock-list';
 
 
 $route['show-stocklog'] = 'stocks/showAllStocklog/stocklog';
-$route['sales-report'] = 'reports/sales_report/salesreport';
+// The old page - bill lookup, reprint, print cash flow - is now Sales Reprint.
+// The old address still works so nobody's bookmark breaks; it lands on the
+// same page under its new name.
+$route['sales-reprint'] = 'reports/sales_reprint/salesreport';
+$route['sales-report-reprint'] = 'reports/sales_reprint/salesreport';
+
+// Sales Report is now the totals page.
+$route['sales-report'] = 'reports/sales_summary_report/sales-summary-report';
 $route['monthly-sales-report'] = 'reports/monthly_sales_report/sales-report-monthly';
 $route['purchase-report'] = 'reports/purchase_report/purchase-report';
 $route['expense-report'] = 'reports/expense_report/expense-report';

@@ -403,7 +403,8 @@
                                         || nav_can('privRe_purchaseReport') || nav_can('privRe_expenseReport')
                                         || nav_can('privRe_todaySummary') || nav_can('privRe_profitLossReport')
                                         || $canWarehouse || $canReCommission || $canReCashflow
-                                        || $canReItemsales || $canReProduction;
+                                        || $canReItemsales || $canReProduction
+                                        || nav_can('privRe_salesSummary');
                             if($showReports){ ?>
                             <li class="has-submenu">
                                 <a href="#"><i class="zmdi zmdi-album"></i> <span>Reports</span> </a>
@@ -413,8 +414,10 @@
                                      <li><a href="<?php echo base_url('show-stock')?>"> Stock </a></li>
                                     <?php } if(nav_can('privRe_stockLog')){ ?>
                                      <li><a href="<?php echo base_url('show-stocklog')?>">Stock Log </a></li>
-                                    <?php } if(nav_can('privRe_salesReport')){ ?>
+                                    <?php } if(nav_can('privRe_salesSummary')){ ?>
                                     <li><a  href="<?php echo base_url('sales-report')?>"> Sales Report </a></li>
+                                    <?php } if(nav_can('privRe_salesReport')){ ?>
+                                    <li><a  href="<?php echo base_url('sales-reprint')?>"> Sales Reprint </a></li>
                                     <?php } if($canWarehouse){ ?>
                                     <li class=""><a href="<?php echo base_url('warehouse')?>">Warehouse Stock</a></li>
                                     <?php } if(nav_can('privRe_monthlySalesReport')){ ?>

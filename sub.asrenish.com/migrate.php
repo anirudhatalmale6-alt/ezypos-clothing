@@ -431,6 +431,8 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
                                'Step 9 - Advance Return becomes Advance Exchange (v16)'),
                 'v17' => array(MIGRATE_DIR . '/v17_exchange_tailoring_discount.sql',
                                'Step 10 - discount on exchanges and tailoring orders (v17)'),
+                'v18' => array(MIGRATE_DIR . '/v18_sales_report_permission.sql',
+                               'Step 11 - permission for the new Sales Report (v18)'),
             );
             $file = $files[$action][0];
             $name = $files[$action][1];
@@ -610,6 +612,22 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
        printed on the slip and on the tailoring estimate and final bill.</p>
     <form method="post"><input type="hidden" name="action" value="v17">
       <button type="submit">Run step 10</button></form>
+  </div>
+
+  <div class="box step">
+    <h3>Step 11 - The new Sales Report</h3>
+    <p>The page that was called Sales Report is now called <strong>Sales Reprint</strong> -
+       it still finds a bill, reprints it, and prints the cash flow slip, exactly as
+       before. A new <strong>Sales Report</strong> page sits next to it with the totals:
+       what was sold, what was collected and on which tender, how much of it was gift
+       vouchers, and what came back as returns, with date, payment method and branch
+       filters.</p>
+    <p>This step adds one column - the permission for the new page. It starts at 0, so
+       nobody sees it until you tick <strong>Sales Report</strong> for them under Users.
+       Whoever had the old Sales Report keeps Sales Reprint, which is the page they have
+       been using. Administrators see both straight away.</p>
+    <form method="post"><input type="hidden" name="action" value="v18">
+      <button type="submit">Run step 11</button></form>
   </div>
 
   <div class="box">

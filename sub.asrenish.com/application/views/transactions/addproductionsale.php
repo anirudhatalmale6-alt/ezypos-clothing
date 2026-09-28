@@ -575,7 +575,13 @@ $(document).ready(function() {
     $('#ps_item_qty, #ps_item_price').on('input', calcItemTotal);
 
     // Create Order
+    // Two clicks used to send two requests and write two orders. The button
+    // locks on the first click and is only unlocked again if the save fails,
+    // so there is nothing to click twice. The server refuses the duplicate as
+    // well - this is the polite half of that, not the whole of it.
+    var psCreating = false;
     $('#btn_create_ps').click(function(){
+        if(psCreating) return;
         var cusId = $('#ps_customer_id').val();
         var storeId = $('#ps_store').val();
         var deliveryDate = $('#ps_delivery_date').val();
@@ -588,6 +594,14 @@ $(document).ready(function() {
         var advMethodChk = $('#ps_advance_method').val() || 'Cash';
         if(advAmtChk > 0 && advMethodChk !== 'Cash' && !$('#ps_advance_cardref').val().trim()){
             swal({type:'error', title:'Reference required', text:'Please enter the card number / reference for ' + advMethodChk}); return;
+        }
+
+        psCreating = true;
+        var $create = $(this);
+        $create.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Creating...');
+        function psCreateFailed(){
+            psCreating = false;
+            $create.prop('disabled', false).html('<i class="fa fa-check"></i> Create Order');
         }
 
         $.ajax({
@@ -608,6 +622,15 @@ $(document).ready(function() {
                 if(id > 0){
                     currentPsId = id;
                     currentPsStoreId = $('#ps_store').val();
+                    // The number on the form was only a preview - the saved
+                    // order decides its own. Show what was actually filed, so
+                    // it matches the estimate bill about to print.
+                    $.post(BASE_URL + 'ProductionSale/getOrderDetails', { prodsale_id: id }, function(res){
+                        try{
+                            var o = (typeof res === 'string') ? JSON.parse(res) : res;
+                            if(o && o.prodsale_code){ $('#ps_code').val(o.prodsale_code); }
+                        }catch(e){ /* the estimate bill carries the real number anyway */ }
+                    });
                     // Process advance payment if any
                     var advAmt = parseFloat($('#ps_advance_payment').val()) || 0;
                     var advFailed = '';
@@ -646,7 +669,18 @@ $(document).ready(function() {
                     }
                     // Print the estimate bill immediately after creation + advance
                     window.open(BASE_URL + 'tailoring-estimate/' + currentPsId, '_blank');
+                } else {
+                    // Nothing was saved, so the button has to come back or the
+                    // screen is dead and the order can never be entered.
+                    psCreateFailed();
+                    swal({type:'error', title:'Not saved',
+                          text:'The order could not be created. Nothing has been saved - try again.'});
                 }
+            },
+            error: function(){
+                psCreateFailed();
+                swal({type:'error', title:'Not saved',
+                      text:'Could not reach the server. Nothing has been saved - try again.'});
             }
         });
     });

@@ -2087,6 +2087,194 @@ class Report_model extends CI_Model {
         return $rows;
     }
 
+    /**
+     * The Sales Report: what was sold in a period, and what was collected for it.
+     *
+     * One row per bill, plus the totals above it. Deliberately built from the
+     * same places the Cash Flow report reads, so the two cannot disagree:
+     *  - the bill total comes from the sale row
+     *  - what was collected comes from the payment tables, not from the total
+     *  - the gift voucher figure comes from the cards that bill sold
+     *
+     * The voucher money is NOT added on top. A voucher goes on the bill like
+     * any other line and is already inside sale_grandtotal; it is broken out so
+     * it can be seen, which is the whole reason it kept looking missing.
+     *
+     * @param string $method  'all', 'cash', or a payment method id
+     */
+    public function getSalesSummaryReport($from, $to, $method = 'all', $storeId = null)
+    {
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilterFor('s.sale_location', $storeId);
+
+        $saleFields = $this->db->list_fields('ezy_pos_sale');
+        $billCol    = (in_array('sale_bill_no', $saleFields) ? 's.sale_bill_no' : "'' AS sale_bill_no")
+                    . (in_array('sale_bill_seq', $saleFields) ? ', s.sale_bill_seq' : ', NULL AS sale_bill_seq');
+
+        $chq  = $this->db->table_exists('ezy_pos_cus_cheque')
+              ? "(SELECT COALESCE(SUM(cus_cheque_amount),0) FROM ezy_pos_cus_cheque WHERE cus_cheque_saleid = s.sale_id)"
+              : "0";
+        $card = $this->db->table_exists('ezy_pos_sale_payments')
+              ? "(SELECT COALESCE(SUM(sp_amount),0) FROM ezy_pos_sale_payments WHERE sp_sale_id = s.sale_id)"
+              : "0";
+        $vouch = $this->db->table_exists('ezy_pos_gift_cards')
+              ? "(SELECT COALESCE(SUM(gc_original_value),0) FROM ezy_pos_gift_cards WHERE gc_sold_sale_id = s.sale_id)"
+              : "0";
+
+        $str = "SELECT s.sale_id, s.sale_date, s.sale_location, s.sale_grandtotal,
+                       s.sale_subtotal, s.sale_discount, " . $billCol . ",
+                       c.cus_name, st.store_name,
+                       (SELECT COALESCE(SUM(cus_pay_cash),0)   FROM ezy_pos_cus_payment WHERE cus_pay_saleid = s.sale_id) AS cash,
+                       (SELECT COALESCE(SUM(cus_pay_credit),0) FROM ezy_pos_cus_payment WHERE cus_pay_saleid = s.sale_id) AS credit,
+                       " . $chq . "  AS cheque,
+                       " . $card . " AS card,
+                       " . $vouch . " AS voucher_value
+                FROM ezy_pos_sale s
+                LEFT JOIN ezy_pos_customers c ON c.cus_id = s.sale_cus_id
+                LEFT JOIN ezy_pos_stores st   ON st.store_id = s.sale_location
+                WHERE s.sale_date BETWEEN ? AND ?
+                  AND s.sale_status = '1'" . $sf . "
+                ORDER BY s.sale_id DESC";
+
+        $rows = $this->db->query($str, array($start, $end))->result();
+
+        // What each bill was settled with, by name, so the report can be
+        // narrowed to one tender and still add up.
+        $payNames = $this->_billPaymentNames($from, $to, $storeId);
+
+        $wanted = '';
+        if ($method === 'cash') {
+            $wanted = 'Cash';
+        } elseif ($method !== 'all' && intval($method) > 0) {
+            $pm = $this->db->get_where('ezy_pos_payment_methods', array('pm_id' => intval($method)))->row();
+            if ($pm) { $wanted = $pm->pm_name; }
+        }
+
+        $bills = array();
+        $tot = array('bills' => 0, 'gross' => 0, 'discount' => 0, 'voucher' => 0,
+                     'cash' => 0, 'cheque' => 0, 'card' => 0, 'credit' => 0, 'collected' => 0);
+
+        foreach ($rows as $r) {
+            $r->bill_no   = bill_no($r);
+            $r->methods   = isset($payNames[$r->sale_id]) ? $payNames[$r->sale_id] : array();
+            $r->method_text = count($r->methods) ? implode(', ', array_keys($r->methods)) : '-';
+            $r->collected = round(floatval($r->cash) + floatval($r->cheque) + floatval($r->card), 2);
+
+            // A payment-method filter keeps only the bills that were settled
+            // with it, and shows what THAT method took on each one.
+            if ($wanted !== '') {
+                if (!isset($r->methods[$wanted])) { continue; }
+                $r->method_amount = round($r->methods[$wanted], 2);
+            } else {
+                $r->method_amount = $r->collected;
+            }
+
+            $tot['bills']++;
+            $tot['gross']     += floatval($r->sale_grandtotal);
+            $tot['discount']  += floatval($r->sale_discount);
+            $tot['voucher']   += floatval($r->voucher_value);
+            $tot['cash']      += floatval($r->cash);
+            $tot['cheque']    += floatval($r->cheque);
+            $tot['card']      += floatval($r->card);
+            $tot['credit']    += floatval($r->credit);
+            $tot['collected'] += $r->collected;
+            $bills[] = $r;
+        }
+        foreach ($tot as $k => $v) { if ($k !== 'bills') { $tot[$k] = round($v, 2); } }
+
+        // Returns are money going the other way, so they are shown as their own
+        // line rather than quietly netted off a sales figure.
+        $ret = $this->getReturnsTotalByDates($from, $to, $storeId);
+        $tot['returned']   = round(floatval($ret->total_returns), 2);
+        $tot['return_count'] = intval($ret->return_count);
+        $tot['net']        = round($tot['gross'] - $tot['returned'], 2);
+
+        return array(
+            'bills'    => $bills,
+            'totals'   => $tot,
+            'byMethod' => $this->_salesByMethod($bills, $wanted)
+        );
+    }
+
+    /**
+     * Payment method names and amounts per bill, for one period.
+     * Read in one pass rather than a query per bill - a busy month is
+     * thousands of bills and this report has to open in a report's time.
+     */
+    protected function _billPaymentNames($from, $to, $storeId = null)
+    {
+        $start = $from . " 00:00:00";
+        $end   = $to   . " 23:59:59";
+        $sf    = $this->_storeFilterFor('s.sale_location', $storeId);
+        $out   = array();
+
+        // Cash and credit live on the customer payment row.
+        $q = $this->db->query(
+            "SELECT p.cus_pay_saleid AS sid,
+                    COALESCE(SUM(p.cus_pay_cash),0)   AS cash,
+                    COALESCE(SUM(p.cus_pay_credit),0) AS credit
+             FROM ezy_pos_cus_payment p
+             INNER JOIN ezy_pos_sale s ON s.sale_id = p.cus_pay_saleid
+             WHERE s.sale_date BETWEEN ? AND ? AND s.sale_status = '1'" . $sf . "
+             GROUP BY p.cus_pay_saleid", array($start, $end));
+        foreach ($q->result() as $r) {
+            if (floatval($r->cash) > 0)   { $out[$r->sid]['Cash']   = floatval($r->cash); }
+            if (floatval($r->credit) > 0) { $out[$r->sid]['Credit'] = floatval($r->credit); }
+        }
+
+        if ($this->db->table_exists('ezy_pos_cus_cheque')) {
+            $q = $this->db->query(
+                "SELECT ch.cus_cheque_saleid AS sid, COALESCE(SUM(ch.cus_cheque_amount),0) AS amt
+                 FROM ezy_pos_cus_cheque ch
+                 INNER JOIN ezy_pos_sale s ON s.sale_id = ch.cus_cheque_saleid
+                 WHERE s.sale_date BETWEEN ? AND ? AND s.sale_status = '1'" . $sf . "
+                 GROUP BY ch.cus_cheque_saleid", array($start, $end));
+            foreach ($q->result() as $r) {
+                if (floatval($r->amt) > 0) { $out[$r->sid]['Cheque'] = floatval($r->amt); }
+            }
+        }
+
+        if ($this->db->table_exists('ezy_pos_sale_payments')) {
+            $q = $this->db->query(
+                "SELECT sp.sp_sale_id AS sid, pm.pm_name AS name, COALESCE(SUM(sp.sp_amount),0) AS amt
+                 FROM ezy_pos_sale_payments sp
+                 INNER JOIN ezy_pos_sale s ON s.sale_id = sp.sp_sale_id
+                 LEFT JOIN ezy_pos_payment_methods pm ON pm.pm_id = sp.sp_pm_id
+                 WHERE s.sale_date BETWEEN ? AND ? AND s.sale_status = '1'" . $sf . "
+                 GROUP BY sp.sp_sale_id, pm.pm_name", array($start, $end));
+            foreach ($q->result() as $r) {
+                $name = $r->name ? $r->name : 'Card';
+                if (floatval($r->amt) > 0) {
+                    $out[$r->sid][$name] = (isset($out[$r->sid][$name]) ? $out[$r->sid][$name] : 0) + floatval($r->amt);
+                }
+            }
+        }
+        return $out;
+    }
+
+    /** Money collected per payment method across the bills in the report. */
+    protected function _salesByMethod($bills, $wanted = '')
+    {
+        $acc = array();
+        foreach ($bills as $b) {
+            foreach ($b->methods as $name => $amt) {
+                if ($wanted !== '' && $name !== $wanted) { continue; }
+                if (!isset($acc[$name])) { $acc[$name] = 0; }
+                $acc[$name] += $amt;
+            }
+        }
+        arsort($acc);
+        $out = array();
+        foreach ($acc as $name => $amt) {
+            $o = new stdClass();
+            $o->method_name = $name;
+            $o->amount      = round($amt, 2);
+            $out[] = $o;
+        }
+        return $out;
+    }
+
     public function getTodaySummaryByDates($from, $to, $storeId = null){
         $start = $from . " 00:00:00";
         $end   = $to   . " 23:59:59";

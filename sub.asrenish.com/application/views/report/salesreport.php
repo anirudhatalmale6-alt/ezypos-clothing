@@ -435,7 +435,7 @@ document.getElementById('exportPDF').addEventListener('click', function () {
 
     // Add title to PDF and center it
     const pageWidth = doc.internal.pageSize.getWidth(); 
-    const title = 'Sales Report';
+    const title = 'Sales Reprint';
     const titleWidth = doc.getTextWidth(title); 
     const titleX = (pageWidth - titleWidth) / 2; 
     doc.setFontSize(14);

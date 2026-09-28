@@ -139,7 +139,9 @@ class ProductionSale extends CI_Controller {
     public function createOrder()
     {
         $data = array(
-            'prodsale_code' => $this->input->post('code'),
+            // 'prodsale_code' is no longer taken from the browser - the model
+            // gives the order its number from its own id, so two tills cannot
+            // both save PS-00010.
             'prodsale_cus_id' => $this->input->post('cus_id'),
             'prodsale_store_id' => $this->input->post('store_id'),
             'prodsale_date' => $this->input->post('order_date'),
@@ -157,6 +159,16 @@ class ProductionSale extends CI_Controller {
                 $data['prodsale_pickup_store_id'] = $pickup;
             }
         }
+        // The same order arriving twice - two clicks on Create Order, or a
+        // request the browser retried - must not become two orders. If one
+        // matching this in every detail was saved seconds ago, that is the one
+        // the user meant, so it is handed back rather than a second written.
+        $existing = $this->ProductionSale_model->findRecentDuplicate($data);
+        if ($existing > 0) {
+            echo json_encode($existing);
+            return;
+        }
+
         $id = $this->ProductionSale_model->createOrder($data);
         // The totals were never worked out at creation, only when the order was
         // edited or an item was added. So an order created with an estimated

@@ -28,10 +28,58 @@ class ProductionSale_model extends CI_Model {
         return $q->result();
     }
 
+    /**
+     * Create the order, and give it its number here rather than trusting the
+     * one the browser sent.
+     *
+     * The old code came from getNextCode() at the moment the page was opened,
+     * so two people with the page open at the same time were both holding
+     * PS-00010, and whoever saved second wrote a second order with the same
+     * number. The number is now taken from the row's own id AFTER the insert,
+     * which cannot collide because the id cannot.
+     */
     public function createOrder($data)
     {
+        unset($data['prodsale_code']);          // decided below, not by the browser
         $this->db->insert('ezy_pos_prodsale', $data);
-        return $this->db->insert_id();
+        $id = $this->db->insert_id();
+        if (!$id) { return 0; }
+
+        $this->db->where('prodsale_id', $id);
+        $this->db->update('ezy_pos_prodsale',
+            array('prodsale_code' => 'PS-' . str_pad($id, 5, '0', STR_PAD_LEFT)));
+        return $id;
+    }
+
+    /**
+     * An order identical to this one, saved moments ago.
+     *
+     * Two clicks on Create Order sent two requests, and the second one wrote a
+     * second order - same customer, same dates, same amount, same second. That
+     * is what "the order is showing twice" was. A request that matches one
+     * already saved within the last two minutes is the same order arriving
+     * twice, so the one already there is handed back instead.
+     *
+     * Deliberately narrow: same customer AND branch AND order date AND
+     * delivery date AND estimated cost AND the same user, inside two minutes.
+     * A genuinely separate order that matches on all six within two minutes is
+     * not something a tailoring counter does.
+     */
+    public function findRecentDuplicate($data)
+    {
+        $this->db->select('prodsale_id');
+        $this->db->from('ezy_pos_prodsale');
+        $this->db->where('prodsale_cus_id', $data['prodsale_cus_id']);
+        $this->db->where('prodsale_store_id', $data['prodsale_store_id']);
+        $this->db->where('prodsale_date', $data['prodsale_date']);
+        $this->db->where('prodsale_delivery_date', $data['prodsale_delivery_date']);
+        $this->db->where('prodsale_tailoring_charge', $data['prodsale_tailoring_charge']);
+        $this->db->where('prodsale_createdby', $data['prodsale_createdby']);
+        $this->db->where('prodsale_createdat >', date('Y-m-d H:i:s', time() - 120));
+        $this->db->order_by('prodsale_id', 'desc');
+        $this->db->limit(1);
+        $row = $this->db->get()->row();
+        return $row ? intval($row->prodsale_id) : 0;
     }
 
     public function addItem($data)

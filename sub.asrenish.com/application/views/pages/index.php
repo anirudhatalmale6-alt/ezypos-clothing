@@ -16,7 +16,10 @@
             if($isAdmin || $has('privSales'))                 $qa[] = array('add-sale','New Sale','fa-shopping-cart','#4a90d9');
             if($isAdmin || $has('privTailoring'))             $qa[] = array('add-production-sale','Tailoring Order','fa-scissors','#e67e22');
             if($isAdmin || $has('privTailoring'))             $qa[] = array('all-production-sales','All Tailoring Orders','fa-list-alt','#e67e22');
-            if($isAdmin || $has('privRe_salesReport'))        $qa[] = array('sales-report','Sales Report','fa-line-chart','#27ae60');
+            // Two pages now, two permissions. The card has to be gated on the
+            // permission for the page it opens, or it lands on a 404.
+            if($isAdmin || $has('privRe_salesSummary'))       $qa[] = array('sales-report','Sales Report','fa-line-chart','#27ae60');
+            if($isAdmin || $has('privRe_salesReport'))        $qa[] = array('sales-reprint','Sales Reprint','fa-print','#27ae60');
             if($isAdmin || $has('privRe_monthlySalesReport')) $qa[] = array('monthly-sales-report','Monthly Sales','fa-calendar','#8e44ad');
             if($isAdmin || $has('privSales'))                 $qa[] = array('item-sales-report','Item Sales','fa-cubes','#16a085');
             if(!empty($qa)): ?>

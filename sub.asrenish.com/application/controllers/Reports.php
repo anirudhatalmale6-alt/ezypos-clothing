@@ -44,16 +44,25 @@ class Reports extends CI_Controller {
             return $this->Stores_model->getAllStoresfornonadmin($uid);
         }
 
-       public function sales_report($page = 'index')
+       /**
+        * Sales Reprint - what this page has always been: find a bill and print
+        * it again, and print the cash flow slip. It was called Sales Report,
+        * which is why the name changed; nothing about how it works has.
+        *
+        * It also gained the permission check it never had. The menu link was
+        * hidden without it, but the address still opened for anyone logged in.
+        */
+       public function sales_reprint($page = 'index')
         {
-           
+                require_priv('privRe_salesReport');
+
                 if ( ! file_exists(APPPATH.'views/report/'.$page.'.php'))
                 {
                         // Whoops, we don't have a page for that!
                         show_404();
                 }
         
-                $data['title'] = ucfirst($page);
+                $data['title'] = 'Sales Reprint';
                 $data['config'] = $this->Configs_model->getConfigName();
                 $data['all_customers'] = $this->Report_model->load_all_customers();
                 // Branch filter (admins see every store, staff only their assigned ones)
@@ -66,6 +75,51 @@ class Reports extends CI_Controller {
                 $this->load->view('templates/footerscripts');
         }
      
+       /**
+        * Sales Report - the totals. What was sold in a period, what was
+        * collected for it and on which tender, how much of it was gift
+        * vouchers, and what came back as returns.
+        *
+        * Its own permission, separate from Sales Reprint, so a cashier can be
+        * allowed to reprint a bill without being shown the day's takings.
+        */
+       public function sales_summary_report($page = 'index')
+        {
+                require_priv('privRe_salesSummary');
+
+                if ( ! file_exists(APPPATH.'views/report/'.$page.'.php'))
+                {
+                        show_404();
+                }
+
+                $data['title']  = 'Sales Report';
+                $data['config'] = $this->Configs_model->getConfigName();
+                $data['storesForFilter'] = $this->_loadStoresForUser();
+                $data['paymentMethods']  = $this->Report_model->getAllPaymentMethodsList();
+
+                $this->load->view('templates/header', $data);
+                $this->load->view('report/'.$page, $data);
+                $this->load->view('templates/footer');
+                $this->load->view('templates/rightslidebar');
+                $this->load->view('templates/footerscripts');
+        }
+
+       /** The figures behind the Sales Report, as JSON. */
+       public function getSalesSummaryData()
+        {
+                require_priv('privRe_salesSummary');
+
+                $from    = $this->input->post('from');
+                $to      = $this->input->post('to');
+                $method  = $this->input->post('method');
+                $storeId = $this->input->post('store_id');
+                if (!$from) { $from = date('Y-m-d'); }
+                if (!$to)   { $to   = $from; }
+                if (!$method) { $method = 'all'; }
+
+                echo json_encode($this->Report_model->getSalesSummaryReport($from, $to, $method, $storeId));
+        }
+
        public function monthly_sales_report($page = 'index')
         {
            

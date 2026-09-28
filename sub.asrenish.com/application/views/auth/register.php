@@ -412,6 +412,14 @@
                                                     <div class="col-9 checkbox checkbox-custom">
                                                     <input id="re_salesReport" name="re_salesReport" type="checkbox" value=1>
                                                     <label for="re_salesReport">
+                                                        Sales Reprint
+                                                    </label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="re_salesSummary" name="re_salesSummary" type="checkbox" value=1>
+                                                    <label for="re_salesSummary">
                                                         Sales Report
                                                     </label>
                                                     </div>
@@ -977,6 +985,15 @@
                                                     <input id="E_re_salesReport" name="E_re_salesReport" type="checkbox"
                                                     <?php echo ($user['priv_re_salesReport']==1 ? 'checked' : '');?> value=1>
                                                     <label for="E_re_salesReport">
+                                                        Sales Reprint
+                                                    </label>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div class="col-9 checkbox checkbox-custom">
+                                                    <input id="E_re_salesSummary" name="E_re_salesSummary" type="checkbox"
+                                                    <?php echo (isset($user['priv_re_salesSummary']) && $user['priv_re_salesSummary']==1 ? 'checked' : '');?> value=1>
+                                                    <label for="E_re_salesSummary">
                                                         Sales Report
                                                     </label>
                                                     </div>

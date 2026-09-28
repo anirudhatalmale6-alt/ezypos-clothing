@@ -200,7 +200,8 @@ class User_model extends CI_Model {
             'priv_re_cashflow'     => 're_cashflow',
             'priv_re_itemsales'    => 're_itemsales',
             'priv_re_production'   => 're_production',
-            'priv_advreturn'       => 'advreturn'
+            'priv_advreturn'       => 'advreturn',
+            'priv_re_salesSummary' => 're_salesSummary'
         );
         foreach($extraPrivs as $col => $postKey){
             if(in_array($col, $fields)){
@@ -451,7 +452,8 @@ class User_model extends CI_Model {
             'priv_re_cashflow'     => 'E_re_cashflow',
             'priv_re_itemsales'    => 'E_re_itemsales',
             'priv_re_production'   => 'E_re_production',
-            'priv_advreturn'       => 'E_advreturn'
+            'priv_advreturn'       => 'E_advreturn',
+            'priv_re_salesSummary' => 'E_re_salesSummary'
         );
         foreach($extraPrivs as $col => $postKey){
             if(in_array($col, $fields)){

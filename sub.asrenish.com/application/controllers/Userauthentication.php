@@ -119,6 +119,9 @@ class Userauthentication extends CI_Controller {
                     'cusreturn', 'supreturn', 'paymentmethods', 'deliverycompany',
                     'warehouse', 'storeitems', 'retailpos', 'gatepass',
                     're_commission', 're_cashflow', 're_itemsales', 're_production',
+                    // The new Sales Report (totals). Separate from
+                    // re_salesReport, which now controls Sales Reprint.
+                    're_salesSummary',
                     // Advance Return. Deliberately not tied to priv_returns or
                     // priv_exchanges - holding one does not grant the other.
                     'advreturn'
