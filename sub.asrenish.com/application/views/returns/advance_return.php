@@ -39,7 +39,9 @@
                     <div class="form-group row mb-2" style="background:#ffebee;padding:8px;border-radius:4px;">
                         <div class="col-12">
                             <input class="form-control" type="text" id="ar_scan"
-                                   placeholder="Scan the item being returned" autofocus>
+                                   placeholder="Scan, or type the item code or name" autofocus
+                                   autocomplete="off">
+                            <small class="text-muted">Type at least 2 characters to search.</small>
                         </div>
                     </div>
                     <div id="ar_search_results" class="list-group m-b-10" style="display:none;max-height:200px;overflow:auto;"></div>
@@ -59,8 +61,10 @@
                     <div class="form-group row mb-2" style="background:#e8f5e9;padding:8px;border-radius:4px;">
                         <div class="col-12">
                             <input class="form-control" type="text" id="ax_scan"
-                                   placeholder="Scan the item being taken away"
+                                   placeholder="Scan, or type the item code or name"
+                                   autocomplete="off"
                                    <?php echo empty($excReady) ? 'disabled' : ''; ?>>
+                            <small class="text-muted">Type at least 2 characters to search.</small>
                         </div>
                     </div>
                     <div id="ax_search_results" class="list-group m-b-10" style="display:none;max-height:200px;overflow:auto;"></div>
@@ -289,10 +293,64 @@ $(function(){
         render();
     }
 
+    // One place that draws the list of matches, so the list a scanner throws up
+    // and the list typing throws up are the same list.
+    function showMatches(resultsId, res, rows){
+        var html = '';
+        for(var i=0;i<res.length;i++){
+            html += '<a href="javascript:;" class="list-group-item list-group-item-action pick" data-i="'+i+'"'
+                 +  ' style="padding:7px 12px;">'
+                 +  '<div class="d-flex justify-content-between align-items-center">'
+                 +  '<div style="min-width:0;">'
+                 +  '<strong>'+esc(res[i].itm_code)+'</strong>'
+                 +  '<div class="text-muted" style="font-size:12px;">'+esc(res[i].itm_name)+'</div>'
+                 +  '</div>'
+                 +  '<div style="white-space:nowrap;font-weight:600;">LKR '+money(res[i].itm_sellingprice)+'</div>'
+                 +  '</div></a>';
+        }
+        $('#'+resultsId).html(html).data('rows', res).data('target', rows).show();
+    }
+
     function wireScan(inputId, resultsId, rows){
+        // The scanner types the whole code in a few milliseconds and then sends
+        // Enter. The typed search waits a moment before it asks the server, so
+        // a scan never sets it off - Enter arrives first and cancels it.
+        var typeTimer = null;
+
+        // ---- typed: show what matches, let the user pick ----
+        // Nothing is added on its own here. Someone typing is looking, and the
+        // whole point of this is to see the code, the name and the price before
+        // choosing. Scanning still adds straight away, which is what a scan is.
+        $('#'+inputId).on('input', function(){
+            var term = $(this).val().trim();
+            clearTimeout(typeTimer);
+            if(term.length < 2){ $('#'+resultsId).hide().empty(); return; }
+            typeTimer = setTimeout(function(){
+                $.ajax({
+                    type:'POST',
+                    url:'<?php echo base_url("AdvanceReturn/searchItems"); ?>',
+                    data:{ term: term, store_id: $('#ar_store').val() },
+                    dataType:'json',
+                    success:function(res){
+                        if($('#'+inputId).val().trim() !== term){ return; }  // they kept typing
+                        if(!res || res.length === 0){
+                            $('#'+resultsId).html('<span class="list-group-item text-muted">'
+                                + 'Nothing matches &quot;'+esc(term)+'&quot;.</span>').show();
+                            return;
+                        }
+                        showMatches(resultsId, res, rows);
+                    },
+                    error:function(){ $('#'+resultsId).hide().empty(); }
+                });
+            }, 250);
+        });
+
+        // ---- scanned, or Enter pressed on a typed code ----
         $('#'+inputId).on('keydown', function(e){
+            if(e.key === 'Escape'){ $('#'+resultsId).hide().empty(); return; }
             if(e.key !== 'Enter') return;
             e.preventDefault();
+            clearTimeout(typeTimer);
             var term = $(this).val().trim();
             if(!term) return;
             $.ajax({
@@ -307,22 +365,25 @@ $(function(){
                         return;
                     }
                     if(res.length === 1){ addTo(rows, res[0], renderAll); $('#'+inputId).val('').focus(); return; }
-                    var html = '';
-                    for(var i=0;i<res.length;i++){
-                        html += '<a href="javascript:;" class="list-group-item list-group-item-action pick" data-i="'+i+'">'
-                             +  '<strong>'+esc(res[i].itm_code)+'</strong> '+esc(res[i].itm_name)
-                             +  ' <span class="pull-right">LKR '+money(res[i].itm_sellingprice)+'</span></a>';
-                    }
-                    $('#'+resultsId).html(html).data('rows', res).data('target', rows).show();
+                    showMatches(resultsId, res, rows);
                 },
                 error:function(){ swal({type:'error',title:'Search failed',text:'Could not reach the server.'}); }
             });
         });
+
         $('#'+resultsId).on('click', '.pick', function(){
             var r = $('#'+resultsId).data('rows');
             addTo($('#'+resultsId).data('target'), r[$(this).data('i')], renderAll);
             $('#'+resultsId).hide().empty();
             $('#'+inputId).val('').focus();
+        });
+
+        // Clicking away puts the list down, rather than leaving it hanging
+        // over the rows underneath.
+        $(document).on('mousedown', function(e){
+            if($(e.target).closest('#'+resultsId+', #'+inputId).length === 0){
+                $('#'+resultsId).hide();
+            }
         });
     }
     wireScan('ar_scan', 'ar_search_results', retRows);

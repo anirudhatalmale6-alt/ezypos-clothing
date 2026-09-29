@@ -1,7 +1,7 @@
 FILES TO REPLACE - everything from 13/08/2026 to now
 ====================================================
 
-67 files in total: 20 brand new, 47 replaced.
+68 files in total: 20 brand new, 48 replaced.
 All paths are inside your site folder (the one holding index.php).
 
 Please put ALL of them up together. They depend on each other - for example
@@ -19,34 +19,34 @@ application/config/database.php.
 
 NEW FILES - upload these (they do not exist on your server yet)
 ---------------------------------------------------------------
-    1. migrate.php
+     1. migrate.php
       The browser update tool. Sits next to index.php.
       Set the password inside it, run the steps, then delete it.
 
-    2. application/helpers/billno_helper.php
+     2. application/helpers/billno_helper.php
       Builds the bill number HG-B-001 from the branch name, and reads a
       typed-in bill number back to the right sale.
 
-    3. application/helpers/access_helper.php
+     3. application/helpers/access_helper.php
       The page permission check used by the pages below.
 
-    4. application/migrations/v9_billno_storecredit_privileges.sql
+     4. application/migrations/v9_billno_storecredit_privileges.sql
       Database: adds the new columns and tables. Step 2 in migrate.php.
 
-    5. application/migrations/v10_data_repair.sql
+     5. application/migrations/v10_data_repair.sql
       Database: repairs the records saved wrong. Step 3 in migrate.php.
 
-    6. application/migrations/v11_exchange_discount.sql
+     6. application/migrations/v11_exchange_discount.sql
       Database: the discount columns for exchanges. Step 4 in migrate.php.
 
-    7. application/migrations/v12_expense_subcategories.sql
+     7. application/migrations/v12_expense_subcategories.sql
       Database: the parent-category column for expenses. Step 5 in migrate.php.
 
-    8. application/migrations/v13_return_keeps_sale_qty.sql
+     8. application/migrations/v13_return_keeps_sale_qty.sql
       Database: records which bill a customer return came off, so the bill
       keeps the quantity it was sold at. Step 6 in migrate.php.
 
-    9. application/migrations/v14_repair_empty_sale_dates.sql
+     9. application/migrations/v14_repair_empty_sale_dates.sql
       Database: puts a real date back on the bills that were saved without
       one - which is what hid gift voucher sales from the Cash Flow report.
       Step 7 in migrate.php.
@@ -67,7 +67,11 @@ NEW FILES - upload these (they do not exist on your server yet)
       The Advance Exchange screen: scan what is coming back and what is
       going out, edit quantities, remove, settle the difference by any
       payment method or a gift voucher. AND: the new Discount box - a flat
-      amount or a percentage, taken off the goods going out.
+      amount or a percentage, taken off the goods going out. AND: when the
+      scanner will not read, the code or the name can be typed instead - a
+      list of matches appears as you type, each showing the item code, the
+      item name and the price, and nothing is added until one is picked.
+      Scanning is unchanged: it still adds the item straight away.
 
 14. application/views/returns/advance_return_list.php
       Past advance returns, with a branch and date filter.
@@ -322,11 +326,19 @@ REPLACE - screens  (application/views/)
       go past it. AND: the two Advance Return links, shown only to users who
       hold that permission.
 
-56. report/today-summary.php
+56. templates/footerscripts.php
+      Stops the mouse wheel changing a number box. Every browser treats a
+      focused number field as a spinner and turns a scroll into an
+      increment - on a long form the user clicks a quantity, scrolls down
+      to reach Save, and the figure they just typed changes on the way
+      past with nothing on screen to say so. This file is loaded by every
+      page, so the one change covers all 77 number fields in the system.
+
+57. report/today-summary.php
       New "Change Given" line so the till balance tallies. AND: a
       "of which GIFT VOUCHERS SOLD" line under Sales.
 
-57. transactions/addproductionsale.php
+58. transactions/addproductionsale.php
       The Discount box on a tailoring order - flat amount or percentage -
       and the advance payment can now be taken on a gift voucher, with the
       card checked and its remaining balance shown before the order is
@@ -339,28 +351,28 @@ REPLACE - screens  (application/views/)
       as the Sales window. Every branch is still in both lists - an order
       taken at one shop can still be collected at another.
 
-58. transactions/prodsale_estimate.php
-59. transactions/prodsale_final.php
+59. transactions/prodsale_estimate.php
+60. transactions/prodsale_final.php
       Both printouts now show the discount as its own line, with the
       percentage beside it when one was used.
 
-60. listing/allproductionsales.php
+61. listing/allproductionsales.php
       A tailoring payment can no longer be more than the amount still due.
 
-61. payment/Payment-Customer.php
+62. payment/Payment-Customer.php
       Shows the new bill number instead of AS00.
 
-62. listing/show-stock-list.php
+63. listing/show-stock-list.php
       The stock list was loading empty and had no search or export. Fixed.
 
-63. pages/index.php
+64. pages/index.php
       The Pending GRN list on the dashboard now shows the item code, the
       quantity pending on that bill, and the total pending for the item.
       AND: two Sales Quick Access cards instead of one - Sales Report and
       Sales Reprint - each behind its own permission, so neither card can
       land on a page the user is not allowed to open.
 
-64. report/item-sales-report.php
+65. report/item-sales-report.php
       Total Revenue is hidden - both the figure in the summary box and the
       one above the table - and it is no longer added up or printed on the
       PDF. It is commented out rather than deleted, so it is a one-line
@@ -369,16 +381,16 @@ REPLACE - screens  (application/views/)
 
 REPLACE - other  (application/)
 -------------------------------
-65. libraries/HutchSMS.php
+66. libraries/HutchSMS.php
       The SMS gateway can answer "yes I got it" and still refuse the
       message - "Invalid mask" is the usual one. It used to be recorded as
       sent. It is now reported as failed, in the gateway's own words.
 
-66. models/Cusreturns_model.php
+67. models/Cusreturns_model.php
       Records which bill a customer return came off, and works out how much
       of each item has already been brought back.
 
-67. models/InsufficentStockSale_model.php
+68. models/InsufficentStockSale_model.php
       The Pending GRN query now returns the item code and the total pending
       per item.
 
