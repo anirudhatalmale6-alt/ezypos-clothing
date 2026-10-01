@@ -11,6 +11,10 @@ class DeliveryCompany extends CI_Controller {
     }
 
     public function manage() {
+        // Switched off for this shop on the Super Admin page means the page is
+        // not there, for anyone - typing the address included. The module's
+        // code and its records are untouched; switch it on and it is back.
+        require_feature('delivery');
         require_priv('privDeliverycompany');
         $data1['title'] = 'Delivery Companies';
         $data1['config'] = $this->Configs_model->getConfigName();

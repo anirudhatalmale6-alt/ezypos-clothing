@@ -6,6 +6,9 @@ class Production extends CI_Controller {
         if (!$this->session->userdata('username')) {
             redirect('login');
         }
+        // The old Production screens. Not linked in the menu any more, but the
+        // addresses still work, so they follow the same switch as the new ones.
+        require_feature('production');
         if ($this->session->userdata('userrole') != 1 && !$this->session->userdata('privProduction')) {
             show_404();
         }

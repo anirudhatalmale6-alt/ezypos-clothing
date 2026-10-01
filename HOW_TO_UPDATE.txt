@@ -81,7 +81,11 @@ STEP 3 - RUN THE DATABASE UPDATES
    page. One column, starting at 0, so nobody sees the new page until you
    tick it for them under Users. The page you have been calling Sales Report
    is now called Sales Reprint and is unchanged; whoever had it keeps it.
-14. Check the "Records still needing repair" boxes now read 0.
+14. Press "Run step 12" - this writes the Super Admin feature switches. Every
+   switch starts at exactly what the system does today, so nothing changes
+   until you move one. Afterwards the page is under Masters, Super Admin
+   Settings, and only an administrator can see it.
+15. Check the "Records still needing repair" boxes now read 0.
 
 Every line is shown with a green "done" or an amber "already there". If
 anything comes up red, stop and send me a screenshot of the page - do not

@@ -214,15 +214,20 @@
                                 }
                             }
                             $canPaymentMethods  = nav_can('privPaymentmethods');
-                            $canDeliveryCompany = nav_can('privDeliverycompany');
+                            // Every one of these now also asks whether the feature is
+                            // switched on for this shop at all. A shop that does not do
+                            // deliveries should not see a Delivery Companies menu entry
+                            // even for a user who happens to hold the permission - the
+                            // switch is above the permission, not beside it.
+                            $canDeliveryCompany = nav_can('privDeliverycompany') && feature_on('delivery');
                             $canWarehouse       = nav_can('privWarehouse') || (isset($_SESSION['privL_stock']) && $_SESSION['privL_stock']==1);
                             $canReCommission    = nav_can('privRe_commission');
                             $canReCashflow      = nav_can('privRe_cashflow');
                             $canReItemsales     = nav_can('privRe_itemsales');
-                            $canReProduction    = nav_can('privRe_production');
+                            $canReProduction    = nav_can('privRe_production') && feature_on('production');
                             $canPromotions = $isAdmin || (isset($_SESSION['privPromotions']) && $_SESSION['privPromotions']==1);
-                            $canLoyalty    = $isAdmin || (isset($_SESSION['privLoyalty']) && $_SESSION['privLoyalty']==1);
-                            $canLabeljoy   = $isAdmin || (isset($_SESSION['privLabeljoy']) && $_SESSION['privLabeljoy']==1);
+                            $canLoyalty    = ($isAdmin || (isset($_SESSION['privLoyalty']) && $_SESSION['privLoyalty']==1)) && feature_on('loyalty');
+                            $canLabeljoy   = ($isAdmin || (isset($_SESSION['privLabeljoy']) && $_SESSION['privLabeljoy']==1)) && feature_on('labeljoy');
                             $canExpenseCat      = nav_can('privExpense_cat');
                             $showMasters = (isset($_SESSION['privMasters']) && $_SESSION['privMasters'] >= 1)
                                 || $isAdmin || $canPromotions || $canLoyalty || $canLabeljoy
@@ -255,6 +260,10 @@
                                     <?php } if($canExpenseCat){ ?>
                                     <li><a href="<?php echo base_url('expense-categories')?>"><i class="fa fa-folder-open"></i> Expense Categories</a></li>
                                     <?php } ?>
+                                    <?php if($isAdmin){ ?>
+                                    <li class="divider"></li>
+                                    <li><a href="<?php echo base_url('super-admin')?>"><i class="fa fa-sliders"></i> Super Admin Settings</a></li>
+                                    <?php } ?>
                                     <?php if($canPromotions || $canLoyalty || $canLabeljoy){ ?>
                                     <li class="divider"></li>
                                     <?php } if($canPromotions){ ?>
@@ -280,16 +289,16 @@
                             <?php } ?>
                             <?php
                             // Per-module transaction privileges (admins always allowed)
-                            $canProduction    = $isAdmin || (isset($_SESSION['privProduction']) && $_SESSION['privProduction']==1);
-                            $canTailoring     = $isAdmin || (isset($_SESSION['privTailoring']) && $_SESSION['privTailoring']==1);
+                            $canProduction    = ($isAdmin || (isset($_SESSION['privProduction']) && $_SESSION['privProduction']==1)) && feature_on('production');
+                            $canTailoring     = ($isAdmin || (isset($_SESSION['privTailoring']) && $_SESSION['privTailoring']==1)) && feature_on('tailoring');
                             $canGiftvoucher   = $isAdmin || (isset($_SESSION['privGiftvoucher']) && $_SESSION['privGiftvoucher']==1);
                             $canReturns       = $isAdmin || (isset($_SESSION['privReturns']) && $_SESSION['privReturns']==1) || (isset($_SESSION['privExchanges']) && $_SESSION['privExchanges']==1);
-                            $canStocktransfer = $isAdmin || (isset($_SESSION['privStocktransfer']) && $_SESSION['privStocktransfer']==1);
+                            $canStocktransfer = ($isAdmin || (isset($_SESSION['privStocktransfer']) && $_SESSION['privStocktransfer']==1)) && feature_on('stocktransfer');
                             // Supplier Return used to be a button floated to the right of the
                             // menu bar. On a full menu it was pushed off the end and could not
                             // be clicked, so it looked hidden even to a user who had the
                             // permission. It is a normal Transactions link now.
-                            $canSupreturn     = nav_can('privSupreturn');
+                            $canSupreturn     = nav_can('privSupreturn') && feature_on('supplier_return');
                             // Advance Return is its own module and its own permission. It is
                             // deliberately NOT folded into $canReturns - a user given Returns
                             // does not get this page, and a user given this page does not get

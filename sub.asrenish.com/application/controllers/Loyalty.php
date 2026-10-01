@@ -11,6 +11,10 @@ class Loyalty extends CI_Controller {
         if (!$this->session->userdata('username')) {
             redirect('login');
         }
+        // Switched off for this shop on the Super Admin page means the page is
+        // not there, for anyone - typing the address included. The module's
+        // code and its records are untouched; switch it on and it is back.
+        require_feature('loyalty');
         $this->load->database();
         $this->load->model('Loyalty_model');
         $this->load->model('Configs_model');

@@ -14,8 +14,12 @@
             $has = function($k) { return $this->session->userdata($k) == 1; };
             $qa = array();
             if($isAdmin || $has('privSales'))                 $qa[] = array('add-sale','New Sale','fa-shopping-cart','#4a90d9');
-            if($isAdmin || $has('privTailoring'))             $qa[] = array('add-production-sale','Tailoring Order','fa-scissors','#e67e22');
-            if($isAdmin || $has('privTailoring'))             $qa[] = array('all-production-sales','All Tailoring Orders','fa-list-alt','#e67e22');
+            // A card for a switched-off function would open a page that is not
+            // there, so the switch is asked first.
+            if(feature_on('tailoring') && ($isAdmin || $has('privTailoring')))
+                                                             $qa[] = array('add-production-sale','Tailoring Order','fa-scissors','#e67e22');
+            if(feature_on('tailoring') && ($isAdmin || $has('privTailoring')))
+                                                             $qa[] = array('all-production-sales','All Tailoring Orders','fa-list-alt','#e67e22');
             // Two pages now, two permissions. The card has to be gated on the
             // permission for the page it opens, or it lands on a 404.
             if($isAdmin || $has('privRe_salesSummary'))       $qa[] = array('sales-report','Sales Report','fa-line-chart','#27ae60');

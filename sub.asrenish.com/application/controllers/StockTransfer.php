@@ -7,6 +7,10 @@ class StockTransfer extends CI_Controller {
         if (!$this->session->userdata('username')) {
             redirect('login');
         }
+        // Switched off for this shop on the Super Admin page means the page is
+        // not there, for anyone - typing the address included. The module's
+        // code and its records are untouched; switch it on and it is back.
+        require_feature('stocktransfer');
         // Block direct URL access unless admin or granted Stock Transfers permission
         if ($this->session->userdata('userrole') != 1 && !$this->session->userdata('privStocktransfer')) {
             show_404();

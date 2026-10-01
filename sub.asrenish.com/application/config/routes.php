@@ -21,6 +21,11 @@ $route['show-stock-list'] = 'stocks/showStocks_list/show-stock-list';
 
 
 $route['show-stocklog'] = 'stocks/showAllStocklog/stocklog';
+// Super Admin - the feature switches. Administrators only; there is no
+// permission tick box for it, on purpose.
+$route['super-admin'] = 'SuperAdmin/index';
+$route['super-admin/save'] = 'SuperAdmin/save';
+
 // The old page - bill lookup, reprint, print cash flow - is now Sales Reprint.
 // The old address still works so nobody's bookmark breaks; it lands on the
 // same page under its new name.

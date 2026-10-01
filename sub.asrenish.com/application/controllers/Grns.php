@@ -27,16 +27,35 @@ class Grns extends CI_Controller {
                 }
                 $data1['title'] = ucfirst($page);
                 $data1['config'] = $this->Configs_model->getConfigName();
-                // GRN goes to warehouse only
-                $warehouse = $this->Stores_model->getWarehouse();
-                if($warehouse){
-                    $storeLoc = array($warehouse);
-                } else {
-                    // Fallback if warehouse column not yet added
+                // Where the goods land.
+                //
+                // "GRN direct to store" ON: the goods go straight into a shop,
+                // so the list is the shops. That is the whole shortcut - no
+                // warehouse, no stock transfer afterwards.
+                //
+                // OFF (and this is the default): the goods arrive at the
+                // warehouse and reach a shop by a stock transfer, exactly as
+                // the system works today. The warehouse code is untouched
+                // either way - only which list is offered changes.
+                if (feature_on('grn_direct_to_store')) {
                     if($_SESSION['userrole'] == 1){
-                        $storeLoc = $this->Stores_model->getAllStores();
+                        $storeLoc = $this->Stores_model->getStoresOnly();
                     } else {
-                        $storeLoc = $this->Stores_model->getAllStoresfornonadmin($_SESSION['userid']);
+                        $storeLoc = $this->Stores_model->getStoresOnlyForUser($_SESSION['userid']);
+                    }
+                    if(!$storeLoc){ $storeLoc = array(); }
+                } else {
+                    // GRN goes to warehouse only
+                    $warehouse = $this->Stores_model->getWarehouse();
+                    if($warehouse){
+                        $storeLoc = array($warehouse);
+                    } else {
+                        // Fallback if warehouse column not yet added
+                        if($_SESSION['userrole'] == 1){
+                            $storeLoc = $this->Stores_model->getAllStores();
+                        } else {
+                            $storeLoc = $this->Stores_model->getAllStoresfornonadmin($_SESSION['userid']);
+                        }
                     }
                 }
                 $data = array(

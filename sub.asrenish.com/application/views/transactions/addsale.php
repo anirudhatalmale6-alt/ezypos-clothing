@@ -12,9 +12,22 @@
                                 <div class="row">
                                     <!-- Item 8: "Add New Sales" title removed. Item 9: Sale Location
                                          hidden for non-admin users (kept in DOM so the store still submits). -->
-                                    <div class="col-12" style="<?php echo ($_SESSION['userrole']==1) ? '' : 'display:none;'; ?>">
+                                    <?php
+                                        // Single location sales: one shop, so there is nothing
+                                        // to choose. The select stays in the page and still
+                                        // submits its one branch - every bill keeps its branch
+                                        // column, so a shop that opens a second branch later
+                                        // just turns this off and the history is already right.
+                                        $hideLoc = single_location() || $_SESSION['userrole'] != 1;
+                                    ?>
+                                    <div class="col-12" style="<?php echo $hideLoc ? 'display:none;' : ''; ?>">
                                         <select class="form-control" name="storeLoctn" id="storeLoctn">
-                                        <?php if($_SESSION['userrole']==1){?>
+                                        <?php
+                                            // The "pick one" placeholder only makes sense when
+                                            // there is a choice. On a single-location shop the
+                                            // one branch is selected and the sale saves without
+                                            // an administrator having to choose it every time.
+                                            if($_SESSION['userrole']==1 && !single_location()){ ?>
                                         <option value="0">Sale Location</option>
                                         <?php }?>
                                         <?php
@@ -130,22 +143,30 @@
                                         <button type="button" class="btn btn-sm btn-secondary" id="btnCancelAddPM"><i class="fa fa-times"></i></button>
                                     </div>
                                 </div>
-                                <div class="form-group row">
+                                <?php
+                                    // Credit is not offered on a single-location till - a
+                                    // corner shop sells for money, not on account. The spans
+                                    // stay in the page because the totals code writes to them;
+                                    // they are simply not shown, and the Credit Order tick that
+                                    // turns a bill into a debt is not there to be ticked.
+                                    $showCredit = !single_location();
+                                ?>
+                                <div class="form-group row" style="<?php echo $showCredit ? '' : 'display:none;'; ?>">
                                     <label class="col-5 col-form-label">Credit Limit:</label>
                                     <div class="col-7 col-form-label text-right">LKR <span id="credit_lmt_value">0.00</span></div>
                                 </div>
-                                <div class="form-group row">
+                                <div class="form-group row" style="<?php echo $showCredit ? '' : 'display:none;'; ?>">
                                     <label class="col-5 col-form-label">Customer Balance:</label>
                                     <div class="col-7 col-form-label text-right">LKR <span id="customer_balance">0.00</span></div>
                                 </div>
-                                <div class="form-group row mb-0" style="background:#fff8e1;border-radius:4px;padding:6px 0;">
+                                <div class="form-group row mb-0" style="background:#fff8e1;border-radius:4px;padding:6px 0;<?php echo $showCredit ? '' : 'display:none;'; ?>">
                                     <label class="col-5 col-form-label" style="cursor:pointer;" for="credit_order"><strong>Credit Order:</strong></label>
                                     <div class="col-7 col-form-label text-right">
                                         <input type="checkbox" id="credit_order" style="transform:scale(1.4);margin-right:8px;vertical-align:middle;">
                                         <small class="text-muted">tick for credit sale</small>
                                     </div>
                                 </div>
-                                <div class="form-group row" id="credit_outstanding_row">
+                                <div class="form-group row" id="credit_outstanding_row" style="<?php echo $showCredit ? '' : 'display:none;'; ?>">
                                     <label class="col-5 col-form-label">Credit:</label>
                                     <div class="col-7 col-form-label text-right">LKR <span id="creditvalue">0.00</span></div>
                                 </div>
@@ -153,8 +174,12 @@
                                     <label class="col-5 col-form-label" style="font-size:16px;color:#1b5e20;"><strong>Balance to Return:</strong></label>
                                     <div class="col-7 col-form-label text-right" style="font-size:16px;color:#1b5e20;"><strong>LKR <span id="change_return">0.00</span></strong></div>
                                 </div>
-                                <!-- Item 10: Online Delivery below the credit section -->
-                                <div class="form-group row mb-0 m-t-5">
+                                <!-- Item 10: Online Delivery below the credit section.
+                                     Gone entirely when Delivery is switched off on the Super
+                                     Admin page - the tick, the company and the charge. The
+                                     fields stay in the page so the save code that reads them
+                                     keeps working and simply finds them empty. -->
+                                <div class="form-group row mb-0 m-t-5" style="<?php echo feature_on('delivery') ? '' : 'display:none;'; ?>">
                                     <div class="col-12">
                                         <div class="checkbox checkbox-primary">
                                             <input id="online_delivery" type="checkbox">
@@ -213,8 +238,8 @@
                                     </div>
                                     <small class="text-muted" id="loyalty_hint"></small>
                                 </div>
-                                <hr>
-                                <div class="form-group row">
+                                <hr style="<?php echo $showCredit ? '' : 'display:none;'; ?>">
+                                <div class="form-group row" style="<?php echo $showCredit ? '' : 'display:none;'; ?>">
                                     <div class="col-4"></div>
                                     <div class="checkbox checkbox-primary">
                                         <input id="cheque" name="cheque" type="checkbox">

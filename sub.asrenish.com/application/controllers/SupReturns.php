@@ -10,6 +10,10 @@ class SupReturns extends CI_Controller {
             // else if(!$this->session->userdata('privprofit')==1){
             //         show_404();
             // }
+        // Switched off for this shop on the Super Admin page means the page is
+        // not there, for anyone - typing the address included. The module's
+        // code and its records are untouched; switch it on and it is back.
+            require_feature('supplier_return');
             $this->load->model('Supreturns_model');
     }
     public function getGrnItems(){

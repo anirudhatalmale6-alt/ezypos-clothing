@@ -433,6 +433,8 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
                                'Step 10 - discount on exchanges and tailoring orders (v17)'),
                 'v18' => array(MIGRATE_DIR . '/v18_sales_report_permission.sql',
                                'Step 11 - permission for the new Sales Report (v18)'),
+                'v19' => array(MIGRATE_DIR . '/v19_super_admin_features.sql',
+                               'Step 12 - the Super Admin feature switches (v19)'),
             );
             $file = $files[$action][0];
             $name = $files[$action][1];
@@ -628,6 +630,25 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
        been using. Administrators see both straight away.</p>
     <form method="post"><input type="hidden" name="action" value="v18">
       <button type="submit">Run step 11</button></form>
+  </div>
+
+  <div class="box step">
+    <h3>Step 12 - The Super Admin feature switches</h3>
+    <p>Writes the settings rows that decide which parts of the system this shop gets -
+       GRN direct to store, single location sales, and an on/off for Production,
+       Tailoring, Loyalty, Label printing, Stock Transfer, Supplier Return and
+       Delivery. They go into the same settings table the shop name already uses;
+       no table is created and no column is added to anything.</p>
+    <p class="note"><strong>Every switch starts at exactly what the system does today</strong>,
+       so running this changes nothing at all until you move one. Direct GRN and single
+       location start OFF because today the goods go through the warehouse and the
+       screens ask which branch. The rest start ON.</p>
+    <p class="note">Run it again later and nothing is reset - a switch you have changed
+       is left alone.</p>
+    <p class="note">Afterwards the page is under <strong>Masters &gt; Super Admin
+       Settings</strong>, visible to administrators only.</p>
+    <form method="post"><input type="hidden" name="action" value="v19">
+      <button type="submit">Run step 12</button></form>
   </div>
 
   <div class="box">

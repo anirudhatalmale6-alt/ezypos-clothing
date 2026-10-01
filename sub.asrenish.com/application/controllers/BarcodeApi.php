@@ -4,6 +4,12 @@ class BarcodeApi extends CI_Controller {
     public function __construct()
     {
         parent::__construct();
+        // Label printing switched off on the Super Admin page closes the whole
+        // thing - the settings page AND the data the Windows label program
+        // reads. A shop that does not print labels should not be answering
+        // requests for its item list either. The code and the API key stay
+        // where they are; switch it on and the printer works again.
+        require_feature('labeljoy');
         $this->load->model('Items_model');
         $this->load->model('Configs_model');
         $this->load->database();
