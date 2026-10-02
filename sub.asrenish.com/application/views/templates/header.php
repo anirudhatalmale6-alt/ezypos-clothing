@@ -260,7 +260,11 @@
                                     <?php } if($canExpenseCat){ ?>
                                     <li><a href="<?php echo base_url('expense-categories')?>"><i class="fa fa-folder-open"></i> Expense Categories</a></li>
                                     <?php } ?>
-                                    <?php if($isAdmin){ ?>
+                                    <?php
+                                        // The provider only. An administrator sees this just
+                                        // once - before a provider login has been created, so
+                                        // there is a way in to create it.
+                                        if(is_super()){ ?>
                                     <li class="divider"></li>
                                     <li><a href="<?php echo base_url('super-admin')?>"><i class="fa fa-sliders"></i> Super Admin Settings</a></li>
                                     <?php } ?>

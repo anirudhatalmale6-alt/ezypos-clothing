@@ -50,7 +50,11 @@ class User_model extends CI_Model {
     
     public function read_user_information($username) //should edited for added pages session
 	{
-        $str ="SELECT u.user_name, u.user_id, u.user_role, p.*
+        // The provider flag comes through with the login, guarded in case the
+        // column is not there yet on an older server.
+        $superCol = in_array('user_is_super', $this->db->list_fields('ezy_pos_users'))
+                  ? 'u.user_is_super' : '0 AS user_is_super';
+        $str ="SELECT u.user_name, u.user_id, u.user_role, ".$superCol.", p.*
                 FROM ezy_pos_users u
                 INNER JOIN ezy_pos_privileges p ON u.user_id = p.priv_userid
                 WHERE u.user_username = '".$username."'";
@@ -215,6 +219,12 @@ class User_model extends CI_Model {
     public function getAllUsers(){
         $this->db->order_by('user_id', 'desc');
         $this->db->where('user_status', 1);
+        // The provider login is not the shop's to see, edit or delete. It is
+        // left out of the list entirely unless the provider is the one looking.
+        if (in_array('user_is_super', $this->db->list_fields('ezy_pos_users'))
+            && ! is_super()) {
+            $this->db->where('user_is_super', 0);
+        }
         $query = $this->db->get('ezy_pos_users');
         if($query->num_rows()>0){
             return $query->result();

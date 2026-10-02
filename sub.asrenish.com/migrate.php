@@ -435,6 +435,8 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
                                'Step 11 - permission for the new Sales Report (v18)'),
                 'v19' => array(MIGRATE_DIR . '/v19_super_admin_features.sql',
                                'Step 12 - the Super Admin feature switches (v19)'),
+                'v20' => array(MIGRATE_DIR . '/v20_super_admin_login.sql',
+                               'Step 13 - the provider login (v20)'),
             );
             $file = $files[$action][0];
             $name = $files[$action][1];
@@ -649,6 +651,23 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
        Settings</strong>, visible to administrators only.</p>
     <form method="post"><input type="hidden" name="action" value="v19">
       <button type="submit">Run step 12</button></form>
+  </div>
+
+  <div class="box step">
+    <h3>Step 13 - The provider login</h3>
+    <p>Super Admin is a rank <strong>above</strong> the shop's administrator. The
+       administrator runs the shop; the provider decides which parts of the system the
+       shop has at all. This step adds the one column that tells the two apart.</p>
+    <p class="note">It creates no account and sets no password, deliberately - a
+       password shipped with the software is a door left open on every shop that
+       installs it. Every existing user keeps exactly the access they have today.</p>
+    <p class="note"><strong>Making the first provider login:</strong> sign in as an
+       administrator, open Masters &gt; Super Admin Settings, and fill in the Provider
+       login box at the top. The moment you save it, that page stops being open to the
+       shop's administrators - only the provider login opens it from then on, and the
+       account does not appear in the shop's user list at all.</p>
+    <form method="post"><input type="hidden" name="action" value="v20">
+      <button type="submit">Run step 13</button></form>
   </div>
 
   <div class="box">

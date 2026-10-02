@@ -25,6 +25,7 @@ $route['show-stocklog'] = 'stocks/showAllStocklog/stocklog';
 // permission tick box for it, on purpose.
 $route['super-admin'] = 'SuperAdmin/index';
 $route['super-admin/save'] = 'SuperAdmin/save';
+$route['super-admin/save-super'] = 'SuperAdmin/saveSuper';
 
 // The old page - bill lookup, reprint, print cash flow - is now Sales Reprint.
 // The old address still works so nobody's bookmark breaks; it lands on the

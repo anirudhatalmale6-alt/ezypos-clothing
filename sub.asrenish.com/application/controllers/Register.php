@@ -74,8 +74,25 @@ class Register extends CI_Controller {
         $result =$this->User_model->getAllStores();		 
         echo json_encode($result);
     }
+    /**
+     * The provider login is not the shop's to touch.
+     *
+     * Hiding it from the list is not enough on its own - the edit and delete
+     * addresses take an id, and an id is easy to guess. Anything aimed at the
+     * provider account from a shop administrator is turned away here.
+     */
+    protected function _blockIfSuper($id)
+    {
+        if (is_super()) { return; }
+        if ( ! in_array('user_is_super', $this->db->list_fields('ezy_pos_users'))) { return; }
+        $row = $this->db->select('user_is_super')
+                        ->get_where('ezy_pos_users', array('user_id' => intval($id)))->row();
+        if ($row && $row->user_is_super == 1) { show_404(); }
+    }
+
     public function EditUser(){
         $id = $this->uri->segment('3');
+        $this->_blockIfSuper($id);
         $data1['title'] = ucfirst("Edit User");
         $data1['config'] = $this->Configs_model->getConfigName();
         $data = array(
@@ -92,6 +109,7 @@ class Register extends CI_Controller {
     }
     
     public function updateUser(){
+        $this->_blockIfSuper($this->input->post('hiddenID'));
         $userid = $this->User_model->updateUser();
         $id = $this->input->post('hiddenID');
         $response = $this->User_model->updatePrivileges();
@@ -105,6 +123,7 @@ class Register extends CI_Controller {
     }
     
     public function DeleteUser(){
+        $this->_blockIfSuper($this->input->post('id') ?: $this->uri->segment(3));
         $result =$this->User_model->DeleteUser();		 
 		echo json_encode($result);
     }

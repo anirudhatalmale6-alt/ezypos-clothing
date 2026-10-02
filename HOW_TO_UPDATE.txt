@@ -85,7 +85,12 @@ STEP 3 - RUN THE DATABASE UPDATES
    switch starts at exactly what the system does today, so nothing changes
    until you move one. Afterwards the page is under Masters, Super Admin
    Settings, and only an administrator can see it.
-15. Check the "Records still needing repair" boxes now read 0.
+15. Press "Run step 13" - this adds the provider (Super Admin) login column.
+   It creates no account and sets no password. To make the first one: sign in
+   as an administrator, open Masters > Super Admin Settings, and fill in the
+   Provider login box at the top. The moment you save it that page stops
+   being open to the shop's administrators.
+16. Check the "Records still needing repair" boxes now read 0.
 
 Every line is shown with a green "done" or an amber "already there". If
 anything comes up red, stop and send me a screenshot of the page - do not

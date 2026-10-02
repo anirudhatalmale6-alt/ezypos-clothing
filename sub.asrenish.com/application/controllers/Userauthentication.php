@@ -140,6 +140,8 @@ class Userauthentication extends CI_Controller {
                     'useruser' => $useruser,
                     'userid'=>$user_info[0]['user_id'],
                     'userrole'=>$user_info[0]['user_role'],
+                    // The provider rank. Only this opens Super Admin Settings.
+                    'is_super'=>isset($user_info[0]['user_is_super']) ? $user_info[0]['user_is_super'] : 0,
                     'privitem'=>$itm,
                     'privcategory'=>$cat,
                     'privcustomer'=>$cus,

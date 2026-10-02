@@ -1,0 +1,26 @@
+-- =====================================================================
+-- EzyPOS v20 migration
+--   The provider login.
+--
+-- Super Admin is a rank ABOVE the shop's administrator. The shop's admin
+-- runs the shop; the provider decides which parts of the system the shop
+-- has at all. This adds the flag that tells the two apart.
+--
+-- SAFE TO RUN: one column, defaulting to 0. Every existing user keeps
+-- exactly the access they have today - nobody is promoted and nobody is
+-- demoted. No account is created here and no password is set, so there
+-- is no default login for anyone to guess.
+--
+-- HOW THE FIRST PROVIDER LOGIN IS MADE
+-- ------------------------------------
+-- Until one exists, an administrator can open Super Admin Settings and
+-- create it there, choosing the username and password. The moment it
+-- exists that door closes: from then on only the provider login opens
+-- that page, and the shop's administrators can no longer see it, edit
+-- it or delete it.
+--
+-- Anything already in place reports "Duplicate column name" and is
+-- skipped, which is harmless.
+-- =====================================================================
+
+ALTER TABLE ezy_pos_users ADD COLUMN user_is_super TINYINT NOT NULL DEFAULT 0;

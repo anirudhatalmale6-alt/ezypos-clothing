@@ -182,6 +182,71 @@ if ( ! function_exists('single_location'))
     function single_location() { return feature_on('feature_single_location'); }
 }
 
+/* =====================================================================
+ * The provider login.
+ *
+ * Super Admin is not an administrator with an extra tick - it is a rank
+ * above. The shop's administrator runs the shop; the provider decides which
+ * parts of the system that shop has. A shop administrator must not be able
+ * to see this account, edit it, delete it, or promote themselves into it.
+ *
+ * It is a flag on the user row rather than a new role number, deliberately.
+ * Hundreds of places in this system ask `userrole == 1` to mean "allowed to
+ * do administrator things"; giving the provider a different role number
+ * would have made them a restricted user everywhere and meant rewriting all
+ * of it. So the provider is an administrator AND carries this flag, and the
+ * flag is the only thing that opens the Super Admin page.
+ * ===================================================================== */
+
+if ( ! function_exists('super_admin_exists'))
+{
+    /** Has a provider login been created yet? */
+    function super_admin_exists()
+    {
+        static $known = null;
+        if ($known !== null) { return $known; }
+
+        $CI =& get_instance();
+        if ( ! isset($CI->db)) {
+            if (isset($CI->load)) { $CI->load->database('', false, true); }
+        }
+        if ( ! isset($CI->db)) { return false; }
+        if ( ! in_array('user_is_super', $CI->db->list_fields('ezy_pos_users'))) {
+            $known = false;
+            return $known;
+        }
+        $known = ($CI->db->where('user_is_super', 1)->count_all_results('ezy_pos_users') > 0);
+        return $known;
+    }
+}
+
+if ( ! function_exists('is_super'))
+{
+    /**
+     * Is the person signed in the provider?
+     *
+     * Until a provider login has been created, the shop's administrator can
+     * reach the page in order to create one - otherwise there would be no way
+     * in on a system that has just been upgraded. The moment one exists, that
+     * door closes and only the provider gets in.
+     */
+    function is_super()
+    {
+        $CI =& get_instance();
+        if ($CI->session->userdata('is_super') == 1) { return true; }
+        if ($CI->session->userdata('userrole') == 1 && ! super_admin_exists()) { return true; }
+        return false;
+    }
+}
+
+if ( ! function_exists('require_super'))
+{
+    function require_super()
+    {
+        if ( ! is_super()) { show_404(); }
+    }
+}
+
 if ( ! function_exists('feature_save'))
 {
     /**

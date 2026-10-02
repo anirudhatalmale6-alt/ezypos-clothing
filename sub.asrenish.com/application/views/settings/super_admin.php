@@ -33,6 +33,70 @@
             </div>
         </div>
 
+        <?php if (!empty($superMsg)) { ?>
+        <div class="alert alert-success"><?php echo htmlspecialchars($superMsg); ?></div>
+        <?php } if (!empty($superErr)) { ?>
+        <div class="alert alert-danger"><?php echo htmlspecialchars($superErr); ?></div>
+        <?php } ?>
+
+        <!-- ------------------------------------------------ provider login -->
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card-box" style="border-left:4px solid #263238;">
+                    <h4 class="header-title m-t-0 m-b-5"><i class="fa fa-user-secret"></i> Provider login</h4>
+                    <?php if (!empty($bootstrap)) { ?>
+                    <div class="alert alert-warning">
+                        <strong>No provider login exists yet.</strong> Right now this page is open to the
+                        shop's administrators, because otherwise there would be no way in at all. Create
+                        the provider login below and that stops immediately - from then on only it opens
+                        this page, and the shop's administrators can no longer see it, edit it or delete it.
+                    </div>
+                    <?php } else { ?>
+                    <p class="text-muted">
+                        Signed in as the provider. The shop's administrators cannot see this page, and the
+                        account below does not appear in their user list at all.
+                    </p>
+                    <?php } ?>
+
+                    <form method="post" action="<?php echo base_url('super-admin/save-super'); ?>">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label class="small mb-1">Name</label>
+                                <input type="text" class="form-control" name="su_name"
+                                       value="<?php echo $superUser ? htmlspecialchars($superUser->user_name) : ''; ?>"
+                                       placeholder="Super Admin">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small mb-1">Username<span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="su_username" autocomplete="off"
+                                       value="<?php echo $superUser ? htmlspecialchars($superUser->user_username) : ''; ?>">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small mb-1">
+                                    <?php echo $superUser ? 'New password' : 'Password'; ?>
+                                    <?php echo $superUser ? '' : '<span class="text-danger">*</span>'; ?>
+                                </label>
+                                <input type="password" class="form-control" name="su_password" autocomplete="new-password"
+                                       placeholder="<?php echo $superUser ? 'leave blank to keep it' : 'at least 8 characters'; ?>">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small mb-1">Repeat password</label>
+                                <input type="password" class="form-control" name="su_password2" autocomplete="new-password">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-dark m-t-15">
+                            <i class="fa fa-key"></i>
+                            <?php echo $superUser ? 'Update provider login' : 'Create provider login'; ?>
+                        </button>
+                        <span class="text-muted m-l-10" style="font-size:12px;">
+                            No password ships with the system and none is set by the update - you choose it here,
+                            so there is nothing default for anyone to try.
+                        </span>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <form method="post" action="<?php echo base_url('super-admin/save'); ?>">
 
             <!-- ------------------------------------------------ main -->

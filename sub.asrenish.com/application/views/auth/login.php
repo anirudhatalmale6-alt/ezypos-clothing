@@ -58,6 +58,14 @@
                             </h4>
                         </a>
                     </div>
+                    <?php
+                        // Set when the provider login has just been created, so the
+                        // administrator who created it is told plainly what happened
+                        // rather than being bounced to a page they can no longer open.
+                        $handover = $this->session->flashdata('provider_created');
+                        if ($handover) { ?>
+                    <div class="alert alert-success" style="font-size:13px;"><?php echo htmlspecialchars($handover); ?></div>
+                    <?php } ?>
                     <form id="formid" name="formname" action="#" method="post">
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
