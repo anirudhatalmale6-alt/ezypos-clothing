@@ -25,9 +25,9 @@
                     <p class="m-b-0" style="opacity:.85;">
                         What this shop gets. Nothing is deleted by switching something off -
                         the feature keeps its data and comes back as it was when it is
-                        switched on again. Only an administrator can open this page, and it
-                        is not in the user permission list, so it cannot be given to a shop
-                        user by accident.
+                        switched on again. This page belongs to the provider login alone:
+                        the shop's administrators cannot see it, and there is no tick box
+                        for it on the user form, so it cannot be given to anyone by accident.
                     </p>
                 </div>
             </div>
@@ -44,19 +44,17 @@
             <div class="col-lg-12">
                 <div class="card-box" style="border-left:4px solid #263238;">
                     <h4 class="header-title m-t-0 m-b-5"><i class="fa fa-user-secret"></i> Provider login</h4>
-                    <?php if (!empty($bootstrap)) { ?>
-                    <div class="alert alert-warning">
-                        <strong>No provider login exists yet.</strong> Right now this page is open to the
-                        shop's administrators, because otherwise there would be no way in at all. Create
-                        the provider login below and that stops immediately - from then on only it opens
-                        this page, and the shop's administrators can no longer see it, edit it or delete it.
-                    </div>
-                    <?php } else { ?>
                     <p class="text-muted">
-                        Signed in as the provider. The shop's administrators cannot see this page, and the
-                        account below does not appear in their user list at all.
+                        This is the account you are signed in with. Change its username or its password
+                        here. The shop's administrators cannot see this page, and this account does not
+                        appear in their user list at all.
                     </p>
-                    <?php } ?>
+                    <p class="text-muted" style="font-size:12px;">
+                        The login itself was created from migrate.php, not from inside the program - so
+                        that a shop administrator never sees this page at any point, not even on a system
+                        that has just been updated. If the password is ever lost, upload migrate.php again
+                        and run step 14; it resets this login rather than creating a second one.
+                    </p>
 
                     <form method="post" action="<?php echo base_url('super-admin/save-super'); ?>">
                         <div class="row">

@@ -86,11 +86,15 @@ STEP 3 - RUN THE DATABASE UPDATES
    until you move one. Afterwards the page is under Masters, Super Admin
    Settings, and only an administrator can see it.
 15. Press "Run step 13" - this adds the provider (Super Admin) login column.
-   It creates no account and sets no password. To make the first one: sign in
-   as an administrator, open Masters > Super Admin Settings, and fill in the
-   Provider login box at the top. The moment you save it that page stops
-   being open to the shop's administrators.
-16. Check the "Records still needing repair" boxes now read 0.
+   It creates no account and sets no password - that is step 14.
+16. Press "Create the provider login" in step 14, after typing the username and
+   the password you want. This is the account that opens Super Admin Settings.
+   Your administrators cannot see that page at all, cannot see this account in
+   their user list, and cannot change or delete it.
+   Keep the password safe. Once migrate.php is deleted the only way to change
+   it is to sign in as this account; if it is ever lost, upload migrate.php
+   again and run step 14 - it resets the login rather than making a second one.
+17. Check the "Records still needing repair" boxes now read 0.
 
 Every line is shown with a green "done" or an amber "already there". If
 anything comes up red, stop and send me a screenshot of the page - do not

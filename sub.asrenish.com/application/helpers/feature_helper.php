@@ -225,17 +225,19 @@ if ( ! function_exists('is_super'))
     /**
      * Is the person signed in the provider?
      *
-     * Until a provider login has been created, the shop's administrator can
-     * reach the page in order to create one - otherwise there would be no way
-     * in on a system that has just been upgraded. The moment one exists, that
-     * door closes and only the provider gets in.
+     * The provider flag and nothing else. There is deliberately no fallback
+     * for administrators - not even when no provider login exists yet. An
+     * earlier version let an administrator in to create the first one; that
+     * meant a shop administrator could see this page on a freshly updated
+     * system, which is exactly what it is supposed to prevent.
+     *
+     * The first provider login is made from migrate.php instead, which is
+     * password protected and deleted once the update is finished.
      */
     function is_super()
     {
         $CI =& get_instance();
-        if ($CI->session->userdata('is_super') == 1) { return true; }
-        if ($CI->session->userdata('userrole') == 1 && ! super_admin_exists()) { return true; }
-        return false;
+        return ($CI->session->userdata('is_super') == 1);
     }
 }
 

@@ -106,13 +106,16 @@ NEW FILES - upload these (they do not exist on your server yet)
 22. application/views/settings/super_admin.php
       The Super Admin Settings page itself. Administrators only, and
       deliberately NOT in the user permission list so it cannot be given
-      to a shop user by accident. The Provider login box at the top of that
-      page is where the Super Admin account is created and its password set.
+      to a shop user by accident. Administrators cannot open it at all, not
+      even on a freshly updated system with no provider yet - the first
+      provider login is made from step 14 of migrate.php. The Provider login
+      box at the top of the page is where that account later changes its own
+      username or password.
 
 23. application/migrations/v20_super_admin_login.sql
       Database: the one column that marks the provider login. No account is
-      created and no password is set - you choose both on the Super Admin
-      page. Step 13 in migrate.php.
+      created and no password is set - you choose both in step 14 of
+      migrate.php. Step 13 in migrate.php.
 
 24. application/views/report/sales-summary-report.php
       The new Sales Report page: totals, gift voucher sales, a breakdown by

@@ -448,6 +448,93 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
                 run_statements($conn, split_sql(file_get_contents($file)), $name);
             }
         }
+        elseif ($action === 'makesuper') {
+            // Create (or reset) the provider login.
+            //
+            // This lives here rather than inside the program on purpose. The
+            // Super Admin page is for the provider only - a shop administrator
+            // must never see it, not even on a freshly updated system with no
+            // provider yet. So the first one is made from this page, which is
+            // already behind a password and is deleted when the update is done.
+            $u  = trim((string)(isset($_POST['su_user']) ? $_POST['su_user'] : ''));
+            $p1 = (string)(isset($_POST['su_pass'])  ? $_POST['su_pass']  : '');
+            $p2 = (string)(isset($_POST['su_pass2']) ? $_POST['su_pass2'] : '');
+
+            $col = @$conn->query("SHOW COLUMNS FROM ezy_pos_users LIKE 'user_is_super'");
+            $haveCol = ($col && $col->num_rows > 0);
+
+            if (!$haveCol) {
+                echo '<div class="box"><p class="warn">Please run step 13 first - it adds the '
+                   . 'column that marks the provider login.</p></div>';
+            } elseif ($u === '' || $p1 === '') {
+                echo '<div class="box"><p class="warn">Fill in both the username and the password. '
+                   . 'Nothing has been changed.</p></div>';
+            } elseif ($p1 !== $p2) {
+                echo '<div class="box"><p class="warn">The two passwords do not match. '
+                   . 'Nothing has been changed.</p></div>';
+            } elseif (strlen($p1) < 8) {
+                echo '<div class="box"><p class="warn">Use a password of at least 8 characters - '
+                   . 'this login outranks every other account on the system. '
+                   . 'Nothing has been changed.</p></div>';
+            } else {
+                $uEsc  = $conn->real_escape_string($u);
+                $pHash = md5($p1);
+
+                // Is there one already? Then this is a reset, not a new account.
+                $ex = $conn->query("SELECT user_id FROM ezy_pos_users WHERE user_is_super = 1 LIMIT 1");
+                $exRow = ($ex && $ex->num_rows > 0) ? $ex->fetch_assoc() : null;
+
+                // The username must not collide with a shop login.
+                $clashSql = "SELECT user_id FROM ezy_pos_users WHERE user_username = '".$uEsc."'";
+                if ($exRow) { $clashSql .= " AND user_id <> ".intval($exRow['user_id']); }
+                $clash = $conn->query($clashSql);
+
+                if ($clash && $clash->num_rows > 0) {
+                    echo '<div class="box"><p class="warn">That username is already used by another '
+                       . 'login. Pick a different one. Nothing has been changed.</p></div>';
+                } elseif ($exRow) {
+                    $id = intval($exRow['user_id']);
+                    $conn->query("UPDATE ezy_pos_users
+                                  SET user_username = '".$uEsc."', user_password = '".$pHash."',
+                                      user_status = 1
+                                  WHERE user_id = ".$id);
+                    echo '<div class="box"><h3>Provider login updated</h3>'
+                       . '<p class="ok">The username and password have been changed. '
+                       . 'Sign in as <b>' . h($u) . '</b>.</p></div>';
+                } else {
+                    // An administrator as well as the provider, so every existing
+                    // "is this an admin" check in the system passes; the flag on
+                    // top is what makes it the provider.
+                    $conn->query("INSERT INTO ezy_pos_users
+                                   (user_username, user_name, user_password, user_role, user_status, user_is_super)
+                                  VALUES ('".$uEsc."', 'Super Admin', '".$pHash."', 1, 1, 1)");
+                    $newId = $conn->insert_id;
+
+                    if (!$newId) {
+                        echo '<div class="box"><p class="warn">The login could not be created: '
+                           . h($conn->error) . '</p></div>';
+                    } else {
+                        // The login query joins the privileges table, so without a
+                        // row here the new account could not sign in at all.
+                        $cols = array(); $vals = array();
+                        $pc = $conn->query("SHOW COLUMNS FROM ezy_pos_privileges");
+                        while ($pc && ($c = $pc->fetch_assoc())) {
+                            if ($c['Field'] === 'priv_id') { continue; }
+                            $cols[] = $c['Field'];
+                            $vals[] = ($c['Field'] === 'priv_userid') ? intval($newId) : 1;
+                        }
+                        $conn->query("INSERT INTO ezy_pos_privileges (".implode(',', $cols).")
+                                      VALUES (".implode(',', $vals).")");
+
+                        echo '<div class="box"><h3>Provider login created</h3>'
+                           . '<p class="ok">Sign in at your normal login page as <b>' . h($u) . '</b>. '
+                           . 'Super Admin Settings then appears under Masters, and only this login sees it. '
+                           . 'Your shop administrators cannot see that page, and this account does not '
+                           . 'appear in their user list at all.</p></div>';
+                    }
+                }
+            }
+        }
         elseif ($action === 'part4') {
             $check = @$conn->query("SELECT ret_total_adjusted FROM ezy_pos_returns LIMIT 1");
 
@@ -668,6 +755,31 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
        account does not appear in the shop's user list at all.</p>
     <form method="post"><input type="hidden" name="action" value="v20">
       <button type="submit">Run step 13</button></form>
+  </div>
+
+  <div class="box step">
+    <h3>Step 14 - Create the provider (Super Admin) login</h3>
+    <p>This is the account that opens Super Admin Settings. It is a rank <strong>above</strong>
+       your administrators: they cannot see that page, cannot see this account in their user
+       list, and cannot change or delete it.</p>
+    <p class="note">It is created from here, not from inside the program, deliberately - so that
+       a shop administrator never sees the Super Admin page at any point, not even on a system
+       that has just been updated. This page is already behind a password and you delete it when
+       the update is finished.</p>
+    <p class="note"><strong>Keep the password somewhere safe.</strong> Once migrate.php is deleted,
+       the only way to change it is to sign in as this account. If you lose it, upload migrate.php
+       again and run this step - it resets the login rather than creating a second one.</p>
+    <form method="post">
+      <input type="hidden" name="action" value="makesuper">
+      <p>
+        Username <input type="text" name="su_user" value="superadmin" style="width:220px;">
+      </p>
+      <p>
+        Password <input type="text" name="su_pass" style="width:220px;" placeholder="at least 8 characters">
+        &nbsp; repeat <input type="text" name="su_pass2" style="width:220px;">
+      </p>
+      <button type="submit">Create the provider login</button>
+    </form>
   </div>
 
   <div class="box">
