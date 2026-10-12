@@ -411,8 +411,19 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
         $action = isset($_POST['action']) ? $_POST['action'] : '';
 
         /* ----------------------------------------------------------- actions */
-        if (in_array($action, array('v9','v10','v11','v12','v13','v14','v15','v16'), true)) {
-            $files = array(
+        //
+        // The list of steps and the list of steps that are ALLOWED TO RUN used
+        // to be two separate lists, and they drifted. Steps 10 to 13 were added
+        // here and buttons were put on the page for them, but the guard above
+        // still only named v9 to v16 - so pressing those buttons re-drew the
+        // page and did absolutely nothing, with no error to say so. The only
+        // sign was the step afterwards complaining that the one before it had
+        // not been run.
+        //
+        // There is one list now. A step exists if it is in $files, and that is
+        // the same thing that decides whether it may run, so the two cannot
+        // disagree again.
+        $files = array(
                 'v9'  => array(MIGRATE_DIR . '/v9_billno_storecredit_privileges.sql',
                                'Step 2 - new columns and tables (v9)'),
                 'v10' => array(MIGRATE_DIR . '/v10_data_repair.sql',
@@ -437,7 +448,9 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
                                'Step 12 - the Super Admin feature switches (v19)'),
                 'v20' => array(MIGRATE_DIR . '/v20_super_admin_login.sql',
                                'Step 13 - the provider login (v20)'),
-            );
+        );
+
+        if (array_key_exists($action, $files)) {
             $file = $files[$action][0];
             $name = $files[$action][1];
 

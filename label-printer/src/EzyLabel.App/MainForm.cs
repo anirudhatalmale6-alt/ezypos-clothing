@@ -505,6 +505,18 @@ namespace EzyLabel.App
                 Left = 395, Top = y + 4, Width = 620, ForeColor = Color.Gray,
                 Text = "Prints rulers and a box round where each sticker is thought to be. Measure, then set the margins below."
             });
+            y += 34;
+
+            // The cure for printing that is right on the first label and walks
+            // up the roll after that. One press per kind of label, not per job.
+            var btnTeach = new Button { Text = "Teach the printer this roll", Left = 205, Top = y, Width = 180 };
+            btnTeach.Click += (s, e) => TeachRoll();
+            page.Controls.Add(btnTeach);
+            page.Controls.Add(new Label
+            {
+                Left = 395, Top = y + 4, Width = 620, ForeColor = Color.Gray,
+                Text = "Press once whenever the kind of label changes. Fixes printing that creeps up the roll."
+            });
             y += 40;
 
             Head("Label roll (millimetres)");
@@ -779,6 +791,47 @@ namespace EzyLabel.App
                     "Calibration", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex) { Fail("Could not print the calibration sheet", ex); }
+        }
+
+        /// <summary>
+        /// Make the printer measure the loaded roll and remember it.
+        ///
+        /// A TSC lines every label up against the gap between stickers. If the
+        /// sensor has never been set up for this roll it cannot see those gaps,
+        /// so it feeds by the length it was told instead - and any difference
+        /// between that and the real length adds up label after label. That is
+        /// the fault where the first one is perfect and the twentieth is
+        /// halfway up the sticker.
+        /// </summary>
+        private void TeachRoll()
+        {
+            SaveSettingsFromUi(false);
+            string problem = RawPrinter.CheckReady(_settings.PrinterName);
+            if (problem != null)
+            {
+                MessageBox.Show(this, problem, "Printer Not Connected", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            if (MessageBox.Show(this,
+                    "The printer will feed two or three blank labels while it measures the roll."
+                    + Environment.NewLine + Environment.NewLine
+                    + "Make sure the roll you actually print on is loaded, then press OK.",
+                    "Teach the printer this roll",
+                    MessageBoxButtons.OKCancel, MessageBoxIcon.Information) != DialogResult.OK) { return; }
+            try
+            {
+                RawPrinter.SendTspl(_settings.PrinterName,
+                    TsplBuilder.BuildMediaCalibration(_settings.Label), "EzyPOS teach roll");
+                Log("Roll measurement sent to the printer.");
+                MessageBox.Show(this,
+                    "Done. The printer has measured the gap and the sticker length and will remember them."
+                    + Environment.NewLine + Environment.NewLine
+                    + "Print a run of ten or so labels and check the last one sits the same as the first."
+                    + Environment.NewLine + Environment.NewLine
+                    + "This only needs doing again if you change to a different kind of label.",
+                    "Teach the printer this roll", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex) { Fail("Could not send the roll measurement", ex); }
         }
 
         private async Task TestConnection()

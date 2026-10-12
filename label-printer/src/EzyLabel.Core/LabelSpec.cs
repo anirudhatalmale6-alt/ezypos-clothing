@@ -141,6 +141,17 @@ namespace EzyLabel.Core
         /// </summary>
         public int BarcodeNarrowDots { get; set; } = 2;
 
+        /// <summary>
+        /// Run the label out to the tear bar after printing.
+        ///
+        /// Off by default, and that is deliberate. Tear mode makes the printer
+        /// feed forward and then reverse-feed before the next label; over a
+        /// batch the small difference between the two accumulates and the
+        /// printing walks up the roll. Off, nothing reverse-feeds and every
+        /// label registers against its own gap.
+        /// </summary>
+        public bool TearOff { get; set; } = false;
+
         // ---- per line: where it sits, how big, how it lines up --------------
         // These default to "leave it alone", so a settings.json written before
         // they existed prints exactly as it did.

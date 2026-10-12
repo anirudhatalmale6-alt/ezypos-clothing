@@ -220,7 +220,23 @@ namespace EzyLabel.Core
             sb.Append("SPEED ").Append(spec.Speed).Append(CRLF);
             sb.Append("DENSITY ").Append(spec.Density).Append(CRLF);
             sb.Append("SET COUNTER @0 1").Append(CRLF);
-            sb.Append("SET TEAR ON").Append(CRLF);
+
+            // TEAR, and why it is off by default.
+            //
+            // With tear mode on, the printer runs the label forward to the tear
+            // bar after printing and pulls it back again before the next one.
+            // That is what you want for one label at a time. On a batch it
+            // happens between every single label, and the pull-back is not
+            // always exactly equal to the push-forward: the error is a fraction
+            // of a millimetre, invisible on label one, and it ADDS UP. By label
+            // twenty the printing has walked up the sticker.
+            //
+            // That is the "first one is fine, then it creeps upwards" fault.
+            // Off, the printer does not reverse-feed at all, and every label is
+            // registered against its own gap by the sensor, so nothing can
+            // accumulate. Turn it back on only if a single label needs to come
+            // to the tear bar on its own.
+            sb.Append(spec.TearOff ? "SET TEAR ON" : "SET TEAR OFF").Append(CRLF);
             sb.Append("CODEPAGE UTF-8").Append(CRLF);
             // No CLS here on purpose - every row opens with its own.
         }
@@ -439,6 +455,44 @@ namespace EzyLabel.Core
         /// numbers into Settings. That is the whole calibration - no guessing at
         /// offsets in the dark.
         /// </summary>
+        /// <summary>
+        /// Teach the printer this roll.
+        ///
+        /// A TSC prints a batch by registering every label against the gap
+        /// between stickers. If the sensor has never been set up for the roll
+        /// that is loaded, it cannot see those gaps - so it falls back to
+        /// feeding by the length it was told, and any difference between that
+        /// length and the real one accumulates. First label right, twentieth
+        /// label halfway up the sticker.
+        ///
+        /// GAPDETECT makes the printer feed a few labels, measure the gap and
+        /// the label length ITSELF, and remember them. It is a one-off per roll
+        /// type, not something to do before every job - it costs two or three
+        /// blank labels.
+        /// </summary>
+        public static string BuildMediaCalibration(LabelSpec spec)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            var sb = new StringBuilder();
+            sb.Append("; EzyPOS - teach the printer this roll").Append(CRLF);
+            sb.Append("; feeds two or three blank labels while it measures").Append(CRLF);
+
+            // Tell it what we believe first, so it has a sensible starting
+            // point, then let it measure for itself and overwrite that.
+            sb.Append("SIZE ").Append(spec.WebWidthMm.ToString("0.##", inv)).Append(" mm, ")
+              .Append(spec.LabelHeightMm.ToString("0.##", inv)).Append(" mm").Append(CRLF);
+            sb.Append("GAP ").Append(spec.RowGapMm.ToString("0.##", inv)).Append(" mm, 0 mm").Append(CRLF);
+            sb.Append("DIRECTION ").Append(spec.Direction).Append(",").Append(spec.Mirror).Append(CRLF);
+            sb.Append("SET TEAR OFF").Append(CRLF);
+            sb.Append("CLS").Append(CRLF);
+            // The printer measures the gap and the label length and keeps them.
+            sb.Append("GAPDETECT").Append(CRLF);
+            // Back to the start of the next sticker, so the roll is left ready
+            // to print rather than stopped halfway through a label.
+            sb.Append("HOME").Append(CRLF);
+            return sb.ToString();
+        }
+
         public static string BuildCalibrationSheet(LabelSpec spec)
         {
             var inv = CultureInfo.InvariantCulture;

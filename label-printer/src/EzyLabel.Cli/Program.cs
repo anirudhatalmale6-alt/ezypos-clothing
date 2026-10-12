@@ -44,6 +44,7 @@ namespace EzyLabel.Cli
             {
                 case "emit":       return Emit(args, settings);
                 case "calibrate":  return Calibrate(args, settings);
+                case "teach-roll": return TeachRoll(args, settings);
                 case "fetch":      return await Fetch(args, settings).ConfigureAwait(false);
                 case "serve":      return Serve(args, settings);
                 case "spec":       Console.WriteLine(JsonSerializer.Serialize(settings.Label,
@@ -67,6 +68,14 @@ EzyPOS label printer - command line
   ezylabel calibrate [--out cal.tspl]
                      Build the calibration sheet: rulers and a box round where
                      the software thinks each sticker is.
+
+  ezylabel teach-roll [--out teach.tspl]
+                     Make the printer measure the roll that is loaded - the gap
+                     between stickers and the sticker length - and remember it.
+                     Do this ONCE whenever the kind of label is changed. It
+                     feeds two or three blank labels while it measures.
+                     This is the cure for printing that is right on the first
+                     label and creeps up the roll after that.
 
   ezylabel fetch     --items 1:10,2:20 [--out queue.json]
                      Ask EzyPOS for the label data for those item ids and
@@ -152,6 +161,19 @@ A queue file is the same shape the API returns:
                 }, new JsonSerializerOptions { WriteIndented = true }));
                 Console.Error.WriteLine("Placement written to " + placement);
             }
+            return 0;
+        }
+
+        private static int TeachRoll(string[] args, AppSettings settings)
+        {
+            string tspl = TsplBuilder.BuildMediaCalibration(settings.Label);
+            string outPath = Arg(args, "--out");
+            if (outPath != null)
+            {
+                File.WriteAllText(outPath, tspl, new UTF8Encoding(false));
+                Console.Error.WriteLine("Written to " + outPath);
+            }
+            else Console.Write(tspl);
             return 0;
         }
 

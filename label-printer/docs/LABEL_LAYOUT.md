@@ -116,6 +116,56 @@ Everything except the order of the lines is a settings change, no rebuild.
 
 ---
 
+## When the printing creeps up the roll
+
+The first label is right, the second is a fraction high, and by the twentieth
+the text is halfway onto the gap. This is not the layout - it is the printer
+feeding the wrong distance between labels, and the error adding up.
+
+**Two causes, both now dealt with.**
+
+### Tear mode
+
+With tear mode on, the printer runs the label forward to the tear bar after
+printing and pulls it back before the next one. That is right for one label at
+a time. On a batch it happens between every single label, and the pull-back is
+not always exactly equal to the push-forward. The difference is a fraction of a
+millimetre - invisible on label one, and it **adds up**.
+
+The job now sends `SET TEAR OFF`. Nothing reverse-feeds, so nothing can
+accumulate. If a single label really does need to come out to the tear bar,
+`TearOff` in `settings.json` turns it back on.
+
+### The gap sensor has never been shown this roll
+
+A TSC lines every label up against the die-cut gap between stickers. That is
+what makes a long run stay put: each label re-registers, so an error cannot
+carry over. But if the sensor has not been calibrated for the roll that is
+loaded, it cannot see those gaps - and the printer falls back to feeding by the
+length it was told. Any difference between that and the real roll then
+accumulates, exactly as described.
+
+**Settings tab → "Teach the printer this roll".** The printer feeds two or
+three blank labels, measures the gap and the sticker length itself, and
+remembers them. Once per kind of label, not once per job.
+
+From the command line: `ezylabel teach-roll`.
+
+### Telling the two apart
+
+Print ten labels and look at the last one.
+
+| What you see | What it means |
+|---|---|
+| Still creeping after turning tear off | The sensor has not been taught the roll - press the button above |
+| Steady now | It was tear mode |
+| Every label equally wrong, not creeping | Not drift at all - that is **Vertical trim** on the Settings tab |
+
+That last row matters: a constant offset and a growing one are different
+faults. Only the growing one is drift.
+
+---
+
 ## Changing the layout yourself
 
 Everything above is the default. None of it is fixed — the **Layout** tab in
