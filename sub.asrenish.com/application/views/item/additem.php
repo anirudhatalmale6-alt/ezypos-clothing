@@ -366,6 +366,13 @@
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                             <button type="button" id="exportBarcodeJpeg" class="btn btn-success"><i class="fa fa-download"></i> Export JPEG (144 DPI)</button>
                             <button type="button" id="printBarcodeBtn" class="btn btn-primary"><i class="fa fa-print"></i> Print Barcodes</button>
+                            <?php if (feature_on('labeljoy') && user_can('privLabeljoy')) { ?>
+                            <!-- The label printer, through QZ Tray. The button beside it prints
+                                 the label as a web page, which Windows lays out by its own page
+                                 length - the cause of labels walking up the roll. This one sends
+                                 the printer's own commands instead. -->
+                            <button type="button" id="printOnLabelPrinter" class="btn btn-dark"><i class="fa fa-tags"></i> Label printer</button>
+                            <?php } ?>
                         </div>
                         </div>
                     </div>
@@ -1213,6 +1220,11 @@ function generateBarcodePreview(){
         $('#barcodePreview').html('<div class="alert alert-danger">Invalid barcode format for this item code. Try CODE 128 or CODE 39.</div>');
     }
 }
+
+$('#printOnLabelPrinter').on('click', function(){
+    var copies = parseInt($('#barcodeCopies').val()) || 1;
+    window.location = '<?php echo base_url('label-print'); ?>?code=' + encodeURIComponent(currentBarcodeData.code) + '&qty=' + copies;
+});
 
 $('#printBarcodeBtn').on('click', function(){
     var format = $('#barcodeFormat').val();

@@ -85,6 +85,11 @@
                                 </button>
                             </div>
                             <div class="modal-body">
+                            <!-- Problems are shown HERE, inside the edit window, not in a
+                                 browser pop-up. A pop-up could take the window down with it
+                                 when it was dismissed; this cannot, and it stays visible
+                                 while the quantities are being corrected. -->
+                            <div id="grnEditError" class="alert alert-danger" style="display:none;white-space:pre-line;"></div>
                             <form id="form_edit_grn" name="" action="#" method="post">
                             <input type="hidden" name="hiddngrnID" id="hiddngrnID" value="0">
                             <input type="hidden" name="hiddnCash" id="hiddnCash" value="0">
@@ -312,6 +317,11 @@
             var id = $(this).attr('data');
             grnEditDeleted = [];
             $('#grnEditItemsBody').html('');
+            $('#grnEditError').hide().text('');
+            // A click outside the window, or Escape, no longer closes it. Those
+            // were the ways a half-finished edit could vanish - including the
+            // click or key that dismissed a warning. Only Close and Save do now.
+            $('#grnEditModal').modal({ backdrop: 'static', keyboard: false });
             $('#grnEditModal').modal('show');
             $('#grnEditModal').find('.modal-title').text("Edit GRN");
             // header
@@ -409,19 +419,41 @@
             items = items.concat(grnEditDeleted);
             var payload = $('#form_edit_grn').serializeArray();
             payload.push({name:'items', value: JSON.stringify(items)});
+            // Clear any earlier marks before trying again.
+            $('#grnEditItemsBody tr').css('background', '').find('.grn-ln-qty').css({'border-color':'', 'background':''});
+            $('#grnEditError').hide().text('');
+            var $save = $('#btnsave');
+            $save.prop('disabled', true).text('Saving...');
+
             $.ajax({
                     type: 'post', url: "<?php echo base_url('grns/updateGrnFull'); ?>",
-                    data: payload, async: false, dataType:'json',
+                    data: payload, dataType:'json',
                     success: function(response){
+                        $save.prop('disabled', false).text('Save changes');
                         if(response && response.status === 'error'){
-                            alert(response.message || 'Could not update GRN.');
+                            // Stay in the window, keep everything typed, say which
+                            // item and by how much, and mark the row.
+                            $('#grnEditError').text(response.message || 'Could not update GRN.').show();
+                            if(response.problems){
+                                $.each(response.problems, function(i, p){
+                                    var $row = p.gid > 0
+                                        ? $('#grnEditItemsBody tr[data-gid="'+p.gid+'"]')
+                                        : $('#grnEditItemsBody tr[data-gid="0"][data-itmid="'+p.itmid+'"]');
+                                    $row.css('background', '#fdecea');
+                                    $row.find('.grn-ln-qty').css({'border-color':'#c62828', 'background':'#fff'});
+                                });
+                            }
+                            $('#grnEditModal .modal-body').scrollTop(0);
                             return;
                         }
                         showAllGrn();
-                        alert("GRN Updated");
                         $('#grnEditModal').modal('hide');
+                        if(window.swal){ swal({type:'success', title:'GRN updated', timer:1500, showConfirmButton:false}); }
                     },
-                    error: function(){ alert("There was an error. Try again please!"); }
+                    error: function(){
+                        $save.prop('disabled', false).text('Save changes');
+                        $('#grnEditError').text('Could not reach the server. Nothing has been saved - your changes are still here, try Save again.').show();
+                    }
                 });
         });
 

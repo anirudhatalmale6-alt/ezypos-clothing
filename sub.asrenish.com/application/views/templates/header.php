@@ -276,6 +276,7 @@
                                     <li><a href="<?php echo base_url('loyalty-settings')?>"><i class="fa fa-star"></i> Customer Loyalty</a></li>
                                     <?php } if($canLabeljoy){ ?>
                                     <li class="divider"></li>
+                                    <li><a href="<?php echo base_url('label-print')?>"><i class="fa fa-print"></i> Print Labels</a></li>
                                     <li><a href="<?php echo base_url('barcode-api/settings')?>"><i class="fa fa-barcode"></i> LabelJoy API</a></li>
                                     <?php } ?>
                                 </ul>

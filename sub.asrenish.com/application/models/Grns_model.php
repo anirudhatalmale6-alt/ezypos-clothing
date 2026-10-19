@@ -177,6 +177,17 @@ class Grns_model extends CI_Model {
         $hasItmDisType = in_array('grnitm_discount_type', $this->db->list_fields('ezy_pos_grn_item'));
 
         // ---------- Pass 1: validate everything before mutating ----------
+        //
+        // Every line is checked and EVERY problem is collected, each one named
+        // by its item code. It used to stop at the first bad line and say "for
+        // one of the items" - which left the user hunting through the GRN for
+        // it, fixing one, saving, and being told about the next.
+        $problems = array();
+        $itemLabel = function($itmid){
+            $row = $this->db->query("SELECT itm_code, itm_name FROM ezy_pos_items WHERE itm_id=?", array($itmid))->row();
+            return $row ? array('code'=>$row->itm_code, 'name'=>$row->itm_name)
+                        : array('code'=>'#'.$itmid, 'name'=>'');
+        };
         foreach($items as $it){
             $gid   = intval(isset($it['gid'])?$it['gid']:0);
             $itmid = intval(isset($it['itmid'])?$it['itmid']:0);
@@ -188,20 +199,45 @@ class Grns_model extends CI_Model {
                 $received = $lay ? floatval($lay->cur_grnQty) : 0;
                 $remaining = $lay ? floatval($lay->cur_currentQTY) : 0;
                 $consumed = $received - $remaining;
+                $lbl = $itemLabel($itmid);
                 if($del){
                     if($consumed > 0.0001){
-                        return array('status'=>'error','message'=>'Cannot remove an item that has already been sold/used ('.$consumed.' units gone). Adjust quantity instead.');
+                        $problems[] = array('gid'=>$gid, 'itmid'=>$itmid, 'code'=>$lbl['code'], 'name'=>$lbl['name'],
+                            'sold'=>$consumed, 'qty'=>0,
+                            'text'=>$lbl['code'].' - cannot be removed, '.(0+$consumed).' already sold/used. Lower the quantity instead (not below '.(0+$consumed).').');
                     }
                 } else {
-                    if($qty <= 0){ return array('status'=>'error','message'=>'Quantity must be greater than 0. Use Remove to delete a line.'); }
-                    if($qty < $consumed - 0.0001){
-                        return array('status'=>'error','message'=>'New quantity ('.$qty.') is less than the quantity already sold/used ('.$consumed.') for one of the items.');
+                    if($qty <= 0){
+                        $problems[] = array('gid'=>$gid, 'itmid'=>$itmid, 'code'=>$lbl['code'], 'name'=>$lbl['name'],
+                            'sold'=>$consumed, 'qty'=>$qty,
+                            'text'=>$lbl['code'].' - quantity must be more than 0. Use Remove to take the line off.');
+                    } elseif($qty < $consumed - 0.0001){
+                        $problems[] = array('gid'=>$gid, 'itmid'=>$itmid, 'code'=>$lbl['code'], 'name'=>$lbl['name'],
+                            'sold'=>$consumed, 'qty'=>$qty,
+                            'text'=>$lbl['code'].' - you entered '.(0+$qty).', but '.(0+$consumed).' have already been sold/used. The lowest it can go is '.(0+$consumed).'.');
                     }
                 }
             } else if(!$del) {
-                if($itmid <= 0){ return array('status'=>'error','message'=>'Please pick a valid item for every new row.'); }
-                if($qty <= 0){ return array('status'=>'error','message'=>'New item quantity must be greater than 0.'); }
+                if($itmid <= 0){
+                    $problems[] = array('gid'=>0, 'itmid'=>0, 'code'=>'', 'name'=>'', 'sold'=>0, 'qty'=>$qty,
+                        'text'=>'A new row has no item picked. Choose the item from the list, or remove the row.');
+                } elseif($qty <= 0){
+                    $lbl = $itemLabel($itmid);
+                    $problems[] = array('gid'=>0, 'itmid'=>$itmid, 'code'=>$lbl['code'], 'name'=>$lbl['name'],
+                        'sold'=>0, 'qty'=>$qty,
+                        'text'=>$lbl['code'].' - the new row needs a quantity more than 0.');
+                }
             }
+        }
+        if(count($problems) > 0){
+            $lines = array();
+            foreach($problems as $p){ $lines[] = $p['text']; }
+            return array(
+                'status'   => 'error',
+                'message'  => 'Nothing has been saved. '.(count($problems) == 1 ? 'One item needs' : count($problems).' items need')
+                            .' fixing:'."\n".implode("\n", $lines),
+                'problems' => $problems
+            );
         }
 
         // ---------- Pass 2: apply ----------

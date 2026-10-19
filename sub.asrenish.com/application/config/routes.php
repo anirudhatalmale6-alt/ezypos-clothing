@@ -23,6 +23,10 @@ $route['show-stock-list'] = 'stocks/showStocks_list/show-stock-list';
 $route['show-stocklog'] = 'stocks/showAllStocklog/stocklog';
 // Super Admin - the feature switches. Administrators only; there is no
 // permission tick box for it, on purpose.
+// Label printing from the browser through QZ Tray. Controller name in its
+// exact case - the server's filesystem is case-sensitive.
+$route['label-print'] = 'LabelPrint/index';
+$route['label-print/(:any)'] = 'LabelPrint/$1';
 $route['super-admin'] = 'SuperAdmin/index';
 $route['super-admin/save'] = 'SuperAdmin/save';
 $route['super-admin/save-super'] = 'SuperAdmin/saveSuper';
