@@ -18,6 +18,11 @@
                         <div>
                             <h5 class="m-t-0 m-b-5"><i class="fa fa-plug"></i> QZ Tray: <span id="qzState">connecting...</span></h5>
                             <div class="text-muted" id="qzHelp" style="font-size:13px;"></div>
+                            <details class="m-t-5" id="qzDiagBox" style="font-size:12px;">
+                                <summary style="cursor:pointer;">Connection details</summary>
+                                <pre id="qzDiag" style="font-size:11px;background:#f7f7f7;padding:6px;margin:6px 0 4px;white-space:pre-wrap;"></pre>
+                                <button class="btn btn-xs btn-sm btn-outline-secondary" id="qzDiagCopy" type="button">Copy these details</button>
+                            </details>
                         </div>
                         <div class="form-inline">
                             <label class="m-r-5"><strong>Printer</strong></label>
@@ -157,6 +162,12 @@
     </div>
 </div>
 
+<!-- qz-lna is QZ Industries' own helper for Chrome's Local Network Access rule
+     (Chrome 147+, April 2026: a website may not reach a program on this computer
+     until the user allows it). qz-tray.js 2.3 picks it up automatically if it
+     is loaded first, and can then say "the browser blocked this" instead of
+     a generic "unable to connect". -->
+<script src="https://cdn.jsdelivr.net/npm/qz-lna@0.1.3/dist/lna.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.3.0/qz-tray.js"></script>
 <script>
 $(function(){
@@ -192,28 +203,157 @@ $(function(){
         $('#qzHelp').html(help || '');
     }
 
+    /*
+     * The connection, one step at a time.
+     *
+     * The first version caught every failure in this chain and called it
+     * "not running". That is how a QZ Tray that was plainly running got
+     * reported as stopped: the browser had refused the connection, and the
+     * page said the one thing that was not true. Each step now reports its
+     * own failure, and the details box records everything, so a screenshot
+     * of it says what happened.
+     */
+    var diag = {};
+    function chromeVersion(){
+        var m = navigator.userAgent.match(/(?:Chrome|Edg)\/(\d+)/);
+        return m ? parseInt(m[1], 10) : 0;
+    }
+    function showDiag(){
+        var lines = [];
+        $.each(diag, function(k, v){ lines.push(k + ': ' + v); });
+        $('#qzDiag').text(lines.join('\n'));
+    }
+    $('#qzDiagCopy').click(function(){
+        var t = $('#qzDiag').text();
+        if (navigator.clipboard) { navigator.clipboard.writeText(t); }
+        $(this).text('Copied');
+    });
+
+    // What the browser itself says about letting this site reach this computer.
+    function lnaPermission(){
+        if (!navigator.permissions || !navigator.permissions.query) return Promise.resolve('not reported');
+        var names = ['loopback-network', 'local-network-access', 'local-network'];
+        var out = [];
+        return names.reduce(function(p, name){
+            return p.then(function(){
+                return navigator.permissions.query({ name: name })
+                    .then(function(st){ out.push(name + '=' + st.state); })
+                    .catch(function(){ /* this browser does not know that name */ });
+            });
+        }, Promise.resolve()).then(function(){ return out.length ? out.join(', ') : 'not reported'; });
+    }
+
+    var HOW_TO_ALLOW =
+        'Click the icon to the left of the web address (the padlock or the settings icon), open '
+      + '<b>Site settings</b>, and set <b>Local network access</b> - Chrome may call it '
+      + '<b>Apps on this device</b> - to <b>Allow</b>. Then reload this page.';
+
     function connect(){
+        diag = {
+            'page': location.protocol + '//' + location.host,
+            'browser': navigator.userAgent.replace(/^.*?\) /, ''),
+            'qz-tray.js loaded': qzOk ? ('yes, ' + (qz.version || '?')) : 'NO',
+            'qz-lna helper loaded': (self.lna && self.lna.detectLna) ? 'yes' : 'no',
+            'QZ Tray program on this PC': '-',
+            'certificate from server': '-',
+            'printer list': '-'
+        };
+        showDiag();
+
         if (!qzOk) {
-            setState('not loaded', '#c62828', 'The QZ Tray script could not be fetched. Check this computer is online.');
+            setState('script not loaded', '#c62828',
+                'The QZ Tray script could not be fetched from the internet. Check this computer is online, then press &#8635;.');
             return;
         }
-        setState('connecting...', '#9e9e9e', '');
+
+        // An http:// page cannot reach QZ Tray at all in Chrome 147 and later -
+        // there is no prompt, it is simply refused. Say so before trying.
+        if (location.protocol !== 'https:' && chromeVersion() >= 147) {
+            diag['blocked because'] = 'page is http:// - Chrome ' + chromeVersion() + ' refuses local connections from it';
+            showDiag();
+            setState('blocked by the browser', '#c62828',
+                'This page is open as <b>http://</b>. Chrome ' + chromeVersion() + ' does not let an http:// page reach '
+              + 'programs on this computer, so it cannot talk to QZ Tray. Open the system with <b>https://</b> '
+              + '(<a href="' + location.href.replace(/^http:/, 'https:') + '">try it here</a>). If the site has no '
+              + 'https certificate yet, it needs one - a free one can be switched on in cPanel under SSL/TLS Status.');
+            return;
+        }
+
+        // The server half first: no point blaming QZ Tray if our own
+        // certificate endpoint is what is failing.
+        $.ajax({ url: BASE + 'label-print/qzCert', cache: false, dataType: 'text' })
+            .then(function(c){ diag['certificate from server'] = c && c.indexOf('BEGIN CERTIFICATE') >= 0 ? 'ok' : 'EMPTY - printing will still work but QZ Tray will ask Allow each time'; },
+                  function(x){ diag['certificate from server'] = 'FAILED (' + x.status + ')'; })
+            .always(showDiag);
+        lnaPermission().then(function(st){ diag['browser permission'] = st; showDiag(); });
+
+        setState('connecting...', '#9e9e9e', 'If Chrome asks to let this site access apps or devices on this computer, click <b>Allow</b>.');
         var p = qz.websocket.isActive() ? Promise.resolve() : qz.websocket.connect({ retries: 1, delay: 1 });
         p.then(function(){
+            var c = qz.websocket.getConnectionInfo ? qz.websocket.getConnectionInfo() : null;
+            diag['QZ Tray program on this PC'] = 'connected' + (c ? ' on ' + c.socket + '://' + c.host + ':' + c.port : '');
+            showDiag();
             setState('connected', '#2e7d32', 'Printing goes straight to the printer as TSPL.');
-            return qz.printers.find();
-        }).then(function(list){
-            var $p = $('#lpPrinter').empty().prop('disabled', false);
-            var keep = settings.printer || '';
-            var guess = '';
-            $.each(list, function(i, name){
-                $p.append($('<option>').val(name).text(name));
-                if (!guess && /tsc|ttp|label/i.test(name)) guess = name;
+            return qz.printers.find().then(function(list){
+                diag['printer list'] = list.length + ' found: ' + list.join(' | ');
+                showDiag();
+                var $p = $('#lpPrinter').empty().prop('disabled', false);
+                var keep = settings.printer || '';
+                var guess = '';
+                $.each(list, function(i, name){
+                    $p.append($('<option>').val(name).text(name));
+                    if (!guess && /tsc|ttp|label/i.test(name)) guess = name;
+                });
+                $p.val(list.indexOf(keep) >= 0 ? keep : guess || list[0]);
+                if (!list.length) {
+                    setState('connected, but no printers', '#ef6c00', 'QZ Tray is running but Windows reported no printers to it.');
+                }
+            }, function(err){
+                // Connected, then refused: that is QZ Tray's own "Allow / Block"
+                // decision, not the browser and not a stopped program.
+                diag['printer list'] = 'REFUSED: ' + (err && err.message ? err.message : err);
+                showDiag();
+                setState('connected, but QZ Tray refused', '#ef6c00',
+                    'QZ Tray is running and answered, but would not list the printers - usually because <b>Block</b> was '
+                  + 'clicked on its "Allow this website?" window. Right-click the QZ Tray icon by the clock, open '
+                  + '<b>Site Manager</b>, remove this site from the blocked list, then press &#8635; and click <b>Allow</b>.');
             });
-            $p.val(list.indexOf(keep) >= 0 ? keep : guess || list[0]);
         }).catch(function(err){
-            setState('not running', '#c62828',
-                'Start QZ Tray on this computer, or install it from <a href="https://qz.io/download/" target="_blank" rel="noopener">qz.io/download</a>, then press &#8635;.');
+            var m = err && err.message ? err.message : String(err);
+            diag['QZ Tray program on this PC'] = 'NOT REACHED: ' + m + (err && err.denied ? ' (browser permission denied)' : '');
+            showDiag();
+            if (/blocked by client/i.test(m)) {
+                // QZ Tray WAS reached - it answered, looked at this site's
+                // certificate, and refused. Reproduced on the real QZ Tray 2.3.0:
+                // once this site has been put on QZ Tray's block list (the
+                // "Block" button on its "Allow this website?" window), it stays
+                // refused EVEN WITH override.crt installed and trusted. The block
+                // has to be removed; the certificate alone cannot undo it.
+                diag['QZ Tray program on this PC'] = 'RUNNING, but it REFUSED this site (' + m + ')';
+                showDiag();
+                setState('QZ Tray is running, but refused this website', '#c62828',
+                    'QZ Tray answered and turned this site away. Usually this means <b>Block</b> was clicked on its '
+                  + '"Allow this website?" window at some point - and that stays in force even after override.crt is installed. To clear it:'
+                  + '<ol style="margin:6px 0 0 18px;padding:0;">'
+                  + '<li>Right-click the QZ Tray icon by the clock &gt; <b>Advanced</b> &gt; <b>Site Manager</b>, open the '
+                  + '<b>Blocked</b> list and remove <b>EzyPOS label printing</b>. (Or close QZ Tray and delete the file '
+                  + '<code>blocked.dat</code> in the same folder as its log files - normally <code>%APPDATA%\\qz</code>.)</li>'
+                  + '<li>Check the certificate is named exactly <code>override.crt</code> in the QZ Tray folder - Windows can '
+                  + 'hide a <code>.txt</code> on the end, and a second download is saved as <code>override (1).crt</code>. '
+                  + '<a href="' + BASE + 'label-print/downloadCert">Download it again</a> if in doubt.</li>'
+                  + '<li>Right-click the QZ Tray icon &gt; <b>Exit</b>, start QZ Tray again, then press &#8635; here. If a window '
+                  + 'asks to allow this site, click <b>Allow</b>.</li></ol>');
+            } else if (err && err.denied) {
+                setState('blocked by the browser', '#c62828',
+                    'QZ Tray is running, but the browser stopped this page from reaching it. ' + HOW_TO_ALLOW);
+            } else {
+                // Either the program is not running, or the browser's prompt was
+                // dismissed or ignored - which the browser does not tell us apart.
+                setState('cannot reach QZ Tray', '#c62828',
+                    'Either QZ Tray is not running, or the browser blocked the connection without asking. '
+                  + 'If the QZ Tray icon is by the clock, it is the browser: ' + HOW_TO_ALLOW
+                  + ' Otherwise start QZ Tray (or install it from <a href="https://qz.io/download/" target="_blank" rel="noopener">qz.io/download</a>) and press &#8635;.');
+            }
         });
     }
     $('#lpReconnect').click(connect);
