@@ -153,9 +153,17 @@
                     </p>
                     <ol style="font-size:13px;padding-left:18px;" class="m-b-0">
                         <li><a href="<?php echo base_url('label-print/downloadCert'); ?>">Download override.crt</a></li>
-                        <li>Copy it into QZ Tray's folder - normally <code>C:\Program Files\QZ Tray\</code></li>
-                        <li>Right-click the QZ Tray icon by the clock, choose Exit, and start QZ Tray again.</li>
+                        <li>Right-click the QZ Tray icon by the clock &gt; <b>Advanced</b> &gt; <b>Site Manager...</b></li>
+                        <li>On the <b>Allowed</b> tab, click the blue <b>+</b> under the list &gt; <b>Browse...</b> and pick the
+                            override.crt you downloaded (normally in Downloads).</li>
+                        <li>QZ Tray says the certificate "is unrecognized and not yet trusted" and offers to copy it - click
+                            <b>Yes</b>, and <b>Yes</b> again if Windows asks to allow changes.</li>
+                        <li>The Allowed list now shows a line starting <b>EzyPOS label printing</b>.
+                            Press &#8635; on this page.</li>
                     </ol>
+                    <p class="text-muted m-t-5 m-b-0" style="font-size:12px;">
+                        The site only appears in Site Manager after this step - before it, an empty list is normal.
+                    </p>
                 </div>
             </div>
         </div>
@@ -248,6 +256,29 @@ $(function(){
       + '<b>Site settings</b>, and set <b>Local network access</b> - Chrome may call it '
       + '<b>Apps on this device</b> - to <b>Allow</b>. Then reload this page.';
 
+    /*
+     * Making QZ Tray trust this site, through QZ Tray's own Site Manager.
+     *
+     * Copying override.crt into C:\Program Files\QZ Tray by hand is the step
+     * that goes wrong without a word: Program Files needs administrator rights,
+     * and a file Windows saves as override (1).crt or override.crt.txt is
+     * simply not looked at. Site Manager's + > Browse... does the copy itself,
+     * asks Windows for the rights, and loads the certificate on the spot - and
+     * the site then shows in the Allowed list, so it can be seen to have worked.
+     * Checked on the real QZ Tray 2.3.0. Before this, an empty Site Manager is
+     * normal: it lists only sites that were imported or answered Allow/Block.
+     */
+    var TRUST_STEPS =
+        '<ol style="margin:6px 0 0 18px;padding:0;">'
+      + '<li><a href="' + BASE + 'label-print/downloadCert">Download override.crt</a> (it goes to Downloads; any file name is fine).</li>'
+      + '<li>Right-click the QZ Tray icon by the clock &gt; <b>Advanced</b> &gt; <b>Site Manager...</b></li>'
+      + '<li>On the <b>Allowed</b> tab, click the blue <b>+</b> under the list &gt; <b>Browse...</b> and pick that override.crt.</li>'
+      + '<li>QZ Tray says it "is unrecognized and not yet trusted" and offers to copy it - click <b>Yes</b> '
+      + '(and <b>Yes</b> if Windows asks to allow changes). A line starting <b>EzyPOS label printing</b> '
+      + 'now shows in the Allowed list.</li>'
+      + '<li>Open the <b>Blocked</b> tab. If this site is listed there, select it and click the red <b>-</b>.</li>'
+      + '<li>Press &#8635; here.</li></ol>';
+
     function connect(){
         diag = {
             'page': location.protocol + '//' + location.host,
@@ -314,9 +345,8 @@ $(function(){
                 diag['printer list'] = 'REFUSED: ' + (err && err.message ? err.message : err);
                 showDiag();
                 setState('connected, but QZ Tray refused', '#ef6c00',
-                    'QZ Tray is running and answered, but would not list the printers - usually because <b>Block</b> was '
-                  + 'clicked on its "Allow this website?" window. Right-click the QZ Tray icon by the clock, open '
-                  + '<b>Site Manager</b>, remove this site from the blocked list, then press &#8635; and click <b>Allow</b>.');
+                    'QZ Tray is running and answered, but would not list the printers, because it does not trust this site yet. '
+                  + TRUST_STEPS);
             });
         }).catch(function(err){
             var m = err && err.message ? err.message : String(err);
@@ -324,25 +354,15 @@ $(function(){
             showDiag();
             if (/blocked by client/i.test(m)) {
                 // QZ Tray WAS reached - it answered, looked at this site's
-                // certificate, and refused. Reproduced on the real QZ Tray 2.3.0:
-                // once this site has been put on QZ Tray's block list (the
-                // "Block" button on its "Allow this website?" window), it stays
-                // refused EVEN WITH override.crt installed and trusted. The block
-                // has to be removed; the certificate alone cannot undo it.
+                // certificate, and refused. Two causes, both reproduced on the
+                // real QZ Tray 2.3.0: the certificate is not trusted (override.crt
+                // never loaded - the site is then in NEITHER Site Manager list),
+                // or the site is on the Blocked list, which wins even over a
+                // trusted override.crt. TRUST_STEPS covers both.
                 diag['QZ Tray program on this PC'] = 'RUNNING, but it REFUSED this site (' + m + ')';
                 showDiag();
                 setState('QZ Tray is running, but refused this website', '#c62828',
-                    'QZ Tray answered and turned this site away. Usually this means <b>Block</b> was clicked on its '
-                  + '"Allow this website?" window at some point - and that stays in force even after override.crt is installed. To clear it:'
-                  + '<ol style="margin:6px 0 0 18px;padding:0;">'
-                  + '<li>Right-click the QZ Tray icon by the clock &gt; <b>Advanced</b> &gt; <b>Site Manager</b>, open the '
-                  + '<b>Blocked</b> list and remove <b>EzyPOS label printing</b>. (Or close QZ Tray and delete the file '
-                  + '<code>blocked.dat</code> in the same folder as its log files - normally <code>%APPDATA%\\qz</code>.)</li>'
-                  + '<li>Check the certificate is named exactly <code>override.crt</code> in the QZ Tray folder - Windows can '
-                  + 'hide a <code>.txt</code> on the end, and a second download is saved as <code>override (1).crt</code>. '
-                  + '<a href="' + BASE + 'label-print/downloadCert">Download it again</a> if in doubt.</li>'
-                  + '<li>Right-click the QZ Tray icon &gt; <b>Exit</b>, start QZ Tray again, then press &#8635; here. If a window '
-                  + 'asks to allow this site, click <b>Allow</b>.</li></ol>');
+                    'QZ Tray answered and turned this site away, because it does not trust this site yet. ' + TRUST_STEPS);
             } else if (err && err.denied) {
                 setState('blocked by the browser', '#c62828',
                     'QZ Tray is running, but the browser stopped this page from reaching it. ' + HOW_TO_ALLOW);
