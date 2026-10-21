@@ -144,6 +144,17 @@ class Tspl_label
         return null;
     }
 
+    /**
+     * Whole-number division, rounding toward zero - what C#'s int / int does
+     * in the Windows label program. PHP's intdiv() would do it, but it only
+     * exists from PHP 7, and the shop's server runs PHP 5.6.
+     */
+    public static function idiv($a, $b)
+    {
+        $a = (int)$a; $b = (int)$b;
+        return (int)(($a - $a % $b) / $b);
+    }
+
     /* ------------------------------------------------------------- fonts */
 
     public static function fontW($f)
@@ -180,7 +191,7 @@ class Tspl_label
 
     private static function centred($x0, $usable, $w)
     {
-        return $x0 + max(0, intdiv($usable - $w, 2));
+        return $x0 + max(0, self::idiv($usable - $w, 2));
     }
 
     /** "78", "25", "0.5" - the way .NET writes ToString("0.##"). */
@@ -199,7 +210,7 @@ class Tspl_label
         if ($data === '') return 0;
         if (ctype_digit($data)) {
             $n = strlen($data);
-            return ($n % 2 === 0) ? intdiv($n, 2) : intdiv($n - 1, 2) + 1;
+            return ($n % 2 === 0) ? self::idiv($n, 2) : self::idiv($n - 1, 2) + 1;
         }
         return strlen($data);
     }
@@ -303,7 +314,7 @@ class Tspl_label
         $total  = $shopH + $nameH + $codeH + $barsH + $priceH + ($blocks > 1 ? ($blocks - 1) * $gap : 0);
 
         $inner = $this->labelH() - 2 * $this->innerD();
-        $y = $originY + $this->innerD() + max(0, intdiv($inner - $total, 2));
+        $y = $originY + $this->innerD() + max(0, self::idiv($inner - $total, 2));
 
         $o = '';
         if ($wantShop) {
@@ -387,7 +398,7 @@ class Tspl_label
         }
 
         $cols = (int)$this->s['columns'];
-        $rows = intdiv(count($flat) + $cols - 1, $cols);
+        $rows = self::idiv(count($flat) + $cols - 1, $cols);
         if (count($flat) % $cols !== 0) {
             $out['warnings'][] = 'The total is an odd number, so the very last sticker on the roll is left blank. '
                                . 'Add one more label to fill it if you would rather not waste it.';
@@ -426,8 +437,8 @@ class Tspl_label
             for ($m = 0; $m <= (int)$s['height_mm']; $m += 5) {
                 $t .= 'BAR '.$ox.','.$this->mm($m).','.($m % 10 === 0 ? 24 : 12).',2'.self::CRLF;
             }
-            $t .= self::text($ox + 8, intdiv($h, 2) - 10, '2', 1, 1, 'COL '.($c + 1));
-            $t .= self::text($ox + 8, intdiv($h, 2) + 12, '1', 1, 1,
+            $t .= self::text($ox + 8, self::idiv($h, 2) - 10, '2', 1, 1, 'COL '.($c + 1));
+            $t .= self::text($ox + 8, self::idiv($h, 2) + 12, '1', 1, 1,
                     rtrim(rtrim(number_format($s['width_mm'], 1, '.', ''), '0'), '.').'x'
                    .rtrim(rtrim(number_format($s['height_mm'], 1, '.', ''), '0'), '.').'mm');
         }

@@ -192,7 +192,9 @@ class LabelPrint extends CI_Controller {
         $host = preg_replace('/[^A-Za-z0-9.\-]/', '', (string)(isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'ezypos'));
         $dn = array('commonName' => ($host ? $host : 'ezypos'), 'organizationName' => 'EzyPOS label printing');
         $csr  = openssl_csr_new($dn, $key, $cfg);
-        $cert = openssl_csr_sign($csr, null, $key, 3650, $cfg, random_int(1, PHP_INT_MAX));
+        // mt_rand, not random_int: the shop's server is PHP 5.6. The serial only
+        // has to differ between certificates, it is not a secret.
+        $cert = openssl_csr_sign($csr, null, $key, 3650, $cfg, mt_rand(1, mt_getrandmax()));
         openssl_pkey_export($key, $pem);
         openssl_x509_export($cert, $certPem);
         $this->db->insert('ezy_pos_qz_keys', array(
