@@ -117,6 +117,11 @@ class Stocks_model extends CI_Model {
 //        return  $row['stock_qty'];
 //
 //    }
+    // "All stores" totals: the GRN batches are summed per item in a subquery
+    // before the join. Joined row by row, every store's stock row was repeated
+    // once per GRN batch, so the stock total was multiplied by the number of
+    // GRNs (2 GRNs = stock shown twice). Same in showItemStock and
+    // showAllStockWithWarehouses.
     public function showAllStock($store_id = 0){
         if($store_id > 0){
             $str="SELECT itm_id,itm_code,itm_name,itm_reorderlevel,itm_uom,stock_qty,
@@ -134,12 +139,12 @@ class Stocks_model extends CI_Model {
         } else {
             $str="SELECT itm_id,itm_code,itm_name,itm_reorderlevel,itm_uom,
              SUM(stock_qty) as stock_qty,
-             SUM(c.cur_grnPrice*c.cur_currentQTY) AS grnValue,
-             SUM(itm_sellingprice*c.cur_currentQTY) as sellingValue,
+             MAX(c.gv) AS grnValue,
+             MAX(itm_sellingprice*c.cq) as sellingValue,
              GROUP_CONCAT(DISTINCT st.store_name SEPARATOR ', ') as store_name
             FROM ezy_pos_items
             INNER JOIN ezy_pos_stock ON ezy_pos_stock.stock_itm_id=ezy_pos_items.itm_id
-            LEFT JOIN ezy_pos_currentqtywithgrn c ON c.cur_itmID=ezy_pos_items.itm_id
+            LEFT JOIN (SELECT cur_itmID, SUM(cur_grnPrice*cur_currentQTY) AS gv, SUM(cur_currentQTY) AS cq FROM ezy_pos_currentqtywithgrn GROUP BY cur_itmID) c ON c.cur_itmID=ezy_pos_items.itm_id
             LEFT JOIN ezy_pos_stores st ON st.store_id=ezy_pos_stock.stock_store_id
             WHERE stock_status=1
             AND itm_status=1
@@ -178,11 +183,11 @@ class Stocks_model extends CI_Model {
         } else {
             $str="SELECT itm_id,itm_code,itm_name,itm_reorderlevel,itm_uom,
              SUM(stock_qty) as stock_qty,
-             SUM(c.cur_grnPrice*c.cur_currentQTY) AS grnValue,
-             SUM(itm_sellingprice*c.cur_currentQTY) as sellingValue
+             MAX(c.gv) AS grnValue,
+             MAX(itm_sellingprice*c.cq) as sellingValue
             FROM ezy_pos_items
             INNER JOIN ezy_pos_stock ON ezy_pos_stock.stock_itm_id=ezy_pos_items.itm_id
-            LEFT JOIN ezy_pos_currentqtywithgrn c ON c.cur_itmID=ezy_pos_items.itm_id
+            LEFT JOIN (SELECT cur_itmID, SUM(cur_grnPrice*cur_currentQTY) AS gv, SUM(cur_currentQTY) AS cq FROM ezy_pos_currentqtywithgrn GROUP BY cur_itmID) c ON c.cur_itmID=ezy_pos_items.itm_id
             WHERE stock_status=1
             AND itm_status=1"
             .$itemFilter."
@@ -391,12 +396,12 @@ public function showAllStockWithWarehouses($store_id = 0) {
                 i.itm_reorderlevel,
                 i.itm_uom,
                 SUM(s.stock_qty) as stock_qty,
-                SUM(c.cur_grnPrice * c.cur_currentQTY) AS grnValue,
-                SUM(i.itm_sellingprice * c.cur_currentQTY) AS sellingValue,
+                MAX(c.gv) AS grnValue,
+                MAX(i.itm_sellingprice * c.cq) AS sellingValue,
                 GROUP_CONCAT(DISTINCT st.store_name SEPARATOR ', ') AS store_name
             FROM ezy_pos_items i
             INNER JOIN ezy_pos_stock s ON s.stock_itm_id = i.itm_id
-            LEFT JOIN ezy_pos_currentqtywithgrn c ON c.cur_itmID = i.itm_id
+            LEFT JOIN (SELECT cur_itmID, SUM(cur_grnPrice*cur_currentQTY) AS gv, SUM(cur_currentQTY) AS cq FROM ezy_pos_currentqtywithgrn GROUP BY cur_itmID) c ON c.cur_itmID=i.itm_id
             LEFT JOIN ezy_pos_stores st ON st.store_id = s.stock_store_id
             WHERE s.stock_status = 1
             AND i.itm_status = 1
