@@ -57,3 +57,14 @@ CREATE TABLE IF NOT EXISTS ezy_pos_cus_receipt_alloc (
 
 -- A cheque taken on a customer payment points at its receipt, not at a bill.
 ALTER TABLE ezy_pos_cus_cheque ADD COLUMN cus_cheque_rcpt_id INT NOT NULL DEFAULT 0;
+
+-- Sales representatives: a master list, picked on the sale window. The bill
+-- shows the rep's name instead of the cashier's login name.
+CREATE TABLE IF NOT EXISTS ezy_pos_sales_reps (
+    rep_id        INT AUTO_INCREMENT PRIMARY KEY,
+    rep_name      VARCHAR(120) NOT NULL,
+    rep_phone     VARCHAR(40) NULL,
+    rep_status    TINYINT NOT NULL DEFAULT 1,
+    rep_createdat DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+ALTER TABLE ezy_pos_sale ADD COLUMN sale_rep_id INT NOT NULL DEFAULT 0;

@@ -51,7 +51,11 @@ class Sales extends CI_Controller {
                         'items'=>$allItems,
                         'storeLoc'=> $storeLoc,
                         'paymentMethods'=>$this->Sales_model->getActivePaymentMethods(),
-                        'deliveryCompanies'=>$this->DeliveryCompany_model->getActive()
+                        'deliveryCompanies'=>$this->DeliveryCompany_model->getActive(),
+                        // Sales representatives for the dropdown (Masters > Sales Representatives).
+                        'salesReps'=>$this->db->table_exists('ezy_pos_sales_reps')
+                                ? $this->db->where('rep_status', 1)->order_by('rep_name')->get('ezy_pos_sales_reps')->result()
+                                : array()
                 );
         
                 $this->load->view('templates/header', $data1);
@@ -113,6 +117,22 @@ class Sales extends CI_Controller {
                 echo json_encode($response);
         }
         
+        /**
+         * The name printed as "Bill By": the sales representative chosen on the
+         * bill; without one, whoever rang the bill up. It used to be whoever was
+         * logged in when it was printed, so a reprint showed the wrong person.
+         */
+        protected function _billBy($saleID, $currentUserId){
+                $sale = $this->db->get_where('ezy_pos_sale', array('sale_id' => intval($saleID)))->row();
+                if ($sale && isset($sale->sale_rep_id) && intval($sale->sale_rep_id) > 0
+                    && $this->db->table_exists('ezy_pos_sales_reps')) {
+                        $rep = $this->db->get_where('ezy_pos_sales_reps', array('rep_id' => intval($sale->sale_rep_id)))->row();
+                        if ($rep) { return $rep->rep_name; }
+                }
+                $name = $sale ? $this->User_model->getUserName($sale->sale_createdby) : false;
+                return $name ? $name : $this->User_model->getUserName($currentUserId);
+        }
+
         public function print_inv($saleID){
                 $userid;
                 if(isset($_SESSION['userid'])){
@@ -125,7 +145,7 @@ class Sales extends CI_Controller {
                         'telephone'=> $this->Configs_model->getConfigTel(),
                         'mobile'=> $this->Configs_model->getConfigMob(),
                         'footer'=> $this->Configs_model->getConfigFoot(),
-                        'user'=> $this->User_model->getUserName($userid),
+                        'user'=> $this->_billBy($saleID, $userid),
                         'customer'=> $this->Sales_model->getCustomer($saleID),
                         'paymnt'=> $this->CusPayment_model->getPayment($saleID),
                         'saleitems'=> $this->Sales_model->invoicePreview2($saleID),

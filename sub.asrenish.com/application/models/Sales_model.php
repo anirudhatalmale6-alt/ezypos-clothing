@@ -71,6 +71,9 @@ class Sales_model extends CI_Model {
             $cusPhone = $this->input->post('customer_phone');
             $data['sale_customer_phone'] = $cusPhone ? $cusPhone : NULL;
         }
+        if (in_array('sale_rep_id', $fields)) {
+            $data['sale_rep_id'] = intval($this->input->post('sales_rep_id'));
+        }
         return $data;
     }
 

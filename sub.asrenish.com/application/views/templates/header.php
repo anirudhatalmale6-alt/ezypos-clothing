@@ -250,6 +250,7 @@
                                     <li><a href="<?php echo base_url('add-store')?>">Store</a></li> 
                                     <?php } if(nav_can('privstaff')){ ?>
                                     <li><a href="<?php echo base_url('add-staff')?>">Staff</a></li>
+                                    <li><a href="<?php echo base_url('sales-reps')?>"><i class="fa fa-user-circle"></i> Sales Representatives</a></li>
                                     <?php } if(nav_can('priv_bank')){ ?>
                                     <li><a href="<?php echo base_url('add-bankacc')?>">Bank Account</a></li>
                                     <?php } ?>

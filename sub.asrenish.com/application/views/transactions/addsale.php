@@ -67,6 +67,32 @@
                                         <input class="form-control" type="text" id="customer_phone" placeholder="Customer phone number">
                                     </div>
                                 </div>
+                                <?php if (!empty($salesReps)): ?>
+                                <!-- Sales representative: printed on the bill as "Bill By"
+                                     instead of the cashier's login name. -->
+                                <div class="form-group row">
+                                    <label for="sales_rep" class="col-4 col-form-label">Sales Rep</label>
+                                    <div class="col-8">
+                                        <select class="form-control" id="sales_rep">
+                                            <option value="0">-- none (cashier) --</option>
+                                            <?php foreach ($salesReps as $rep): ?>
+                                            <option value="<?php echo (int)$rep->rep_id; ?>"><?php echo htmlspecialchars($rep->rep_name); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <script>
+                                // The rep stays selected on this till for the next bill (a rep
+                                // usually rings up several). Browser storage can be unavailable;
+                                // the dropdown then simply starts at "none".
+                                (function(){
+                                    var sel = document.getElementById('sales_rep');
+                                    try { var v = localStorage.getItem('ezypos_sales_rep');
+                                          if (v && sel.querySelector('option[value="' + v + '"]')) sel.value = v; } catch(e) {}
+                                    sel.addEventListener('change', function(){ try { localStorage.setItem('ezypos_sales_rep', sel.value); } catch(e) {} });
+                                })();
+                                </script>
+                                <?php endif; ?>
                                 <!-- Item 9: Date hidden for non-admin (defaults to today, still submits). -->
                                 <div class="form-group row" style="<?php echo ($_SESSION['userrole']==1) ? '' : 'display:none;'; ?>">
                                     <label for="datepicker" class="col-4 col-form-label">Date<span class="text-danger">*</span></label>
@@ -1389,7 +1415,7 @@ var chequeHTML ='<div id="chequeDIV">'+
                     $.ajax({
                         type: "Post",
                         url:"<?php echo base_url('Sales/saveSaleWithItems'); ?>",
-                        data: {cusID:cusID,grandtotal:grandtotal,subtotal:subtotal,invoiceDis:invoiceDis,discount_type:discountType,delivery_company_id:deliveryCompanyId,delivery_charge:deliveryCharge,store:store,date:date,sale_type:saleType,online_sale_id:onlineSaleId,customer_phone:customerPhone,lines:JSON.stringify(saleLines)},
+                        data: {cusID:cusID,grandtotal:grandtotal,subtotal:subtotal,invoiceDis:invoiceDis,discount_type:discountType,delivery_company_id:deliveryCompanyId,delivery_charge:deliveryCharge,store:store,date:date,sale_type:saleType,online_sale_id:onlineSaleId,customer_phone:customerPhone,sales_rep_id:($('#sales_rep').val() || 0),lines:JSON.stringify(saleLines)},
                         async: false,
                         dataType: "json",
                         success: function (res) {
