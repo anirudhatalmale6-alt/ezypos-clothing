@@ -132,7 +132,12 @@ $route['supplier-return/(:num)'] = 'SupReturns/form/$1';
 // New Reports
 $route['cash-flow-report'] = 'reports/cash_flow_report/cash-flow-report';
 $route['cash-flow-slip'] = 'reports/cash_flow_slip';
-$route['item-sales-report'] = 'reports/item_sales_report/item-sales-report';
+// Item-based reports. The earlier Item Sales page (with its find-receipts-by-item
+// search) stays at item-sales-receipts and is linked from the new one.
+$route['item-sales-report'] = 'ItemReports/sales';
+$route['item-sales-receipts'] = 'reports/item_sales_report/item-sales-report';
+$route['item-stock-report'] = 'ItemReports/stock';
+$route['item-purchase-report'] = 'ItemReports/purchase';
 $route['production-report'] = 'reports/production_report/production-report';
 
 // Barcode API for LabelJoy

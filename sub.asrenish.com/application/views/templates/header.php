@@ -427,6 +427,7 @@
                                 <ul class="submenu">
                                     <?php if(nav_can('privRe_stock')){ ?>
                                      <li><a href="<?php echo base_url('show-stock')?>"> Stock </a></li>
+                                     <li><a href="<?php echo base_url('item-stock-report')?>"><i class="fa fa-cubes"></i> Item Stock Report</a></li>
                                     <?php } if(nav_can('privRe_stockLog')){ ?>
                                      <li><a href="<?php echo base_url('show-stocklog')?>">Stock Log </a></li>
                                     <?php } if(nav_can('privRe_salesSummary')){ ?>
@@ -439,6 +440,7 @@
                                     <li><a  href="<?php echo base_url('monthly-sales-report')?>">Monthly Sales Report </a></li>
                                     <?php } if(nav_can('privRe_purchaseReport')){ ?>
                                     <li><a  href="<?php echo base_url('purchase-report')?>">Purchase Report </a></li>
+                                    <li><a href="<?php echo base_url('item-purchase-report')?>"><i class="fa fa-cubes"></i> Item Purchase Report</a></li>
                                     <?php } if(nav_can('privRe_expenseReport')){ ?>
                                     <li><a  href="<?php echo base_url('expense-report')?>">Expense Report </a></li>
                                     <?php } if(nav_can('privRe_todaySummary')){ ?>
