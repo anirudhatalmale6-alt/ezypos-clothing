@@ -1,0 +1,47 @@
+EZYPOS - NOVEMBER 2026 UPDATE
+=============================
+
+What is in it
+-------------
+1. Pending GRN works as before March again: a sale only goes pending when the
+   whole shop (all stores together) is out of the item.
+2. Stock listing "All stores" no longer doubles the stock (it was multiplied by
+   the number of GRNs of the item).
+3. Stock Transfer after GRN: after saving a GRN you are asked "Send these goods
+   to the branches now?". The Allocate screen shows Received / Allocated /
+   Available per item; type the quantity for one branch and the last branch
+   takes the rest. One transfer per branch is created; the branch accepts it
+   on Stock Transfers as now. Also reachable from All GRNs (orange button).
+   The old Stock Transfer screen works exactly as before.
+4. Customer Payment (Payments > Customer Payment) - new screen: cash, cheque or
+   any payment method from Masters, split over several, a discount, settles the
+   opening balance and bills oldest first, prints a receipt, and shows in the
+   Cash Flow report on the day the money came in. (Old screen: cus-payment-old)
+5. Masters > Sales Representatives, a Sales Rep dropdown on the sale window,
+   and the rep's name printed on the bill as "Bill By".
+6. Production: the screen no longer hides under the menu bar; "New Production
+   (same gate pass)" now shows the new production number.
+7. GRN: the last purchase price fills in when an item is entered (you can
+   change it); GRN view and edit show the selling price.
+8. Supplier Returns (Transactions > Supplier Returns): find the GRN by its code
+   or number, list of all returns, and Edit.
+9. Reports: Item Stock Report, Item Sales Report, Item Purchase Report.
+   (The previous Item Sales page is still there - link at the top right.)
+10. Excel export on the reports works again.
+
+How to update (about 10 minutes)
+--------------------------------
+0. Back up first: phpMyAdmin > your database > Export > Go, and
+   File Manager > your site folder > Compress > download.
+1. Upload every file in this zip into your site folder (the one holding
+   index.php), keeping the folders, replacing the old files.
+   Do NOT touch application/config/database.php.
+2. Open migrate.php in File Manager > Edit, put your own password in place of
+   CHANGE-ME on the MIGRATE_PASSWORD line, save.
+3. Open https://YOUR-SITE/migrate.php in the browser, enter that password,
+   press "Run step 15". Every line says "done" (or "already there - skipped"
+   if you run it twice - that is fine).
+4. Delete migrate.php from the server.
+5. Press Ctrl+F5 once on the system so the browser loads the new scripts.
+
+Until step 15 is run, the new screens say so instead of saving.
