@@ -1478,6 +1478,45 @@ class Report_model extends CI_Model {
             }
         }
 
+        // ------------------------------------------------------------------
+        // 8. CUSTOMER PAYMENTS (Payments > Customer Payment)
+        //    Money a customer pays later against their credit bills, on the
+        //    day it was received and by the method it came in. The old screen
+        //    added it to the bill's cus_pay_cash instead, which section 1 reads
+        //    on the SALE's date - so it showed on the wrong day or not at all.
+        //    A discount moves no money and is not a line here.
+        // ------------------------------------------------------------------
+        if($this->db->table_exists('ezy_pos_cus_receipt')){
+            $sf = $this->_storeFilterFor('r.rcpt_store_id', $storeId);
+            $str = "SELECT p.rp_method, p.rp_pm_id, p.rp_amount, p.rp_reference, p.rp_bank,
+                           r.rcpt_id, r.rcpt_date, c.cus_name, st.store_name, pm.pm_name
+                    FROM ezy_pos_cus_receipt_pay p
+                    INNER JOIN ezy_pos_cus_receipt r ON r.rcpt_id = p.rp_rcpt_id
+                    LEFT JOIN ezy_pos_customers c ON c.cus_id = r.rcpt_cus_id
+                    LEFT JOIN ezy_pos_stores st ON st.store_id = r.rcpt_store_id
+                    LEFT JOIN ezy_pos_payment_methods pm ON pm.pm_id = p.rp_pm_id
+                    WHERE r.rcpt_date BETWEEN ? AND ?
+                      AND r.rcpt_status = 1
+                      AND p.rp_amount > 0"
+                    .$sf.
+                    " ORDER BY p.rp_id DESC";
+            foreach($this->db->query($str, array(substr($start, 0, 10), substr($end, 0, 10)))->result() as $r){
+                if($r->rp_method === 'cash'){
+                    if(!$wantCash) continue;
+                    $mName = 'Cash';
+                } elseif($r->rp_method === 'cheque'){
+                    if(!$wantAll) continue;
+                    $mName = 'Cheque';
+                } else {
+                    if(!$wantAll && intval($r->rp_pm_id) !== $wantPmId) continue;
+                    $mName = $r->pm_name ? $r->pm_name : 'Card';
+                }
+                $ref = trim($r->rp_bank.' '.$r->rp_reference);
+                $rows[] = $mk($r->rcpt_date, 'Customer Payment', 'CP-'.str_pad($r->rcpt_id, 5, '0', STR_PAD_LEFT),
+                              $r->cus_name, $mName, $ref, 'in', $r->rp_amount, $r->store_name);
+            }
+        }
+
         // Newest first, so the report reads like a day book.
         usort($rows, function($a, $b){
             if($a->date === $b->date) return 0;

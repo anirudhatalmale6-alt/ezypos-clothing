@@ -5,7 +5,10 @@ $route['register'] = 'Register';
 $route['login'] = 'Userauthentication/index/login';
 
 //$route['cus-return'] = 'returns//'; our-cheque 
-$route['cus-payment'] = 'payments/CusPaymentGET/Payment-Customer';
+// Customer Payment: the new screen. The old one stays reachable for now.
+$route['cus-payment'] = 'CustomerReceipts/index';
+$route['cus-payment-old'] = 'payments/CusPaymentGET/Payment-Customer';
+$route['cus-receipt/(:num)'] = 'CustomerReceipts/receipt/$1';
 $route['sup-payment'] = 'payments/SupPaymentGET/Payment-Supplier';
 
 $route['show-all-grn'] = 'grns/showAllGRN/All-GRNs';
