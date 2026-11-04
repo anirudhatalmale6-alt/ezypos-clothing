@@ -804,6 +804,27 @@
                         dataType: "json",
                         success: function (grnid) {
                             grn_ID= grnid;
+                            <?php
+                            // Stock Transfer after GRN: offered here, never forced. Only
+                            // where there is somewhere to send the goods and the user may.
+                            $offerAllocate = feature_on('stocktransfer') && !single_location()
+                                && ($_SESSION['userrole'] == 1 || !empty($_SESSION['privStocktransfer']));
+                            if ($offerAllocate): ?>
+                           // The lines below are saved before this window can be
+                           // answered (every call is synchronous), so the allocation
+                           // screen opens on a complete GRN.
+                           swal({
+                                type: 'success',
+                                title: 'GRN Added',
+                                text: 'Send these goods to the branches now?',
+                                showCancelButton: true,
+                                confirmButtonText: 'Allocate to branches',
+                                cancelButtonText: 'Not now'
+                                }).then(function(res) {
+                                 if (res === true || (res && res.value)) { location.href = "<?php echo base_url('grn-allocate/'); ?>" + grn_ID; }
+                                 else { location.reload(); }
+                                }, function(){ location.reload(); });
+                            <?php else: ?>
                            swal({
                                 type: 'success',
                                 title: 'GRN Added',
@@ -811,6 +832,7 @@
                                 }).then(function() {
                                  location.reload();
                                 });  
+                            <?php endif; ?>
                         },
                         error: function (err) {
                          // alert("W saveGrn error started");

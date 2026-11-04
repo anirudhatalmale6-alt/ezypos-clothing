@@ -57,6 +57,30 @@ class StockTransfer extends CI_Controller {
         $this->load->view('templates/footerscripts');
     }
 
+    // ===================== STOCK TRANSFER AFTER GRN =====================
+
+    /** Allocate a GRN's goods to the branches (opened right after saving a GRN, or from All GRNs). */
+    public function allocate($grn_id = 0)
+    {
+        $a = $this->StockTransfer_model->grnAllocation($grn_id);
+        if (!$a) { show_404(); }
+        $data1 = array('title' => 'Allocate GRN', 'config' => $this->Configs_model->getConfigName());
+        $data = array('a' => $a, 'ready' => $this->StockTransfer_model->grnLinkReady());
+        $this->load->view('templates/header', $data1);
+        $this->load->view('transactions/grn_allocate', $data);
+        $this->load->view('templates/footer');
+        $this->load->view('templates/rightslidebar');
+        $this->load->view('templates/footerscripts');
+    }
+
+    public function saveAllocation()
+    {
+        $alloc = json_decode((string)$this->input->post('alloc'), true);
+        $res = $this->StockTransfer_model->allocateGrn(intval($this->input->post('grn_id')), is_array($alloc) ? $alloc : array(),
+                                                       $_SESSION['userid'], (string)$this->input->post('notes'));
+        echo json_encode(array('ok' => $res[0], 'msg' => $res[1], 'transfers' => $res[2]));
+    }
+
     // ===================== AJAX: GET ITEMS BY STORE =====================
 
     /**
@@ -105,6 +129,24 @@ class StockTransfer extends CI_Controller {
             $user_stores = $this->StockTransfer_model->getUserStoreIds($_SESSION['userid']);
             if (!in_array($from_store, $user_stores) || !in_array($to_store, $user_stores)) {
                 echo json_encode(array('status' => 'error', 'message' => 'You do not have access to one or both stores'));
+                return;
+            }
+        }
+
+        // The quantity check used to live only in the browser, and adding the
+        // same item twice merged the lines without checking again (30 + 30
+        // could leave a store holding 50). Check the merged totals here.
+        $want = array();
+        foreach ($items as $itm) {
+            $iid = intval($itm['item_id']);
+            $want[$iid] = (isset($want[$iid]) ? $want[$iid] : 0) + floatval($itm['qty']);
+        }
+        foreach ($want as $iid => $q) {
+            $have = $this->StockTransfer_model->stockAt($iid, $from_store);
+            if ($q <= 0 || $q > $have + 0.0001) {
+                $name = '';
+                foreach ($items as $itm) { if (intval($itm['item_id']) === $iid) { $name = $itm['item_name']; break; } }
+                echo json_encode(array('status' => 'error', 'message' => $name.': '.($q + 0).' requested, but the source store holds '.($have + 0).'.'));
                 return;
             }
         }

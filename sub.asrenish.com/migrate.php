@@ -448,6 +448,8 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
                                'Step 12 - the Super Admin feature switches (v19)'),
                 'v20' => array(MIGRATE_DIR . '/v20_super_admin_login.sql',
                                'Step 13 - the provider login (v20)'),
+                'v21' => array(MIGRATE_DIR . '/v21_batch_nov2026.sql',
+                               'Step 15 - supplier returns, customer payments, sales reps, transfer after GRN (v21)'),
         );
 
         if (array_key_exists($action, $files)) {
@@ -793,6 +795,18 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
       </p>
       <button type="submit">Create the provider login</button>
     </form>
+  </div>
+
+  <div class="box step">
+    <h3>Step 15 - November 2026 update</h3>
+    <p>New columns and tables for: supplier returns that keep their GRN (so they can be edited),
+       the new Customer Payment screen (payment methods, discount, receipts), sales representatives,
+       and stock transfer after GRN.</p>
+    <p class="note"><strong>Safe to run:</strong> it only adds. Nothing existing is changed or deleted, and
+       running it again reports "already exists" / "Duplicate column name" for what is already there,
+       which is harmless.</p>
+    <form method="post"><input type="hidden" name="action" value="v21">
+      <button type="submit">Run step 15</button></form>
   </div>
 
   <div class="box">

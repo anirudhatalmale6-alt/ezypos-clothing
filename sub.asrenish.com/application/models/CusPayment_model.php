@@ -187,11 +187,15 @@ class CusPayment_model extends CI_Model {
         }
     }
 
+    // A cheque taken on Customer Payment belongs to a customer, not to one
+    // bill (cus_cheque_saleid 0), so the customer is taken from the cheque
+    // itself when there is no bill. Joined through the bill only, those
+    // cheques were missing from these lists.
     public function getCusPendingCheque(){
         $str="SELECT cus_name,cus_cheque_id,cus_cheque_amount,cus_cheque_bank,cus_cheque_num,cus_cheque_date,cus_cheque_status 
         from ezy_pos_cus_cheque
         LEFT JOIN ezy_pos_sale ON ezy_pos_sale.sale_id=ezy_pos_cus_cheque.cus_cheque_saleid 
-        INNER JOIN ezy_pos_customers ON ezy_pos_customers.cus_id=ezy_pos_sale.sale_cus_id
+        INNER JOIN ezy_pos_customers ON ezy_pos_customers.cus_id=IFNULL(ezy_pos_sale.sale_cus_id, ezy_pos_cus_cheque.cheque_cus_id)
         WHERE cus_cheque_status=1
         ORDER BY cus_cheque_id";
         $query = $this->db->query($str);
@@ -240,7 +244,7 @@ class CusPayment_model extends CI_Model {
         $str="SELECT cus_name,cus_cheque_id,cus_cheque_amount,cus_cheque_bank,cus_cheque_num,cus_cheque_date,cus_cheque_status 
         from ezy_pos_cus_cheque
         LEFT JOIN ezy_pos_sale ON ezy_pos_sale.sale_id=ezy_pos_cus_cheque.cus_cheque_saleid 
-        INNER JOIN ezy_pos_customers ON ezy_pos_customers.cus_id=ezy_pos_sale.sale_cus_id
+        INNER JOIN ezy_pos_customers ON ezy_pos_customers.cus_id=IFNULL(ezy_pos_sale.sale_cus_id, ezy_pos_cus_cheque.cheque_cus_id)
         WHERE cus_cheque_date BETWEEN '".$from."' AND '".$to."'
         AND cus_cheque_status!=0
         ORDER BY cus_cheque_id";

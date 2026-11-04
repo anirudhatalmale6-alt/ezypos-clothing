@@ -124,6 +124,7 @@ $route['advance-exchanges'] = 'AdvanceReturn/listing';
 
 // Stock Transfers
 $route['stock-transfers'] = 'StockTransfer/index';
+$route['grn-allocate/(:num)'] = 'StockTransfer/allocate/$1';
 $route['supplier-returns'] = 'SupReturns/index';
 $route['sales-reps'] = 'SalesReps/index';
 $route['supplier-return'] = 'SupReturns/form';

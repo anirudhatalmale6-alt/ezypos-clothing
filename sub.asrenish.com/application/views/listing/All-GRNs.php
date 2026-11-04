@@ -229,6 +229,9 @@
                                     '<a href="javascript:;" style="margin-right:10px;" class="btn btn-sm btn-success show_items" data="'+data[i].grn_id+'"><i class="fa fa-info-circle"></i></a>'+
                                     '<a href="javascript:;" style="margin-right:10px;" class="btn btn-sm btn-info grn_edit" data="'+data[i].grn_id+'"><i class="fa fa-edit"></i></a>'+
                                     '<a href="<?php echo base_url("grn-print/"); ?>'+data[i].grn_id+'" target="_blank" style="margin-right:10px;" class="btn btn-sm btn-dark" title="Print GRN"><i class="fa fa-print"></i></a>'+
+                                    <?php if (feature_on('stocktransfer') && !single_location() && ($_SESSION['userrole'] == 1 || !empty($_SESSION['privStocktransfer']))): ?>
+                                    '<a href="<?php echo base_url("grn-allocate/"); ?>'+data[i].grn_id+'" style="margin-right:10px;" class="btn btn-sm btn-warning" title="Allocate to branches"><i class="fa fa-random"></i></a>'+
+                                    <?php endif; ?>
                                 '</td>'+
                             '</tr>';
                     }

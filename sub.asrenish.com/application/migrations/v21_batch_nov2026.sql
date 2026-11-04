@@ -68,3 +68,8 @@ CREATE TABLE IF NOT EXISTS ezy_pos_sales_reps (
     rep_createdat DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ALTER TABLE ezy_pos_sale ADD COLUMN sale_rep_id INT NOT NULL DEFAULT 0;
+
+-- Stock transfer after GRN: a transfer made from the Allocate GRN screen keeps
+-- the GRN it came from. What a GRN has allocated is counted from these
+-- transfers (rejected ones excluded); the GRN's own quantities never change.
+ALTER TABLE ezy_pos_stock_transfer ADD COLUMN transfer_grn_id INT NOT NULL DEFAULT 0;
