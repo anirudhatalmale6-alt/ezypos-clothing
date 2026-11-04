@@ -59,7 +59,7 @@
                     <p class="text-muted small m-t-10 m-b-0">
                         Sale and cost price are the final amount for one unit, after discounts.
                         <?php if ($type === 'stock'): ?>Sale price is the item's selling price; cost price is what one unit cost on its most recent GRN or production.
-                        <?php elseif ($type === 'sales'): ?>Sale price is the average actually charged in the period (bill and line discounts and promotions taken off); cost price is the most recent GRN or production cost.
+                        <?php elseif ($type === 'sales'): ?>Sale price is the average actually charged in the period (bill and line discounts and promotions taken off); cost price is the most recent GRN or production cost. Quantity Sold is net: sold on bills plus items handed out in exchanges, less everything returned in the period (Returns &amp; Exchanges, Customer Return, Advance Exchange).
                         <?php else: ?>Cost price is the average actually paid in the period (GRN discounts shared out); sale price is the item's selling price.<?php endif; ?>
                     </p>
                 </div>
@@ -77,6 +77,10 @@
                     <table id="ir_table" class="table table-striped table-bordered table-sm" width="100%">
                         <thead><tr><th>Item Code</th><th>Item Description</th><th>Category</th><th>Subcategory</th>
                             <th style="text-align:right;">Sale Price</th><th style="text-align:right;">Cost Price</th>
+                            <?php if ($type === 'sales'): ?>
+                            <th style="text-align:right;" title="On bills, plus items handed out in exchanges">Sold</th>
+                            <th style="text-align:right;" title="Returns & Exchanges, Customer Return and Advance Exchange">Returned</th>
+                            <?php endif; ?>
                             <th style="text-align:right;"><?php echo htmlspecialchars($qtyLabel); ?></th></tr></thead>
                         <tbody></tbody>
                     </table>
@@ -116,10 +120,11 @@ $(function(){
             $.each(rows, function(i, r){
                 h += '<tr><td>' + esc(r.code) + '</td><td>' + esc(r.name) + '</td><td>' + esc(r.category) + '</td><td>' + esc(r.subcategory) + '</td>'
                    + '<td style="text-align:right;">' + money(r.sale_price) + '</td><td style="text-align:right;">' + money(r.cost_price) + '</td>'
+                   + (TYPE === 'sales' ? '<td style="text-align:right;">' + qty(r.sold) + '</td><td style="text-align:right;">' + (r.returned ? '-' + qty(r.returned) : '0') + '</td>' : '')
                    + '<td style="text-align:right;">' + qty(r.qty) + '</td></tr>';
                 tq += r.qty;
                 tc += (TYPE === 'purchase' && r.net_value != null) ? r.net_value : r.qty * (r.cost_price || 0);
-                ts += (TYPE === 'sales' && r.net_value != null) ? r.net_value : r.qty * (r.sale_price || 0);
+                ts += r.qty * (r.sale_price || 0);
             });
             $('#ir_table tbody').html(h);
             $('#ir_c_items').text(rows.length); $('#ir_c_qty').text(qty(tq)); $('#ir_c_cost').text(money(tc)); $('#ir_c_sale').text(money(ts));

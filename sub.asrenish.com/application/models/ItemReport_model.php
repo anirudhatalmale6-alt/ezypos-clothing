@@ -124,9 +124,22 @@ class ItemReport_model extends CI_Model {
     }
 
     /* ------------------------------------------------------------ sales */
+    /**
+     * Quantity Sold is net: sold on bills, plus what was handed out in an
+     * exchange (Returns & Exchanges and Advance Exchange keep those outside
+     * the bill lines), minus what came back - on the new Returns screen, the
+     * older Customer Return popup and Advance Exchange. Each movement counts on
+     * its own date and at its own store; with a sales rep chosen, returns and
+     * exchanges count against the rep of the bill they came from.
+     * Sale price stays the average actually charged on the bills.
+     */
     public function sales($f)
     {
-        $bind = array($f['from'], $f['to']);
+        $from = $f['from']; $to = $f['to'];
+        $fromTs = $from.' 00:00:00'; $toTs = $to.' 23:59:59';
+        $store = isset($f['store']) ? $f['store'] : null;
+        $rep = (!empty($f['rep']) && $f['rep'] !== 'all' && $this->db->field_exists('sale_rep_id', 'ezy_pos_sale')) ? intval($f['rep']) : 0;
+
         $hasType  = $this->db->field_exists('sale_discount_type', 'ezy_pos_sale');
         $hasPromo = $this->db->field_exists('sale_promo_discount', 'ezy_pos_sale');
         $billDisc = $hasType
@@ -135,25 +148,85 @@ class ItemReport_model extends CI_Model {
         $factor = "(CASE WHEN s.sale_subtotal > 0
                          THEN GREATEST(0, s.sale_subtotal - ".$billDisc.($hasPromo ? " - IFNULL(s.sale_promo_discount, 0)" : "").") / s.sale_subtotal
                          ELSE 1 END)";
-        $sql = "SELECT ".$this->_base().",
-                       SUM(si.saleitem_quantity) AS qty,
-                       SUM(si.saleitem_total * ".$factor.") AS net_value,
-                       lc.unit_cost AS cost_price
-                FROM ezy_pos_sale_item si
-                JOIN ezy_pos_sale s ON s.sale_id = si.saleitem_sale_id
-                JOIN ezy_pos_items i ON i.itm_id = si.saleitem_item_id ".$this->_catJoins()."
-                ".$this->_latestCostJoin()."
-                WHERE s.sale_status = '1' AND s.sale_date BETWEEN ? AND ?"
-                .$this->_stores('s.sale_location', isset($f['store']) ? $f['store'] : null)
-                .$this->_items($f, $bind);
-        if ( ! empty($f['rep']) && $f['rep'] !== 'all' && $this->db->field_exists('sale_rep_id', 'ezy_pos_sale')) {
-            $sql .= " AND s.sale_rep_id = ?"; $bind[] = intval($f['rep']);
+
+        // Each part: item, sold on bills, their value, exchanged out, returned.
+        $parts = array(); $bind = array();
+        $repSql = function($col) use ($rep) { return $rep ? " AND $col = ".$rep : ""; };
+
+        $parts[] = "SELECT si.saleitem_item_id AS item_id, si.saleitem_quantity AS sold,
+                           si.saleitem_total * ".$factor." AS sold_value, 0 AS exch, 0 AS ret
+                    FROM ezy_pos_sale_item si JOIN ezy_pos_sale s ON s.sale_id = si.saleitem_sale_id
+                    WHERE s.sale_status = '1' AND s.sale_date BETWEEN ? AND ?"
+                    .$this->_stores('s.sale_location', $store).$repSql('s.sale_rep_id');
+        array_push($bind, $from, $to);
+
+        if ($this->db->table_exists('ezy_pos_returns') && $this->db->table_exists('ezy_pos_return_items')) {
+            $rStore = $this->db->field_exists('ret_store_id', 'ezy_pos_returns')
+                    ? "COALESCE(NULLIF(r.ret_store_id, 0), rs.sale_location)" : "rs.sale_location";
+            $parts[] = "SELECT ri.ri_item_id, 0, 0, 0, ri.ri_qty
+                        FROM ezy_pos_return_items ri JOIN ezy_pos_returns r ON r.ret_id = ri.ri_return_id
+                        LEFT JOIN ezy_pos_sale rs ON rs.sale_id = r.ret_sale_id
+                        WHERE r.ret_status = 1 AND r.ret_created_at BETWEEN ? AND ?"
+                        .$this->_stores($rStore, $store).$repSql('rs.sale_rep_id');
+            array_push($bind, $fromTs, $toTs);
+            if ($this->db->table_exists('ezy_pos_exchange_items')) {
+                $parts[] = "SELECT ei.ei_item_id, 0, 0, ei.ei_qty, 0
+                            FROM ezy_pos_exchange_items ei JOIN ezy_pos_returns r ON r.ret_id = ei.ei_return_id
+                            LEFT JOIN ezy_pos_sale rs ON rs.sale_id = r.ret_sale_id
+                            WHERE r.ret_status = 1 AND r.ret_created_at BETWEEN ? AND ?"
+                            .$this->_stores($rStore, $store).$repSql('rs.sale_rep_id');
+                array_push($bind, $fromTs, $toTs);
+            }
         }
-        $sql .= " GROUP BY i.itm_id, i.itm_code, i.itm_name, c.cat_name, sub_cat_name, lc.unit_cost
-                  HAVING SUM(si.saleitem_quantity) <> 0
-                  ORDER BY qty DESC, i.itm_name";
+        if ($this->db->table_exists('ezy_pos_cus_return') && $this->db->table_exists('ezy_pos_cus_return_item')) {
+            // The older popup only knows its bill once v13 added cusrtrn_saleID.
+            $linked = $this->db->field_exists('cusrtrn_saleID', 'ezy_pos_cus_return');
+            $parts[] = "SELECT cri.retrn_itm_itmID, 0, 0, 0, cri.retrn_itm_rQty
+                        FROM ezy_pos_cus_return_item cri JOIN ezy_pos_cus_return cr ON cr.cusrtrn_id = cri.retrn_itm_retrnID
+                        ".($linked ? "LEFT JOIN ezy_pos_sale cs ON cs.sale_id = cr.cusrtrn_saleID" : "")."
+                        WHERE cr.cusrtrn_status = 1 AND cr.cusrtrn_createdat BETWEEN ? AND ?"
+                        .($linked ? $this->_stores('cs.sale_location', $store).$repSql('cs.sale_rep_id')
+                                  : (($store && $store !== 'all') || $rep || $this->session->userdata('userrole') != 1 ? " AND 1 = 0" : ""));
+            array_push($bind, $fromTs, $toTs);
+        }
+        if ($this->db->table_exists('ezy_pos_adv_return')) {
+            $advRep = $this->db->field_exists('adv_sale_id', 'ezy_pos_adv_return');
+            $advJoin = $advRep ? "LEFT JOIN ezy_pos_sale asl ON asl.sale_id = a.adv_sale_id" : "";
+            if ($this->db->table_exists('ezy_pos_adv_return_item')) {
+                $parts[] = "SELECT ai.advi_item_id, 0, 0, 0, ai.advi_qty
+                            FROM ezy_pos_adv_return_item ai JOIN ezy_pos_adv_return a ON a.adv_id = ai.advi_adv_id ".$advJoin."
+                            WHERE a.adv_status = 1 AND a.adv_created_at BETWEEN ? AND ?"
+                            .$this->_stores('a.adv_store_id', $store).($advRep ? $repSql('asl.sale_rep_id') : ($rep ? " AND 1 = 0" : ""));
+                array_push($bind, $fromTs, $toTs);
+            }
+            if ($this->db->table_exists('ezy_pos_adv_exchange_item')) {
+                $parts[] = "SELECT ae.adve_item_id, 0, 0, ae.adve_qty, 0
+                            FROM ezy_pos_adv_exchange_item ae JOIN ezy_pos_adv_return a ON a.adv_id = ae.adve_adv_id ".$advJoin."
+                            WHERE a.adv_status = 1 AND a.adv_created_at BETWEEN ? AND ?"
+                            .$this->_stores('a.adv_store_id', $store).($advRep ? $repSql('asl.sale_rep_id') : ($rep ? " AND 1 = 0" : ""));
+                array_push($bind, $fromTs, $toTs);
+            }
+        }
+
+        $sql = "SELECT ".$this->_base().",
+                       SUM(m.sold) AS bill_qty, SUM(m.sold_value) AS bill_value,
+                       SUM(m.exch) AS exch_qty, SUM(m.ret) AS ret_qty,
+                       lc.unit_cost AS cost_price
+                FROM (".implode(" UNION ALL ", $parts).") m
+                JOIN ezy_pos_items i ON i.itm_id = m.item_id ".$this->_catJoins()."
+                ".$this->_latestCostJoin()."
+                WHERE 1 = 1".$this->_items($f, $bind)."
+                GROUP BY i.itm_id, i.itm_code, i.itm_name, c.cat_name, sub_cat_name, lc.unit_cost
+                HAVING SUM(m.sold) <> 0 OR SUM(m.exch) <> 0 OR SUM(m.ret) <> 0";
         $rows = $this->db->query($sql, $bind)->result();
-        foreach ($rows as $r) { $r->sale_price = floatval($r->qty) != 0 ? floatval($r->net_value) / floatval($r->qty) : 0; }
+        foreach ($rows as $r) {
+            $r->sold      = floatval($r->bill_qty) + floatval($r->exch_qty);
+            $r->returned  = floatval($r->ret_qty);
+            $r->qty       = $r->sold - $r->returned;
+            $r->sale_price = floatval($r->bill_qty) != 0 ? floatval($r->bill_value) / floatval($r->bill_qty) : null;
+            $r->net_value = null;
+        }
+        usort($rows, function($a, $b){ return ($b->qty == $a->qty) ? strcmp($a->itm_name, $b->itm_name) : ($b->qty > $a->qty ? 1 : -1); });
         return $this->_round($rows);
     }
 
@@ -193,7 +266,9 @@ class ItemReport_model extends CI_Model {
                 'cost_price' => $r->cost_price === null ? null : round(floatval($r->cost_price), 2),
                 'qty' => round(floatval($r->qty), 2),
                 // The period's exact money, so totals are not built from rounded unit prices.
-                'net_value' => isset($r->net_value) ? round(floatval($r->net_value), 2) : null
+                'net_value' => isset($r->net_value) ? round(floatval($r->net_value), 2) : null,
+                'sold'      => isset($r->sold) ? round(floatval($r->sold), 2) : null,
+                'returned'  => isset($r->returned) ? round(floatval($r->returned), 2) : null
             );
         }
         return $out;
