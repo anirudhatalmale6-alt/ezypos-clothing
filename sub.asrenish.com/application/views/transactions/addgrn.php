@@ -153,6 +153,7 @@
                                                 name="itemprice" id="itemprice" required data-parsley-pattern="^[0-9]*\.[0-9]{2}$"> -->
                                             <input class="form-control DecimalFix" type="text" placeholder="Enter Price 0.00" 
                                                 name="itemprice" id="itemprice" required data-parsley-type="number" data-parsley-errors-messages-disabled> 
+                                            <small class="text-muted" id="itemprice_hint"></small>
                                         </div>
                                     </div>
 
@@ -549,7 +550,7 @@
                         calSubtotal();
                         $("#grnitem-auto").val("");
                         $("#itemquantity").val("");
-                        $("#itemprice").val("");
+                        $("#itemprice").val(""); $('#itemprice_hint').text('');
                     }
                     else{
                         checkNewItem=1;
@@ -573,7 +574,7 @@
                     calSubtotal();
                     $("#grnitem-auto").val("");
                     $("#itemquantity").val("");
-                    $("#itemprice").val("");
+                    $("#itemprice").val(""); $('#itemprice_hint').text('');
                     
                 }  
                 }            
@@ -1234,7 +1235,21 @@
         select: function(event, ui) {
                 event.preventDefault();
                 $("#grnitem-auto").val(ui.item.label);
-                $('#grnitem-id').val(ui.item.value);             
+                $('#grnitem-id').val(ui.item.value);
+                // Offer the price it was last bought at. It stays editable -
+                // change it when the supplier's price has changed.
+                $('#itemprice_hint').text('');
+                $.getJSON("<?php echo base_url('grns/lastPrice'); ?>", {item_id: ui.item.value}, function(r){
+                    var sell = (r.selling != null) ? ' | Selling ' + parseFloat(r.selling).toFixed(2) : '';
+                    if(r.found){
+                        $('#itemprice').val(parseFloat(r.price).toFixed(2));
+                        $('#itemprice_hint').text('Last bought at ' + parseFloat(r.price).toFixed(2) + ' on ' + r.grn
+                            + (r.date ? ' (' + r.date + ')' : '') + sell);
+                    } else {
+                        $('#itemprice').val('');
+                        $('#itemprice_hint').text('Not bought before - enter the price' + sell);
+                    }
+                });
             },      
     });
 

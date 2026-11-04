@@ -1,4 +1,4 @@
-<div class="content">
+<div class="content wrapper">
     <div class="container-fluid">
 
     <?php if(!$ready): ?>
@@ -344,7 +344,19 @@ $(function(){
 
     // ---------- Save ----------
     $('#btn_save_prod').click(saveProduction);
-    $('#btn_new_prod').click(function(){ resetProductionForm(); });
+    // A new production on the same gate pass. The form used to clear but the
+    // Production ID box kept the previous number, so it looked as if the
+    // button did nothing. Fetch the next number and say so.
+    $('#btn_new_prod').click(function(){
+        if(!GP.id) return;
+        $.get(MBASE+'manufacturing/getGatePass/'+GP.id, function(res){
+            var r = JSON.parse(res);
+            resetProductionForm(r.success ? r.nextProd : '');
+            $('.prod-pick').removeClass('active');
+            $('#raw_search').focus();
+            swal({type:'info', title:'New production', text:'Enter the fabric and outputs for '+(r.nextProd||'the new production')+', then press Save Production.', timer:2500, showConfirmButton:false});
+        });
+    });
 
     // ---------- Dispatch ----------
     $('#btn_dispatch').click(function(){

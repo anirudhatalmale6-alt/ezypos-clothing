@@ -355,7 +355,7 @@
                                     <?php } if($canStocktransfer){ ?>
                                     <li><a href="<?php echo base_url('stock-transfers')?>"><i class="fa fa-exchange"></i> Stock Transfers</a></li>
                                     <?php } if($canSupreturn){ ?>
-                                    <li><a href="javascript:;" id="Sup_Rtn_link"><i class="fa fa-reply"></i> Supplier Return</a></li>
+                                    <li><a href="<?php echo base_url('supplier-returns')?>"><i class="fa fa-reply"></i> Supplier Returns</a></li>
                                     <?php } ?>
                                 </ul>
                             </li>

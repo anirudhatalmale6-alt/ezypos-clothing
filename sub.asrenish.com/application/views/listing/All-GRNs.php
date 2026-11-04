@@ -52,7 +52,8 @@
                                                     <thead>
                                                         <tr>
                                                             <th>Item</th>
-                                                            <th>Price</th>
+                                                            <th>Cost Price</th>
+                                                            <th>Selling Price</th>
                                                             <th>Quantity</th>
                                                             <th>Discount</th>
                                                             <th>Total</th>
@@ -111,6 +112,7 @@
                                             <tr>
                                                 <th>Item</th>
                                                 <th style="width:110px;">Cost Price</th>
+                                                <th style="width:100px;text-align:right;">Selling Price</th>
                                                 <th style="width:90px;">Qty</th>
                                                 <th style="width:100px;">Discount</th>
                                                 <th style="width:110px;text-align:right;">Total</th>
@@ -125,6 +127,7 @@
                                                     <input type="hidden" id="grnEditItemId">
                                                 </td>
                                                 <td><input class="form-control form-control-sm" type="number" step="0.01" id="grnEditNewPrice" placeholder="0.00"></td>
+                                                <td style="text-align:right;" id="grnEditNewSell" class="text-muted"></td>
                                                 <td><input class="form-control form-control-sm" type="number" step="0.01" id="grnEditNewQty" placeholder="0"></td>
                                                 <td><input class="form-control form-control-sm" type="number" step="0.01" id="grnEditNewDis" value="0"></td>
                                                 <td></td>
@@ -261,6 +264,7 @@
                             rows+= '<tr>'+
                                         '<td>'+res[y].itm_name+'-'+res[y].itm_code+'</td>'+
                                         '<td style="Text-align: right;">'+res[y].grnitm_price+'</td>'+
+                                        '<td style="Text-align: right;">'+(res[y].itm_sellingprice != null ? parseFloat(res[y].itm_sellingprice).toFixed(2) : '-')+'</td>'+
                                         '<td style="Text-align: right;">'+res[y].grnitm_quantity+'</td>'+
                                         '<td style="Text-align: right;">'+res[y].grnitm_discount+'</td>'+
                                         '<td style="Text-align: right;">'+res[y].grnitm_total+'</td>'+
@@ -282,11 +286,12 @@
 
         function nz(v){ v = parseFloat(v); return isNaN(v) ? 0 : v; }
 
-        function grnEditRowHtml(gid, itmid, name, price, qty, dis){
+        function grnEditRowHtml(gid, itmid, name, price, qty, dis, sell){
             var total = (nz(price)*nz(qty) - nz(dis)); if(total<0){total=0;}
             return '<tr data-gid="'+gid+'" data-itmid="'+itmid+'">'+
                 '<td>'+name+'</td>'+
                 '<td><input type="number" step="0.01" class="form-control form-control-sm grn-ln-price" value="'+nz(price)+'"></td>'+
+                '<td style="text-align:right;" class="text-muted">'+(sell != null && sell !== '' ? nz(sell).toFixed(2) : '-')+'</td>'+
                 '<td><input type="number" step="0.01" class="form-control form-control-sm grn-ln-qty" value="'+nz(qty)+'"></td>'+
                 '<td><input type="number" step="0.01" class="form-control form-control-sm grn-ln-dis" value="'+nz(dis)+'"></td>'+
                 '<td style="text-align:right;" class="grn-ln-total">'+total.toFixed(2)+'</td>'+
@@ -352,7 +357,7 @@
                         var rows = '';
                         for(var i=0;i<res.length;i++){
                             var nm = (res[i].itm_name||'')+' - '+(res[i].itm_code||'');
-                            rows += grnEditRowHtml(res[i].grnitm_id, res[i].grnitm_itemid, nm, res[i].grnitm_price, res[i].grnitm_quantity, res[i].grnitm_discount);
+                            rows += grnEditRowHtml(res[i].grnitm_id, res[i].grnitm_itemid, nm, res[i].grnitm_price, res[i].grnitm_quantity, res[i].grnitm_discount, res[i].itm_sellingprice);
                         }
                         $('#grnEditItemsBody').html(rows);
                         grnEditRecalc();
@@ -384,6 +389,12 @@
                 event.preventDefault();
                 $('#grnEditItemAuto').val(ui.item.label);
                 $('#grnEditItemId').val(ui.item.value);
+                // Last purchase price as the starting cost (still editable),
+                // and the item's selling price for reference.
+                $.getJSON("<?php echo base_url('grns/lastPrice'); ?>", {item_id: ui.item.value}, function(r){
+                    if(r.found && $('#grnEditNewPrice').val() === ''){ $('#grnEditNewPrice').val(r.price); }
+                    $('#grnEditNewSell').text(r.selling != null ? nz(r.selling).toFixed(2) : '').data('sell', r.selling);
+                });
             }
         });
         $('#btnAddGrnEditItem').click(function(){
@@ -394,8 +405,8 @@
             var dis = nz($('#grnEditNewDis').val());
             if(itmid<=0 || !name){ alert('Pick an item from the list first.'); return; }
             if(qty<=0){ alert('Enter a quantity greater than 0.'); return; }
-            $('#grnEditItemsBody').append(grnEditRowHtml(0, itmid, name, price, qty, dis));
-            $('#grnEditItemAuto').val(''); $('#grnEditItemId').val('');
+            $('#grnEditItemsBody').append(grnEditRowHtml(0, itmid, name, price, qty, dis, $('#grnEditNewSell').data('sell')));
+            $('#grnEditItemAuto').val(''); $('#grnEditItemId').val(''); $('#grnEditNewSell').text('').data('sell', null);
             $('#grnEditNewPrice').val(''); $('#grnEditNewQty').val(''); $('#grnEditNewDis').val('0');
             grnEditRecalc();
         });

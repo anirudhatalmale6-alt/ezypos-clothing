@@ -75,7 +75,7 @@ class Grns_model extends CI_Model {
     }
     public function loadGrnItems(){
         $grndid = $this->input->post('id');
-        $str ="SELECT grnitm_price,grnitm_quantity,grnitm_discount,grnitm_total,itm_name,itm_code
+        $str ="SELECT grnitm_price,grnitm_quantity,grnitm_discount,grnitm_total,itm_name,itm_code,itm_sellingprice
         FROM ezy_pos_grn_item
         LEFT JOIN ezy_pos_items ON ezy_pos_items.itm_id=ezy_pos_grn_item.grnitm_itemid
         WHERE grnitm_grn_id='".$grndid."' ORDER BY grnitm_id";
@@ -102,7 +102,7 @@ class Grns_model extends CI_Model {
     }
     // GRN line items for the print view (single GRN by id)
     public function getGrnItemsById($id){
-        $str ="SELECT grnitm_price,grnitm_quantity,grnitm_discount,grnitm_total,itm_name,itm_code
+        $str ="SELECT grnitm_price,grnitm_quantity,grnitm_discount,grnitm_total,itm_name,itm_code,itm_sellingprice
                FROM ezy_pos_grn_item
                LEFT JOIN ezy_pos_items ON ezy_pos_items.itm_id=ezy_pos_grn_item.grnitm_itemid
                WHERE grnitm_grn_id=? ORDER BY grnitm_id";
@@ -345,9 +345,23 @@ class Grns_model extends CI_Model {
     }
 
     // Items of a GRN including their row id + item id (for the editable modal)
+    /**
+     * What an item cost the last time it was received: the newest GRN line
+     * for it. Offered as the price when the item is entered on a new GRN.
+     */
+    public function lastPurchase($itemId){
+        $str = "SELECT gi.grnitm_price, gi.grnitm_quantity, g.grn_id, g.grn_code, g.grn_date, s.sup_name
+                FROM ezy_pos_grn_item gi
+                JOIN ezy_pos_grns g ON g.grn_id = gi.grnitm_grn_id AND g.grn_status = 1
+                LEFT JOIN ezy_pos_suppliers s ON s.sup_id = g.grn_supplier_id
+                WHERE gi.grnitm_itemid = ?
+                ORDER BY g.grn_date DESC, gi.grnitm_id DESC LIMIT 1";
+        return $this->db->query($str, array(intval($itemId)))->row();
+    }
+
     public function getGrnItemsForEdit($grnid){
         $str = "SELECT gi.grnitm_id, gi.grnitm_itemid, gi.grnitm_price, gi.grnitm_quantity, gi.grnitm_discount, gi.grnitm_total,
-                i.itm_name, i.itm_code
+                i.itm_name, i.itm_code, i.itm_sellingprice
                 FROM ezy_pos_grn_item gi
                 LEFT JOIN ezy_pos_items i ON i.itm_id=gi.grnitm_itemid
                 WHERE gi.grnitm_grn_id=? ORDER BY gi.grnitm_id";

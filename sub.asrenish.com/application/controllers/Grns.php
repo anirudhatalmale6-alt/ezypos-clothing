@@ -127,6 +127,20 @@ class Grns extends CI_Controller {
         }
 
         // Item 2: editable GRN item list for the edit modal
+        /** Last purchase price of an item, plus its selling price, for the GRN screen. */
+        public function lastPrice(){
+                $id = intval($this->input->get('item_id'));
+                $last = $this->Grns_model->lastPurchase($id);
+                $item = $this->db->select('itm_sellingprice')->get_where('ezy_pos_items', array('itm_id' => $id))->row();
+                echo json_encode(array(
+                        'found'   => $last ? true : false,
+                        'price'   => $last ? (float)$last->grnitm_price : null,
+                        'grn'     => $last ? ($last->grn_code ? $last->grn_code : '#'.$last->grn_id) : null,
+                        'date'    => $last ? substr($last->grn_date, 0, 10) : null,
+                        'supplier'=> $last ? $last->sup_name : null,
+                        'selling' => $item ? (float)$item->itm_sellingprice : null
+                ));
+        }
         public function grnItemsForEdit(){
                 $id = intval($this->input->post('id'));
                 echo json_encode($this->Grns_model->getGrnItemsForEdit($id));

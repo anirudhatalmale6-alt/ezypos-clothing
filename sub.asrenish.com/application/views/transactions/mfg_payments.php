@@ -1,4 +1,4 @@
-<div class="content">
+<div class="content wrapper">
   <div class="container-fluid">
     <div class="row" style="margin-top:15px;">
       <div class="col-lg-8 offset-lg-2">

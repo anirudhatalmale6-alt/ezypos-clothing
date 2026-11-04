@@ -121,6 +121,9 @@ $route['advance-exchanges'] = 'AdvanceReturn/listing';
 
 // Stock Transfers
 $route['stock-transfers'] = 'StockTransfer/index';
+$route['supplier-returns'] = 'SupReturns/index';
+$route['supplier-return'] = 'SupReturns/form';
+$route['supplier-return/(:num)'] = 'SupReturns/form/$1';
 
 // New Reports
 $route['cash-flow-report'] = 'reports/cash_flow_report/cash-flow-report';
