@@ -21,55 +21,58 @@ class CurQtyWithGrn extends CI_Controller {
                 echo json_encode($cur_id);
         }
         
+        /**
+         * A sale takes its quantity out of the GRN batches, oldest first, and
+         * whatever the shop does not have is recorded as pending GRN.
+         *
+         * "What the shop has" is the stock of ALL stores together - one pool,
+         * as it was before stock was split per branch in March. Since then this
+         * looked only at the selling branch, so goods received into the main
+         * store or the warehouse but not yet transferred made every branch sale
+         * go fully pending, while the stock sat there unused (5 in stock, sell
+         * 10, pending showed 10 instead of 5). Each branch's own stock figure
+         * is still kept per branch; only the pending calculation is shop-wide.
+         *
+         * The loop is bounded: it used to spin for ever when the stock figure
+         * said there was enough but the batches had run out.
+         */
         public function ChangeQtyToSale(){
-            $saleID = $this->input->post('saleID');
-            $itmID = $this->input->post('itmid');
-            $saleQty = $this->input->post('qty');
-            $storeid = $this->input->post('storeid');
-            if($storeid == '' || $storeid == null){ $storeid = 0; }
-            $stockQty = $this->Stocks_model->getStockItmQty();
+            $saleID  = $this->input->post('saleID');
+            $itmID   = $this->input->post('itmid');
+            $saleQty = floatval($this->input->post('qty'));
 
-            if ($stockQty >= $saleQty) {
-                $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID, $storeid);
+            $row = $this->db->select_sum('stock_qty')->where('stock_itm_id', $itmID)->get('ezy_pos_stock')->row();
+            $stockQty = ($row && $row->stock_qty) ? floatval($row->stock_qty) : 0;
 
-                if ($cQty > 0) {
-                    $dif = $cQty - $saleQty;
-                    while ($cQty < $saleQty) {
-                        $cur_id_of_updated_row = $this->CurQtyWithGrn_model->updateOldestQtyToZero($itmID, $storeid);
-                        $saleQty -= $cQty;
-                        $res = $this->CurQtyWithGrn_model->addToGrnSale($cur_id_of_updated_row, $cQty);
-                        $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID, $storeid);
-                        $dif = $cQty - $saleQty;
-                    }
-                    if ($cQty >= $saleQty) {
-                        $cur_id_of_updated_row = $this->CurQtyWithGrn_model->updateOldestQtyToValue($dif, $itmID, $storeid);
-                        $res = $this->CurQtyWithGrn_model->addToGrnSale($cur_id_of_updated_row, $saleQty);
-                        echo json_encode($res);
-                    }
+            // What can come out of stock, and what is short.
+            $fromStock = max(0, min($saleQty, $stockQty));
+            $short     = round($saleQty - $fromStock, 2);
+
+            $take = $fromStock;
+            $guard = 0;
+            while ($take > 0.0001 && $guard++ < 1000) {
+                $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID, 0);
+                if ($cQty === false || floatval($cQty) <= 0) { break; }   // batches ran out before the stock figure did
+                $cQty = floatval($cQty);
+                if ($cQty <= $take) {
+                    $curId = $this->CurQtyWithGrn_model->updateOldestQtyToZero($itmID, 0);
+                    $used = $cQty;
                 } else {
-                    echo json_encode("No items in stock");
+                    $curId = $this->CurQtyWithGrn_model->updateOldestQtyToValue($cQty - $take, $itmID, 0);
+                    $used = $take;
                 }
-            } else if ($stockQty < $saleQty) {
-                if ($stockQty > 0) {
-                    $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID, $storeid);
-
-                    while ($cQty > 0) {
-                        $cur_id_of_updated_row = $this->CurQtyWithGrn_model->updateOldestQtyToZero($itmID, $storeid);
-                        $res1 = $this->CurQtyWithGrn_model->addToGrnSale($cur_id_of_updated_row, $cQty);
-                        $cQty = $this->CurQtyWithGrn_model->getOldStockQty($itmID, $storeid);
-                    }
-                    $QtyDif = $saleQty - $stockQty;
-                    $res = $this->InsufficentStockSale_model->insertInsuffiSaleItem($itmID, $QtyDif, $saleID);
-                    echo json_encode("partial qty Sold by external support stock");
-                } else {
-                    $qtyDif = $saleQty;
-                    $res = $this->InsufficentStockSale_model->insertInsuffiSaleItem($itmID, $qtyDif, $saleID);
-                    echo json_encode("fully qty Sold by external support stock");
-                }
-            } else {
-                echo json_encode(false);
+                if ( ! $curId) { break; }
+                $this->CurQtyWithGrn_model->addToGrnSale($curId, $used);
+                $take -= $used;
             }
-}
+
+            if ($short > 0) {
+                $this->InsufficentStockSale_model->insertInsuffiSaleItem($itmID, $short, $saleID);
+                echo json_encode($fromStock > 0 ? "partial qty Sold by external support stock" : "fully qty Sold by external support stock");
+            } else {
+                echo json_encode(true);
+            }
+        }
 
         
         public function ChangeQtyToCusReturn(){
