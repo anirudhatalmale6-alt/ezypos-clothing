@@ -169,9 +169,25 @@
                 <div class="card-box">
                     <table class="table table-sm">
                         <tr><td>Coming back</td><td class="text-right">LKR <span id="sum_ret">0.00</span></td></tr>
+                        <tr>
+                            <td style="padding-right:4px;">
+                                <small class="text-muted d-block">Discount on goods coming back</small>
+                                <div class="input-group input-group-sm">
+                                    <input type="number" step="0.01" min="0" class="form-control"
+                                           id="ar_rdisc_value" placeholder="Discount" value="0">
+                                    <select class="form-control" id="ar_rdisc_type" style="max-width:86px;">
+                                        <option value="flat">Flat (LKR)</option>
+                                        <option value="percentage">%</option>
+                                    </select>
+                                </div>
+                                <small class="text-muted" id="ar_rdisc_note"></small>
+                            </td>
+                            <td class="text-right">- LKR <span id="sum_rdisc">0.00</span></td>
+                        </tr>
                         <tr><td>Going out</td><td class="text-right">LKR <span id="sum_exc">0.00</span></td></tr>
                         <tr>
                             <td style="padding-right:4px;">
+                                <small class="text-muted d-block">Discount on goods going out</small>
                                 <div class="input-group input-group-sm">
                                     <input type="number" step="0.01" min="0" class="form-control"
                                            id="ar_disc_value" placeholder="Discount" value="0">
@@ -415,10 +431,20 @@ $(function(){
     wireEdit('ax', excRows);
 
     // ------------------------------------------------------------- the money
-    // The discount is taken off what the customer is TAKING AWAY, not off
-    // what they brought back - a shop does not discount its own refund. So a
-    // straight refund is never reduced by it, and a percentage is a percentage
-    // of the new goods.
+    // Two discounts, each on its own side:
+    //   going out    - a discount given on the goods the customer takes away;
+    //   coming back  - for goods that were bought at a discount, so the refund
+    //                  is what the customer actually paid, not the list price.
+    // A percentage is a percentage of that side only, and neither can be worth
+    // more than the goods it comes off.
+    function retDiscountAmount(){
+        var base = sumRows(retRows);
+        var v = parseFloat($('#ar_rdisc_value').val());
+        if(isNaN(v) || v <= 0) return 0;
+        var d = ($('#ar_rdisc_type').val() === 'percentage') ? (base * v / 100) : v;
+        if(d > base) d = base;
+        return +d.toFixed(2);
+    }
     function discountAmount(){
         var base = sumRows(excRows);
         var v = parseFloat($('#ar_disc_value').val());
@@ -427,7 +453,7 @@ $(function(){
         if(d > base) d = base;          // never more than the goods are worth
         return +d.toFixed(2);
     }
-    function net(){ return +(sumRows(excRows) - discountAmount() - sumRows(retRows)).toFixed(2); }
+    function net(){ return +((sumRows(excRows) - discountAmount()) - (sumRows(retRows) - retDiscountAmount())).toFixed(2); }
     function paidIn(){
         var t=0; for(var i=0;i<payRows.length;i++){ if(payRows[i].direction==='in') t+=payRows[i].amount; }
         return +t.toFixed(2);
@@ -442,6 +468,7 @@ $(function(){
         $('#sum_ret').text(money(sumRows(retRows)));
         $('#sum_exc').text(money(sumRows(excRows)));
         $('#sum_disc').text(money(discountAmount()));
+        $('#sum_rdisc').text(money(retDiscountAmount()));
         $('#sum_net').text(money(Math.abs(n)));
 
         if(n > 0.004){
@@ -468,7 +495,7 @@ $(function(){
     $('#ar_mode').change(recalc);
     // Retyping the discount changes what is owed, so the payments already
     // entered are no longer right. Say so rather than letting the two drift.
-    $('#ar_disc_value, #ar_disc_type').on('input change', function(){
+    $('#ar_disc_value, #ar_disc_type, #ar_rdisc_value, #ar_rdisc_type').on('input change', function(){
         recalc();
         if(payRows.length > 0){
             $('#ar_disc_note').show();
@@ -609,6 +636,15 @@ $(function(){
                                   .css('color','#2e7d32');
                 if(res.sale.sale_cus_id){ $('#ar_customer').val(res.sale.sale_cus_id); }
                 if(res.sale.sale_location){ $('#ar_store').val(res.sale.sale_location); }
+                // The bill's own discount comes off the refund the same way.
+                var pct = parseFloat(res.sale.bill_disc_pct) || 0;
+                if(pct > 0){
+                    $('#ar_rdisc_type').val('percentage'); $('#ar_rdisc_value').val(pct);
+                    $('#ar_rdisc_note').text('The bill had ' + pct + '% off - taken off the refund too.');
+                } else {
+                    $('#ar_rdisc_note').text('');
+                }
+                recalc();
                 if(res.sale.items && res.sale.items.length){
                     var html = '', mapped = [];
                     for(var i=0;i<res.sale.items.length;i++){
@@ -616,8 +652,10 @@ $(function(){
                         html += '<a href="javascript:;" class="list-group-item list-group-item-action pick" data-i="'+i+'">'
                              +  '<strong>'+esc(it.itm_code)+'</strong> '+esc(it.itm_name)
                              +  ' <span class="pull-right">sold '+money(it.saleitem_quantity)+' @ '+money(it.saleitem_price)+'</span></a>';
+                        // What the customer paid for one: the line after its own discount.
                         mapped.push({ itm_id: it.saleitem_item_id, itm_code: it.itm_code,
-                                      itm_name: it.itm_name, itm_sellingprice: it.saleitem_price });
+                                      itm_name: it.itm_name,
+                                      itm_sellingprice: (it.unit_net != null ? it.unit_net : it.saleitem_price) });
                     }
                     $('#ar_search_results').html(html).data('rows', mapped).data('target', retRows).show();
                 }
@@ -673,6 +711,8 @@ $(function(){
                     refund_mode: mode,
                     discount:      $('#ar_disc_value').val() || 0,
                     discount_type: $('#ar_disc_type').val(),
+                    ret_discount:      $('#ar_rdisc_value').val() || 0,
+                    ret_discount_type: $('#ar_rdisc_type').val(),
                     restock:  $('#ar_restock').is(':checked') ? 1 : 0,
                     reason:   $('#ar_reason').val(),
                     lines:          JSON.stringify(retRows),

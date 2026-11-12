@@ -82,6 +82,16 @@
     ?>
     <table>
         <tr><td>Returned</td><td class="r"><?php echo number_format($ret->adv_total, 2); ?></td></tr>
+        <?php
+           $rdisc = isset($ret->adv_ret_discount) ? floatval($ret->adv_ret_discount) : 0;
+           if ($rdisc > 0.004) {
+               $rLabel = 'Less discount on return';
+               if (isset($ret->adv_ret_discount_type) && $ret->adv_ret_discount_type === 'percentage') {
+                   $rLabel .= ' ('.rtrim(rtrim(number_format(floatval($ret->adv_ret_discount_rate), 2), '0'), '.').'%)';
+               }
+        ?>
+        <tr><td><?php echo $rLabel; ?></td><td class="r">-<?php echo number_format($rdisc, 2); ?></td></tr>
+        <?php } ?>
         <?php if ($isExc) { ?>
         <tr><td>Taken away</td><td class="r"><?php echo number_format($ret->adv_exchange_total, 2); ?></td></tr>
         <?php }
@@ -89,7 +99,7 @@
            // to it so the customer can see 10% rather than just a figure.
            $disc = isset($ret->adv_discount) ? floatval($ret->adv_discount) : 0;
            if ($disc > 0.004) {
-               $dLabel = 'Discount';
+               $dLabel = 'Discount on goods taken';
                if (isset($ret->adv_discount_type) && $ret->adv_discount_type === 'percentage') {
                    $dLabel .= ' ('.rtrim(rtrim(number_format(floatval($ret->adv_discount_rate), 2), '0'), '.').'%)';
                }

@@ -450,6 +450,8 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
                                'Step 13 - the provider login (v20)'),
                 'v21' => array(MIGRATE_DIR . '/v21_batch_nov2026.sql',
                                'Step 15 - supplier returns, customer payments, sales reps, transfer after GRN (v21)'),
+                'v22' => array(MIGRATE_DIR . '/v22_adv_return_discount.sql',
+                               'Step 16 - discount on goods coming back in Advance Exchange (v22)'),
         );
 
         if (array_key_exists($action, $files)) {
@@ -807,6 +809,15 @@ $authed = !$locked && !empty($_SESSION['migrate_ok']);
        which is harmless.</p>
     <form method="post"><input type="hidden" name="action" value="v21">
       <button type="submit">Run step 15</button></form>
+  </div>
+
+  <div class="box step">
+    <h3>Step 16 - Discount on returns in Advance Exchange</h3>
+    <p>Adds three columns so Advance Exchange can take a discount off the goods coming back
+       (for goods that were bought at a discount), as well as off the goods going out.</p>
+    <p class="note"><strong>Safe to run:</strong> it only adds; existing records are unchanged.</p>
+    <form method="post"><input type="hidden" name="action" value="v22">
+      <button type="submit">Run step 16</button></form>
   </div>
 
   <div class="box">

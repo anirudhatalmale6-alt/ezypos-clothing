@@ -55,7 +55,7 @@ class Tspl_label
             'bar_height_mm'   => 8,
             'narrow_dots'     => 2,
             'name_font'       => '2',
-            'code_font'       => '1',
+            'code_font'       => '2',   // the top line of the label - readable size, like the name
             'price_font'      => '3',
             'price_mult'      => 1,
             'tear'            => 0,
@@ -225,21 +225,27 @@ class Tspl_label
 
     /* ----------------------------------------------------------- the job */
 
+    /** The shop's label shows the name as its first 12 characters, then "...". */
+    const NAME_MAX = 12;
+
+    public static function shortName($name)
+    {
+        $name = trim((string)$name);
+        return mb_strlen($name) > self::NAME_MAX ? mb_substr($name, 0, self::NAME_MAX).'...' : $name;
+    }
+
     /**
-     * Is the separate item-code line worth printing? Not when it is the same
-     * string as the barcode number already printed under the bars.
+     * Is the number under the bars worth printing? The item code now sits on
+     * its own line at the top of the label, so when the barcode IS the item
+     * code the number under the bars would only repeat it - that copy is the
+     * one dropped (the code line stays, it is the shop's top line).
      */
-    private function wantsCodeLine($item)
+    private function wantsBarText($item)
     {
         $s = $this->s;
-        if (!$s['show_code'] || trim((string)$item['code']) === '') return false;
-        if (!$s['hide_dup_code']) return true;
-        if (!$s['show_bar_text']) return true;
-        // The EFFECTIVE barcode - what actually goes under the bars, which
-        // falls back to the item code. Comparing the raw barcode field instead
-        // printed the code twice on every item that has no separate barcode.
+        if (!$s['show_bar_text']) return false;
+        if (!$s['hide_dup_code'] || !$s['show_code'] || trim((string)$item['code']) === '') return true;
         $bar = trim((string)$item['barcode']) !== '' ? trim((string)$item['barcode']) : trim((string)$item['code']);
-        if ($bar === '') return true;
         return strcasecmp($bar, trim((string)$item['code'])) !== 0;
     }
 
@@ -295,7 +301,8 @@ class Tspl_label
         $code = trim((string)$item['barcode']) !== '' ? trim((string)$item['barcode']) : trim((string)$item['code']);
         $wantShop  = strlen($s['shop_line']) > 0;
         $wantName  = $s['show_name'] && trim((string)$item['name']) !== '';
-        $wantCode  = $this->wantsCodeLine($item);
+        $wantCode  = $s['show_code'] && trim((string)$item['code']) !== '';
+        $barText   = $this->wantsBarText($item);
         $wantBars  = $code !== '' && $narrow > 0;
         $wantPrice = (bool)$s['show_price'];
 
@@ -306,7 +313,7 @@ class Tspl_label
         $nameH  = $wantName  ? self::fontH($nameF)  : 0;
         $codeH  = $wantCode  ? self::fontH($codeF)  : 0;
         $barH   = $this->mm($s['bar_height_mm']);
-        $readH  = $s['show_bar_text'] ? 20 : 0;
+        $readH  = $barText ? 20 : 0;
         $barsH  = $wantBars  ? $barH + $readH : 0;
         $priceH = $wantPrice ? self::fontH($priceF) * $pm : 0;
 
@@ -323,12 +330,7 @@ class Tspl_label
             $o .= self::text(self::centred($x0, $usable, mb_strlen($t) * $cw), $y, $shopF, 1, 1, $t);
             $y += $shopH + $gap;
         }
-        if ($wantName) {
-            $cw = self::fontW($nameF);
-            $t = self::fit($item['name'], $usable, $cw);
-            $o .= self::text(self::centred($x0, $usable, mb_strlen($t) * $cw), $y, $nameF, 1, 1, $t);
-            $y += $nameH + $gap;
-        }
+        // Top to bottom: item code, barcode, name, price.
         if ($wantCode) {
             $cw = self::fontW($codeF);
             $t = self::fit($item['code'], $usable, $cw);
@@ -338,8 +340,14 @@ class Tspl_label
         if ($wantBars) {
             $bw = self::code128Width($code, $narrow);
             $o .= 'BARCODE '.self::centred($x0, $usable, $bw).','.$y.',"128",'.$barH.','
-                . ($s['show_bar_text'] ? 1 : 0).',0,'.$narrow.','.($narrow * 2).',"'.self::esc($code).'"'.self::CRLF;
+                . ($barText ? 1 : 0).',0,'.$narrow.','.($narrow * 2).',"'.self::esc($code).'"'.self::CRLF;
             $y += $barsH + $gap;
+        }
+        if ($wantName) {
+            $cw = self::fontW($nameF);
+            $t = self::fit(self::shortName($item['name']), $usable, $cw);
+            $o .= self::text(self::centred($x0, $usable, mb_strlen($t) * $cw), $y, $nameF, 1, 1, $t);
+            $y += $nameH + $gap;
         }
         if ($wantPrice) {
             $price = $s['currency'].' '.number_format((float)$item['price'], 2, '.', ',');

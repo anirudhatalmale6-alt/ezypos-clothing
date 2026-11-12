@@ -119,7 +119,8 @@ namespace EzyLabel.App
             int nameH  = wantName ? TsplBuilder.FontHeight(nameFont) * nameSY : 0;
             int codeH  = wantCode ? TsplBuilder.FontHeight(codeFont) * codeSY : 0;
             int barH   = spec.Mm(barMm);
-            int readableH = spec.ShowBarcodeText ? 20 : 0;
+            bool barText  = TsplBuilder.WantsBarText(spec, item);
+            int readableH = barText ? 20 : 0;
             int barsH  = wantBars ? barH + readableH : 0;
             int priceH = wantPrice ? TsplBuilder.FontHeight(priceFont) * priceSY : 0;
 
@@ -138,14 +139,7 @@ namespace EzyLabel.App
                            y + spec.Mm(tShop.OffsetYMm), t, cw, shopH);
                 y += shopH + gap;
             }
-            if (wantName)
-            {
-                int cw = TsplBuilder.FontWidth(nameFont) * nameSX;
-                string t = TsplBuilder.Fit(item.ItemName, usable, cw);
-                FixedPitch(g, TsplBuilder.AlignedX(x0, usable, t.Length * cw, tName.Align) + spec.Mm(tName.OffsetXMm),
-                           y + spec.Mm(tName.OffsetYMm), t, cw, nameH);
-                y += nameH + gap;
-            }
+            // Top to bottom: item code, barcode, name, price - as TsplBuilder prints it.
             if (wantCode)
             {
                 int cw = TsplBuilder.FontWidth(codeFont) * codeSX;
@@ -156,7 +150,6 @@ namespace EzyLabel.App
             }
 
             int barY = y + spec.Mm(tBar.OffsetYMm);
-            int priceY = y + barsH + (wantBars ? gap : 0);
 
             if (wantBars)
             {
@@ -172,12 +165,23 @@ namespace EzyLabel.App
                         cx += w;
                     }
                 }
-                if (spec.ShowBarcodeText)
+                if (barText)
                 {
                     int tw = code.Length * 8;
                     FixedPitch(g, barX + Math.Max(0, (barW - tw) / 2), barY + barH + 3, code, 8, 12);
                 }
             }
+
+            y += barsH + (wantBars ? gap : 0);
+            if (wantName)
+            {
+                int cw = TsplBuilder.FontWidth(nameFont) * nameSX;
+                string t = TsplBuilder.Fit(TsplBuilder.ShortName(item.ItemName), usable, cw);
+                FixedPitch(g, TsplBuilder.AlignedX(x0, usable, t.Length * cw, tName.Align) + spec.Mm(tName.OffsetXMm),
+                           y + spec.Mm(tName.OffsetYMm), t, cw, nameH);
+                y += nameH + gap;
+            }
+            int priceY = y;
 
             if (spec.ShowPrice)
             {

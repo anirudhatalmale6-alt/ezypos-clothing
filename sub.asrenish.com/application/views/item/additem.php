@@ -1180,6 +1180,15 @@ $('#barcodeFormat, #barcodeCopies, #barcodeShowPrice').on('change', function(){
     generateBarcodePreview();
 });
 
+// Label order (the shop's layout): item code, barcode, name, price.
+// The name is the first 12 characters, with "..." when it is longer.
+var LABEL_NAME_MAX = 12;
+function labelName(n){
+    n = $.trim(String(n == null ? '' : n));
+    return n.length > LABEL_NAME_MAX ? n.substring(0, LABEL_NAME_MAX) + '...' : n;
+}
+function labelEsc(t){ return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 function generateBarcodePreview(){
     var format = $('#barcodeFormat').val();
     var copies = parseInt($('#barcodeCopies').val()) || 1;
@@ -1190,12 +1199,12 @@ function generateBarcodePreview(){
 
     var html = '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;">';
     for(var i = 0; i < Math.min(copies, 20); i++){
-        // Preview mirrors the printed label: name on top, barcode scaled to 160px,
-        // item code below at font-size 20, then price.
+        // Preview mirrors the printed label: item code on top, barcode scaled to
+        // 160px, the name (first 12 characters), then price.
         html += '<div class="barcode-label" style="border:1px dashed #ccc;padding:6px;text-align:center;width:200px;">';
-        html += '<div style="font-size:11px;font-weight:bold;margin-bottom:1px;white-space:nowrap;overflow:hidden;">' + name + '</div>';
+        html += '<div style="font-size:20px;font-weight:bold;line-height:1;letter-spacing:1px;">' + labelEsc(code) + '</div>';
         html += '<svg class="barcode-svg" style="width:160px;height:38px;display:block;margin:1px auto;"></svg>';
-        html += '<div style="font-size:20px;font-weight:bold;line-height:1;letter-spacing:1px;">' + code + '</div>';
+        html += '<div style="font-size:11px;font-weight:bold;margin-top:1px;white-space:nowrap;overflow:hidden;">' + labelEsc(labelName(name)) + '</div>';
         if(showPrice){
             html += '<div style="font-size:12px;font-weight:bold;margin-top:1px;">LKR ' + parseFloat(price).toFixed(2) + '</div>';
         }
@@ -1258,13 +1267,13 @@ $('#printBarcodeBtn').on('click', function(){
     html += '</style></head><body>';
     for(var i = 0; i < copies; i++){
         html += '<div class="label">';
-        html += '<div class="name">' + name + '</div>';
+        html += '<div class="code">' + labelEsc(code) + '</div>';
         html += '<svg class="bc"></svg>';
-        html += '<div class="code">' + code + '</div>';
+        html += '<div class="name">' + labelEsc(labelName(name)) + '</div>';
         if(showPrice) html += '<div class="price">LKR ' + parseFloat(price).toFixed(2) + '</div>';
         html += '</div>';
     }
-    // displayValue:false — the item code is printed separately (below) at font size 20;
+    // displayValue:false — the item code is printed separately (above) at font size 20;
     // the barcode SVG is then scaled by CSS to exactly ' + BARCODE_W + 'px wide.
     html += '<script>JsBarcode(".bc","' + code + '",{format:"' + format + '",width:2,height:38,margin:0,displayValue:false});window.onload=function(){window.print();}<\/script>';
     html += '</body></html>';
@@ -1286,8 +1295,10 @@ $('#exportBarcodeJpeg').on('click', function(){
     var name = currentBarcodeData.name;
     var price = currentBarcodeData.price;
 
-    // Create a hidden SVG for barcode generation
-    var tmpSvg = document.createElement('svg');
+    // Create a hidden SVG for barcode generation. It has to be made in the SVG
+    // namespace: createElement('svg') gives a plain HTML element, the image
+    // built from it never loads, and the export silently produced nothing.
+    var tmpSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     tmpSvg.style.position = 'absolute';
     tmpSvg.style.left = '-9999px';
     document.body.appendChild(tmpSvg);
@@ -1298,7 +1309,7 @@ $('#exportBarcodeJpeg').on('click', function(){
             height: Math.round(LABEL_H * 0.4),
             fontSize: Math.round(LABEL_H * 0.08),
             margin: 0,
-            displayValue: true
+            displayValue: false
         });
     } catch(e) {
         alert('Invalid barcode format for this item code.');
@@ -1334,24 +1345,29 @@ $('#exportBarcodeJpeg').on('click', function(){
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(x, y, LABEL_W, LABEL_H);
 
-            // Item name
+            // Item code
             ctx.fillStyle = '#000000';
-            ctx.font = 'bold ' + Math.round(LABEL_H * 0.09) + 'px Arial';
+            ctx.font = 'bold ' + Math.round(LABEL_H * 0.11) + 'px Arial';
             ctx.textAlign = 'center';
-            var nameY = y + Math.round(LABEL_H * 0.12);
-            ctx.fillText(name, x + LABEL_W / 2, nameY, LABEL_W - 4);
+            var codeY = y + Math.round(LABEL_H * 0.13);
+            ctx.fillText(code, x + LABEL_W / 2, codeY, LABEL_W - 4);
 
-            // Barcode SVG
-            var bcY = nameY + 2;
-            var bcH = Math.round(LABEL_H * 0.55);
+            // Barcode (bars only - the code is printed above)
+            var bcY = codeY + 3;
+            var bcH = Math.round(LABEL_H * 0.42);
             var bcW = Math.min(img.width, LABEL_W - 10);
             var bcX = x + (LABEL_W - bcW) / 2;
             ctx.drawImage(img, bcX, bcY, bcW, bcH);
 
+            // Name: first 12 characters
+            ctx.font = 'bold ' + Math.round(LABEL_H * 0.09) + 'px Arial';
+            var nameY = bcY + bcH + Math.round(LABEL_H * 0.11);
+            ctx.fillText(labelName(name), x + LABEL_W / 2, nameY, LABEL_W - 4);
+
             // Price
             if (showPrice) {
                 ctx.font = 'bold ' + Math.round(LABEL_H * 0.10) + 'px Arial';
-                var priceY = bcY + bcH + Math.round(LABEL_H * 0.10);
+                var priceY = nameY + Math.round(LABEL_H * 0.12);
                 ctx.fillText('LKR ' + parseFloat(price).toFixed(2), x + LABEL_W / 2, priceY, LABEL_W - 4);
             }
         }

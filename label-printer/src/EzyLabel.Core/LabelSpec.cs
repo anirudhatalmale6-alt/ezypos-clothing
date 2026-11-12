@@ -202,7 +202,8 @@ namespace EzyLabel.Core
 
         // ---- font sizes, as TSPL built-in font numbers ----------------------
         public string NameFont { get; set; } = "2";
-        public string CodeFont { get; set; } = "1";
+        // The item code is the top line of the label now - readable size, like the name.
+        public string CodeFont { get; set; } = "2";
         public string PriceFont { get; set; } = "3";
         public int PriceMultiplier { get; set; } = 1;
 

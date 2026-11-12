@@ -2019,7 +2019,10 @@ class Report_model extends CI_Model {
         $blank = array('total' => 0, 'count' => 0);
         if(!$this->db->table_exists('ezy_pos_adv_return')){ return $blank; }
         $sf  = $this->_storeFilterFor('adv_store_id', $storeId);
-        $str = "SELECT COALESCE(SUM(adv_total),0) AS t, COUNT(*) AS n
+        // What was refunded: the goods coming back, less any discount taken
+        // off them (v22) - not their full shelf value.
+        $retVal = $this->db->field_exists('adv_ret_discount', 'ezy_pos_adv_return') ? 'adv_total - adv_ret_discount' : 'adv_total';
+        $str = "SELECT COALESCE(SUM(".$retVal."),0) AS t, COUNT(*) AS n
                 FROM ezy_pos_adv_return
                 WHERE adv_created_at BETWEEN ? AND ? AND adv_status = 1".$sf;
         $row = $this->db->query($str, array($from." 00:00:00", $to." 23:59:59"))->row();

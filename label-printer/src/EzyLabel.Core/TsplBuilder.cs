@@ -241,20 +241,33 @@ namespace EzyLabel.Core
             // No CLS here on purpose - every row opens with its own.
         }
 
+        /// <summary>The shop's label shows the name as its first 12 characters, then "...".</summary>
+        public const int NameMaxChars = 12;
+
+        public static string ShortName(string name)
+        {
+            name = (name ?? "").Trim();
+            return name.Length > NameMaxChars ? name.Substring(0, NameMaxChars) + "..." : name;
+        }
+
         /// <summary>
-        /// Should the separate item-code line be printed at all?
-        ///
-        /// In this shop the item code and the barcode number are the same
-        /// string. Printing both put it on the sticker twice and pushed the
-        /// name away from the bars, so when they match the readable number
-        /// under the barcode is the one that is kept.
+        /// The item-code line: printed whenever it is switched on. It is the
+        /// top line of the shop's label (code, barcode, name, price).
         /// </summary>
         public static bool WantsCodeLine(LabelSpec spec, LabelItem item)
         {
-            if (!spec.ShowItemCode || string.IsNullOrWhiteSpace(item.ItemCode)) return false;
-            if (!spec.HideCodeWhenSameAsBarcode) return true;
-            // Only the readable number counts as "already shown".
-            if (!spec.ShowBarcodeText) return true;
+            return spec.ShowItemCode && !string.IsNullOrWhiteSpace(item.ItemCode);
+        }
+
+        /// <summary>
+        /// The number under the bars. With the item code on its own line at the
+        /// top, the number under the bars would only repeat it when the barcode
+        /// IS the item code - so that copy is the one dropped.
+        /// </summary>
+        public static bool WantsBarText(LabelSpec spec, LabelItem item)
+        {
+            if (!spec.ShowBarcodeText) return false;
+            if (!spec.HideCodeWhenSameAsBarcode || !WantsCodeLine(spec, item)) return true;
             string bar = item.EffectiveBarcode;
             if (string.IsNullOrWhiteSpace(bar)) return true;
             return !string.Equals(bar.Trim(), item.ItemCode.Trim(), StringComparison.OrdinalIgnoreCase);
@@ -280,6 +293,7 @@ namespace EzyLabel.Core
             bool wantShop  = spec.ShopLine.Length > 0;
             bool wantName  = spec.ShowItemName && !string.IsNullOrWhiteSpace(item.ItemName);
             bool wantCode  = WantsCodeLine(spec, item);
+            bool barText   = WantsBarText(spec, item);
             string code    = item.EffectiveBarcode;
             bool wantBars  = !string.IsNullOrEmpty(code) && narrowDots > 0;
             bool wantPrice = spec.ShowPrice;
@@ -316,7 +330,7 @@ namespace EzyLabel.Core
             int codeH  = wantCode  ? FontHeight(codeFont) * codeSY : 0;
             int barH   = spec.Mm(barMm);
             // The human-readable number the printer draws under the bars.
-            int readH  = spec.ShowBarcodeText ? 20 : 0;
+            int readH  = barText ? 20 : 0;
             int barsH  = wantBars ? barH + readH : 0;
             int priceH = wantPrice ? FontHeight(priceFont) * priceSY : 0;
 
@@ -335,14 +349,7 @@ namespace EzyLabel.Core
                 y += shopH + gap;
             }
 
-            if (wantName)
-            {
-                int cw = FontWidth(nameFont) * nameSX;
-                sb.Append(Placed(spec, tName, x0, y, usable, nameFont, nameSX, nameSY,
-                                 Fit(item.ItemName, usable, cw)));
-                y += nameH + gap;
-            }
-
+            // Top to bottom: item code, barcode, name, price.
             if (wantCode)
             {
                 int cw = FontWidth(codeFont) * codeSX;
@@ -361,10 +368,18 @@ namespace EzyLabel.Core
                 int barY = y + spec.Mm(tBar.OffsetYMm);
                 sb.Append("BARCODE ").Append(barX).Append(",").Append(barY)
                   .Append(",\"128\",").Append(barH).Append(",")
-                  .Append(spec.ShowBarcodeText ? 1 : 0).Append(",0,")
+                  .Append(barText ? 1 : 0).Append(",0,")
                   .Append(narrowDots).Append(",").Append(narrowDots * 2)
                   .Append(",\"").Append(Escape(code)).Append("\"").Append(CRLF);
                 y += barsH + gap;
+            }
+
+            if (wantName)
+            {
+                int cw = FontWidth(nameFont) * nameSX;
+                sb.Append(Placed(spec, tName, x0, y, usable, nameFont, nameSX, nameSY,
+                                 Fit(ShortName(item.ItemName), usable, cw)));
+                y += nameH + gap;
             }
 
             if (wantPrice)

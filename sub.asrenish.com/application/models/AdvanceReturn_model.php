@@ -94,7 +94,11 @@ class AdvanceReturn_model extends CI_Model {
         $sale_id = function_exists('bill_no_to_sale_id') ? bill_no_to_sale_id($billNo) : intval($billNo);
         if (!$sale_id) { return null; }
 
+        $sFields = $this->db->list_fields('ezy_pos_sale');
         $sql = "SELECT s.sale_id, s.sale_cus_id, s.sale_grandtotal, s.sale_date,
+                       s.sale_subtotal, s.sale_discount,
+                       ".(in_array('sale_discount_type', $sFields) ? "s.sale_discount_type" : "'flat' AS sale_discount_type").",
+                       ".(in_array('sale_promo_discount', $sFields) ? "s.sale_promo_discount" : "0 AS sale_promo_discount").",
                        s.sale_location, c.cus_name, st.store_name
                 FROM ezy_pos_sale s
                 LEFT JOIN ezy_pos_customers c ON c.cus_id = s.sale_cus_id
@@ -104,11 +108,24 @@ class AdvanceReturn_model extends CI_Model {
         if (!$row) { return null; }
 
         $row->items = $this->db->query(
-            "SELECT si.saleitem_item_id, si.saleitem_price, si.saleitem_quantity,
+            "SELECT si.saleitem_item_id, si.saleitem_price, si.saleitem_quantity, si.saleitem_total,
                     i.itm_code, i.itm_name
              FROM ezy_pos_sale_item si
              LEFT JOIN ezy_pos_items i ON i.itm_id = si.saleitem_item_id
              WHERE si.saleitem_sale_id = ?", array($sale_id))->result();
+        // What one unit actually cost the customer on that bill: the line after
+        // its own discount. The bill-wide discount (and any promotion) is
+        // given as a percentage, so the page can take the same share off the
+        // refund - a customer is refunded what they paid, not the list price.
+        foreach ($row->items as $it) {
+            $q = floatval($it->saleitem_quantity);
+            $it->unit_net = $q > 0 ? round(floatval($it->saleitem_total) / $q, 2) : floatval($it->saleitem_price);
+        }
+        $sub = floatval($row->sale_subtotal);
+        $billDisc = ($row->sale_discount_type === 'percentage') ? $sub * floatval($row->sale_discount) / 100
+                                                                : floatval($row->sale_discount);
+        $billDisc += floatval($row->sale_promo_discount);
+        $row->bill_disc_pct = ($sub > 0 && $billDisc > 0) ? round(min(100, $billDisc / $sub * 100), 2) : 0;
         return $row;
     }
 
@@ -314,8 +331,26 @@ class AdvanceReturn_model extends CI_Model {
         if ($discount > $exc['total']) { $discount = $exc['total']; }
         if ($discount < 0) { $discount = 0; }
 
+        // And a discount on the goods coming back - for goods that were bought
+        // at a discount, so the refund is what the customer actually paid.
+        // Worked out here again for the same reason, and never more than the
+        // goods coming back are worth.
+        $rDiscType = (isset($header['ret_discount_type']) && $header['ret_discount_type'] === 'percentage')
+                   ? 'percentage' : 'flat';
+        $rDiscRate = round(floatval(isset($header['ret_discount']) ? $header['ret_discount'] : 0), 2);
+        if ($rDiscRate < 0) { $rDiscRate = 0; }
+        $retDiscount = ($rDiscType === 'percentage')
+                     ? round($ret['total'] * $rDiscRate / 100, 2)
+                     : $rDiscRate;
+        if ($retDiscount > $ret['total']) { $retDiscount = $ret['total']; }
+        if ($retDiscount < 0) { $retDiscount = 0; }
+        $advFields = $this->db->list_fields('ezy_pos_adv_return');
+        if ($retDiscount > 0 && !in_array('adv_ret_discount', $advFields)) {
+            return array('ok' => false, 'msg' => 'A discount on returned goods needs step 16 in migrate.php first. Nothing has been saved.');
+        }
+
         // Positive: the customer owes us. Negative: we owe the customer.
-        $net = round($exc['total'] - $discount - $ret['total'], 2);
+        $net = round(($exc['total'] - $discount) - ($ret['total'] - $retDiscount), 2);
 
         $mode   = (isset($header['refund_mode']) && $header['refund_mode'] === 'store_credit') ? 'store_credit' : 'cash';
         $cus_id = intval($header['cus_id']);
@@ -393,14 +428,18 @@ class AdvanceReturn_model extends CI_Model {
             'adv_created_at'     => date('Y-m-d H:i:s')
         );
 
-        // The discount columns arrive with v17. Only write them when they are
-        // there, so this page keeps working on a server where the migration
-        // has not been run yet.
-        $advFields = $this->db->list_fields('ezy_pos_adv_return');
+        // The discount columns arrive with v17 (going out) and v22 (coming
+        // back). Only write them when they are there, so this page keeps
+        // working on a server where the migration has not been run yet.
         if (in_array('adv_discount', $advFields)) {
             $head['adv_discount']      = $discount;
             $head['adv_discount_type'] = $discType;
             $head['adv_discount_rate'] = $discRate;
+        }
+        if (in_array('adv_ret_discount', $advFields)) {
+            $head['adv_ret_discount']      = $retDiscount;
+            $head['adv_ret_discount_type'] = $rDiscType;
+            $head['adv_ret_discount_rate'] = $rDiscRate;
         }
 
         $this->db->insert('ezy_pos_adv_return', $head);
@@ -458,7 +497,8 @@ class AdvanceReturn_model extends CI_Model {
 
         return array('ok' => true, 'msg' => $ref.' saved.', 'id' => $adv_id, 'ref' => $ref,
                      'type' => $type, 'return_total' => $ret['total'],
-                     'exchange_total' => $exc['total'], 'net' => $net);
+                     'exchange_total' => $exc['total'], 'net' => $net,
+                     'discount' => $discount, 'return_discount' => $retDiscount);
     }
 
     /**
