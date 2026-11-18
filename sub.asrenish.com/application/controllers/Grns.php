@@ -61,6 +61,7 @@ class Grns extends CI_Controller {
                 $data = array(
                         'suppliers' => $this->Suppliers_model->getSuppliers(),
                         'items' => $this->Items_model->getItems(),
+                        'lastPrices' => $this->Grns_model->lastPricesAll(),
                         'storeLoc' => $storeLoc
                 );
         
@@ -101,7 +102,8 @@ class Grns extends CI_Controller {
                 $data1['config'] = $this->Configs_model->getConfigName(); 
                 $data = array(
                         'suppliers' => $this->Suppliers_model->getSuppliers(),
-                        'items'     => $this->Items_model->getItems()
+                        'items'     => $this->Items_model->getItems(),
+                        'lastPrices'=> $this->Grns_model->lastPricesAll()
                 );
                 $this->load->view('templates/header', $data1);
                 $this->load->view('listing/'.$page,$data);

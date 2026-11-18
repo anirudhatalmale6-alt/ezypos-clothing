@@ -1243,20 +1243,22 @@
             $("#grnsupplier-auto").parent().show();            
     });
 
-    //autoload items 
-    var availableItems=[
-        <?php
-         foreach ($items as $item)
-        {
-           echo '{ label: "'.$item->itm_name.' - '.$item->itm_code.'", value:"'.$item->itm_id.'" },';
+    //autoload items - each with the price it was last bought at, per unit
+    var availableItems=<?php
+        $ac = array();
+        foreach ($items as $item) {
+            $txt = $item->itm_name.' - '.$item->itm_code;
+            $lp  = isset($lastPrices[(int)$item->itm_id]) ? $lastPrices[(int)$item->itm_id] : null;
+            $ac[] = array('label' => $txt.($lp !== null ? '   |   Last GRN: '.number_format($lp, 2) : ''),
+                          'text' => $txt, 'value' => (string)$item->itm_id);
         }
-        ?>
-    ];
+        echo json_encode($ac);
+    ?>;
     $( "#grnitem-auto" ).autocomplete({
         source: availableItems,
         select: function(event, ui) {
                 event.preventDefault();
-                $("#grnitem-auto").val(ui.item.label);
+                $("#grnitem-auto").val(ui.item.text || ui.item.label);
                 $('#grnitem-id').val(ui.item.value);
                 // Offer the price it was last bought at. It stays editable -
                 // change it when the supplier's price has changed.

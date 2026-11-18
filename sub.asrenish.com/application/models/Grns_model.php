@@ -359,6 +359,22 @@ class Grns_model extends CI_Model {
         return $this->db->query($str, array(intval($itemId)))->row();
     }
 
+    /**
+     * Every item's most recent purchase price per unit, as entered on its
+     * newest GRN line - the same rule as lastPurchase(), for the whole list at
+     * once so the GRN item search can show it beside each item.
+     */
+    public function lastPricesAll(){
+        $rows = $this->db->query(
+            "SELECT gi.grnitm_itemid AS item_id, gi.grnitm_price AS price
+             FROM ezy_pos_grn_item gi
+             JOIN ezy_pos_grns g ON g.grn_id = gi.grnitm_grn_id AND g.grn_status = 1
+             ORDER BY g.grn_date, gi.grnitm_id")->result();
+        $out = array();
+        foreach ($rows as $r) { $out[(int)$r->item_id] = (float)$r->price; }   // the last one wins
+        return $out;
+    }
+
     public function getGrnItemsForEdit($grnid){
         $str = "SELECT gi.grnitm_id, gi.grnitm_itemid, gi.grnitm_price, gi.grnitm_quantity, gi.grnitm_discount, gi.grnitm_total,
                 i.itm_name, i.itm_code, i.itm_sellingprice

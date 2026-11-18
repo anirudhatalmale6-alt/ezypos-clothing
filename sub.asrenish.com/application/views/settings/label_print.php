@@ -128,6 +128,15 @@
                             <input type="text" class="form-control form-control-sm lp-set" data-k="shop_line"
                                    value="<?php echo htmlspecialchars($settings['shop_line']); ?>" placeholder="e.g. HANDLOOM GALLERY">
                         </div>
+                        <div class="col-12 m-b-10">
+                            <label class="small mb-0">At the end of a job</label>
+                            <select class="form-control form-control-sm lp-set" data-k="end_feed">
+                                <option value="tear" <?php echo $settings['end_feed'] === 'tear' ? 'selected' : ''; ?>>Bring the last labels out to the tear bar</option>
+                                <option value="blank" <?php echo $settings['end_feed'] === 'blank' ? 'selected' : ''; ?>>Feed one blank row out (never feeds backwards)</option>
+                                <option value="none" <?php echo $settings['end_feed'] === 'none' ? 'selected' : ''; ?>>Leave them inside the printer</option>
+                            </select>
+                            <small class="text-muted">If labels start creeping up the roll, try the blank row instead.</small>
+                        </div>
                         <div class="col-12">
                             <div class="checkbox checkbox-custom">
                                 <input id="lpTrust" type="checkbox" class="lp-chk" data-k="trust_printer" value="1"
@@ -489,6 +498,7 @@ $(function(){
         var s = {};
         $('.lp-set').each(function(){ s[$(this).data('k')] = $(this).val(); });
         $('.lp-chk').each(function(){ s[$(this).data('k')] = $(this).is(':checked') ? 1 : 0; });
+        s.tear = 0;   // the old tear switch; 'At the end of a job' decides now
         $.post(BASE + 'label-print/saveSettings', { settings: JSON.stringify(s) }, null, 'json').then(function(r){
             if (!r.ok) { msg(r.msg, 'danger'); return; }
             settings = r.settings; render();

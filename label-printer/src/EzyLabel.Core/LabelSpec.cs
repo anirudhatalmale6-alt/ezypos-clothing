@@ -152,6 +152,20 @@ namespace EzyLabel.Core
         /// </summary>
         public bool TearOff { get; set; } = false;
 
+        /// <summary>
+        /// What happens after the last row of a job:
+        ///   "tear"  - out to the tear bar (tear mode on; the printer pulls it
+        ///             back before the next job). The default: with tear mode
+        ///             off the last row stayed inside the printer.
+        ///   "blank" - one empty row fed through, so the printed ones are past
+        ///             the tear bar and nothing ever feeds backwards.
+        ///   "none"  - left under the print head.
+        /// </summary>
+        public string EndOfJob { get; set; } = "tear";
+
+        [JsonIgnore]
+        public bool TearModeOn => TearOff || string.Equals(EndOfJob, "tear", StringComparison.OrdinalIgnoreCase);
+
         // ---- per line: where it sits, how big, how it lines up --------------
         // These default to "leave it alone", so a settings.json written before
         // they existed prints exactly as it did.

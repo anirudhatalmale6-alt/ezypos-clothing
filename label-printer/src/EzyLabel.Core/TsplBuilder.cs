@@ -191,6 +191,8 @@ namespace EzyLabel.Core
                 // item.
                 sb.Append("PRINT 1,1").Append(CRLF);
             }
+            if (string.Equals(spec.EndOfJob, "blank", StringComparison.OrdinalIgnoreCase) && !spec.TearModeOn)
+                sb.Append("FORMFEED").Append(CRLF);
 
             result.Tspl = sb.ToString();
             return result;
@@ -236,7 +238,11 @@ namespace EzyLabel.Core
             // registered against its own gap by the sensor, so nothing can
             // accumulate. Turn it back on only if a single label needs to come
             // to the tear bar on its own.
-            sb.Append(spec.TearOff ? "SET TEAR ON" : "SET TEAR OFF").Append(CRLF);
+            // EndOfJob = "tear" (the default) turns it on so the last row comes
+            // out to the tear bar - left off, the shop's last 2 of 4 labels
+            // stayed inside the printer. "blank" keeps it off and feeds an
+            // empty row through at the end instead.
+            sb.Append(spec.TearModeOn ? "SET TEAR ON" : "SET TEAR OFF").Append(CRLF);
             sb.Append("CODEPAGE UTF-8").Append(CRLF);
             // No CLS here on purpose - every row opens with its own.
         }

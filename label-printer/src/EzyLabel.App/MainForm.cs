@@ -40,7 +40,7 @@ namespace EzyLabel.App
 
         // ---- settings tab
         private TextBox _txtUrl, _txtKey, _txtShopLine, _txtCurrency;
-        private ComboBox _cboPrinter;
+        private ComboBox _cboPrinter, _cboEndOfJob;
         private NumericUpDown _numW, _numH, _numCols, _numColGap, _numRowGap,
                               _numLeft, _numTop, _numInner, _numBarH, _numNarrow, _numLineGap,
                               _numSpeed, _numDensity, _numDpi, _numPort;
@@ -537,6 +537,19 @@ namespace EzyLabel.App
             _numNarrow  = Num("Narrow bar (dots)", 1, 6, 0, "2 is usual; drops to 1 by itself if a code will not fit");
             _numSpeed   = Num("Speed (ips)", 1, 12, 0, "3 to 4 suits small labels");
             _numDensity = Num("Density", 0, 15, 0, "8 to start; raise if the print is faint");
+            page.Controls.Add(new Label { Text = "At the end of a job", Left = 0, Top = y + 3, Width = 200 });
+            _cboEndOfJob = new ComboBox { Left = 205, Top = y, Width = 380, DropDownStyle = ComboBoxStyle.DropDownList };
+            _cboEndOfJob.Items.AddRange(new object[] {
+                "Bring the last labels out to the tear bar",
+                "Feed one blank row out (never feeds backwards)",
+                "Leave them inside the printer" });
+            page.Controls.Add(_cboEndOfJob);
+            page.Controls.Add(new Label
+            {
+                Left = 595, Top = y + 4, Width = 430, ForeColor = Color.Gray,
+                Text = "If labels start creeping up the roll, try the blank row instead."
+            });
+            y += 34;
 
             Head("What goes on the label");
             _chkName = new CheckBox { Text = "Item name", Left = 205, Top = y, Width = 140 }; page.Controls.Add(_chkName);
@@ -899,6 +912,8 @@ namespace EzyLabel.App
             _chkPrice.Checked = L.ShowPrice;
             _chkBarcodeText.Checked = L.ShowBarcodeText;
             _chkHideDupCode.Checked = L.HideCodeWhenSameAsBarcode;
+            _cboEndOfJob.SelectedIndex = string.Equals(L.EndOfJob, "blank", StringComparison.OrdinalIgnoreCase) ? 1
+                                       : string.Equals(L.EndOfJob, "none", StringComparison.OrdinalIgnoreCase) ? 2 : 0;
             _txtCurrency.Text = L.CurrencyPrefix;
             _txtShopLine.Text = L.ShopLine;
             _chkAgent.Checked = s.AgentEnabled;
@@ -934,6 +949,8 @@ namespace EzyLabel.App
             L.ShowPrice = _chkPrice.Checked;
             L.ShowBarcodeText = _chkBarcodeText.Checked;
             L.HideCodeWhenSameAsBarcode = _chkHideDupCode.Checked;
+            L.EndOfJob = _cboEndOfJob.SelectedIndex == 1 ? "blank" : _cboEndOfJob.SelectedIndex == 2 ? "none" : "tear";
+            L.TearOff = false;   // the old switch; the choice above decides now
             L.CurrencyPrefix = _txtCurrency.Text;
             L.ShopLine = _txtShopLine.Text;
 

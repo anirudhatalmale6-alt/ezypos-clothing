@@ -59,6 +59,11 @@ class Tspl_label
             'price_font'      => '3',
             'price_mult'      => 1,
             'tear'            => 0,
+            // What happens after the last row: 'tear' brings it out to the tear
+            // bar (the printer pulls it back before the next job), 'blank'
+            // feeds one empty row through instead (nothing ever feeds
+            // backwards), 'none' leaves it under the print head.
+            'end_feed'        => 'tear',
             // When ON, the job does not send SIZE and GAP at all and the
             // printer uses what it measured itself when the roll was taught.
             // See trust_printer() below for why this exists.
@@ -97,7 +102,7 @@ class Tspl_label
     {
         static $ints = array('columns','dpi','speed','density','direction','mirror','show_name','show_code',
                              'show_price','show_bar_text','hide_dup_code','narrow_dots','price_mult','tear','trust_printer');
-        static $strs = array('name_font','code_font','price_font','currency','shop_line','printer');
+        static $strs = array('name_font','code_font','price_font','currency','shop_line','printer','end_feed');
         if (in_array($k, $ints, true)) return (int)$v;
         if (in_array($k, $strs, true)) return (string)$v;
         return (float)$v;
@@ -137,6 +142,7 @@ class Tspl_label
         if ($s['dpi'] <= 0) return 'Printer resolution must be more than zero.';
         if ($s['inner_mm'] * 2 >= $s['width_mm']) return 'The inner margin is wider than the label itself.';
         if ($s['bar_height_mm'] <= 0 || $s['bar_height_mm'] >= $s['height_mm']) return 'The barcode height must fit inside the label.';
+        if (!in_array($s['end_feed'], array('tear', 'blank', 'none'), true)) return 'Choose what happens at the end of a job.';
         if ($s['speed'] < 1 || $s['speed'] > 12) return 'Speed should be between 1 and 12.';
         if ($s['density'] < 0 || $s['density'] > 15) return 'Density should be between 0 and 15.';
         if ($s['narrow_dots'] < 1 || $s['narrow_dots'] > 6) return 'The narrow bar width should be between 1 and 6 dots.';
@@ -268,6 +274,17 @@ class Tspl_label
              . 'GAP '.self::num($this->s['row_gap_mm']).' mm, 0 mm'.self::CRLF;
     }
 
+    /**
+     * Tear mode on or off for the job. With it off the last row stays under
+     * the print head - the shop saw the last 2 of 4 labels stay inside the
+     * printer. 'tear' (the default) turns it on so they come out to the tear
+     * bar; the old tear setting still turns it on as before.
+     */
+    private function tearOn()
+    {
+        return !empty($this->s['tear']) || $this->s['end_feed'] === 'tear';
+    }
+
     private function header($labels, $rows)
     {
         $s = $this->s;
@@ -284,7 +301,7 @@ class Tspl_label
         // Off: with tear on the printer runs each label out to the tear bar and
         // pulls it back before the next, and over a batch the small difference
         // between the two adds up.
-        $o .= ($s['tear'] ? 'SET TEAR ON' : 'SET TEAR OFF').self::CRLF;
+        $o .= ($this->tearOn() ? 'SET TEAR ON' : 'SET TEAR OFF').self::CRLF;
         $o .= 'CODEPAGE UTF-8'.self::CRLF;
         return $o;
     }
@@ -423,6 +440,11 @@ class Tspl_label
                 $t .= $this->oneLabel($it, $this->columnOrigin($c), 0, $narrowFor[$code]);
             }
             $t .= 'PRINT 1,1'.self::CRLF;
+        }
+        // 'blank': one empty row through, so the printed ones are past the
+        // tear bar without the printer ever feeding backwards.
+        if ($this->s['end_feed'] === 'blank' && !$this->tearOn()) {
+            $t .= 'FORMFEED'.self::CRLF;
         }
         $out['tspl'] = $t; $out['labels'] = count($flat); $out['rows'] = $rows;
         return $out;

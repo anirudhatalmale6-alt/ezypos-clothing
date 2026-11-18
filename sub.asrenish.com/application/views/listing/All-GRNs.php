@@ -282,9 +282,17 @@
         });
         // ---------- Item 2: full GRN edit (editable item list) ----------
         // Items available to add to a GRN (id / name / code)
-        var grnEditItems = [
-            <?php foreach ($items as $item){ echo '{ label: "'.addslashes($item->itm_name).' - '.addslashes($item->itm_code).'", value:"'.$item->itm_id.'" },'; } ?>
-        ];
+        // Items to add, each with the price it was last bought at, per unit.
+        var grnEditItems = <?php
+            $ac = array();
+            foreach ($items as $item) {
+                $txt = $item->itm_name.' - '.$item->itm_code;
+                $lp  = isset($lastPrices[(int)$item->itm_id]) ? $lastPrices[(int)$item->itm_id] : null;
+                $ac[] = array('label' => $txt.($lp !== null ? '   |   Last GRN: '.number_format($lp, 2) : ''),
+                              'text' => $txt, 'value' => (string)$item->itm_id);
+            }
+            echo json_encode($ac);
+        ?>;
         var grnEditDeleted = []; // existing lines removed during this edit
 
         function nz(v){ v = parseFloat(v); return isNaN(v) ? 0 : v; }
@@ -390,7 +398,7 @@
             source: grnEditItems,
             select: function(event, ui){
                 event.preventDefault();
-                $('#grnEditItemAuto').val(ui.item.label);
+                $('#grnEditItemAuto').val(ui.item.text || ui.item.label);
                 $('#grnEditItemId').val(ui.item.value);
                 // Last purchase price as the starting cost (still editable),
                 // and the item's selling price for reference.
